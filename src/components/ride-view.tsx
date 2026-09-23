@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LeafletMap, type MapPin } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { formatRideDate, levelInfo, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
@@ -35,6 +35,8 @@ export function ridePins(ride: {
 
 /** Fiche balade : carte avec tracé, infos, organisateur, participants. */
 export function RideView({ ride, actions, onPersonPress }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   const level = levelInfo(ride.level);
   const visibility = visibilityInfo(ride.visibility);
   const pins = ridePins(ride);
@@ -85,11 +87,11 @@ export function RideView({ ride, actions, onPersonPress }: Props) {
         </Card>
 
         <Card title="Itinéraire">
-          <InfoRow icon="ellipse" color="#16A34A" text={ride.start.label} />
+          <InfoRow icon="ellipse" color={Colors.success} text={ride.start.label} />
           {ride.waypoints.map((w, i) => (
-            <InfoRow key={i} icon="ellipse-outline" color="#52525B" text={`${i + 1}. ${w.label}`} />
+            <InfoRow key={i} icon="ellipse-outline" color={Colors.neutral} text={`${i + 1}. ${w.label}`} />
           ))}
-          <InfoRow icon="ellipse" color="#DC2626" text={ride.end.label} />
+          <InfoRow icon="ellipse" color={Colors.danger} text={ride.end.label} />
           {ride.distanceM !== null && (
             <InfoRow
               icon="navigate"
@@ -132,6 +134,8 @@ export function RideView({ ride, actions, onPersonPress }: Props) {
 }
 
 function InfoRow({ icon, text, color }: { icon: keyof typeof Ionicons.glyphMap; text: string; color?: string }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.infoRow}>
       <Ionicons name={icon} size={16} color={color ?? Colors.accent} />
@@ -151,6 +155,7 @@ function Person({
   faded?: boolean;
   onPress?: (id: string) => void;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={() => onPress?.(person.id)}
@@ -164,7 +169,7 @@ function Person({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: 48 },
   map: { height: 280, backgroundColor: Colors.border },
@@ -173,17 +178,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: Colors.successSoft,
     borderRadius: 12,
     padding: 10,
   },
-  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#16A34A' },
-  liveText: { flex: 1, color: '#166534', fontWeight: '700', fontSize: 13 },
+  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.success },
+  liveText: { flex: 1, color: Colors.successDark, fontWeight: '700', fontSize: 13 },
   title: { fontSize: 24, fontWeight: '900', color: Colors.text },
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipOutline: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
-  chipText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  chipText: { color: Colors.white, fontSize: 12, fontWeight: '700' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   infoText: { flex: 1, fontSize: 15, color: Colors.text, textTransform: 'none' },
   person: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -195,4 +200,4 @@ const styles = StyleSheet.create({
   usernameSmall: { fontSize: 11, color: Colors.text, maxWidth: 64 },
   subtle: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
   description: { fontSize: 15, lineHeight: 21, color: Colors.text },
-});
+}));

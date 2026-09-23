@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { WallPhoto } from '@/lib/wall';
+import { makeStyles, useColors } from '@/constants/theme';
 
 type Props = {
   photo: WallPhoto | null;
@@ -15,6 +16,8 @@ type Props = {
 
 /** Photo en grand, avec légende et date. */
 export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <Modal visible={!!photo} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent>
       {photo && (
@@ -32,11 +35,11 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
               <View style={styles.topActions}>
                 {onDelete && (
                   <Pressable onPress={() => onDelete(photo)} hitSlop={12}>
-                    <Ionicons name="trash-outline" size={24} color="#fff" />
+                    <Ionicons name="trash-outline" size={24} color={Colors.white} />
                   </Pressable>
                 )}
                 <Pressable onPress={onClose} hitSlop={12}>
-                  <Ionicons name="close" size={30} color="#fff" />
+                  <Ionicons name="close" size={30} color={Colors.white} />
                 </Pressable>
               </View>
             </View>
@@ -56,16 +59,16 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' },
+const useStyles = makeStyles((Colors) => ({
+  backdrop: { flex: 1, backgroundColor: Colors.viewerBackdrop },
   safe: { flex: 1 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   author: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#333' },
-  username: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.darkSoft },
+  username: { color: Colors.white, fontWeight: '700', fontSize: 16 },
   image: { flex: 1 },
   bottom: { padding: 16, gap: 6 },
-  caption: { color: '#fff', fontSize: 16, lineHeight: 22 },
-  date: { color: '#A1A1AA', fontSize: 13 },
-});
+  caption: { color: Colors.white, fontSize: 16, lineHeight: 22 },
+  date: { color: Colors.textFaint, fontSize: 13 },
+}));

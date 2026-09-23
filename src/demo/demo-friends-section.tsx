@@ -1,16 +1,17 @@
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { SmallButton } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
 import { findDemoRider } from '@/demo/riders';
 import { demoPrivacyLabel, demoSocial } from '@/demo/social';
 
 /** Amis et demandes des faux motards, affichés sous les vrais dans l'écran Amis. */
 export function DemoFriendsSection() {
+  const styles = useStyles();
   const demo = useDemoMode();
   if (!demo.enabled) return null;
 
@@ -57,8 +58,8 @@ export function DemoFriendsSection() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   group: { gap: 4 },
   subtitle: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
   actions: { flexDirection: 'row', gap: 6 },
-});
+}));

@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { Field, SmallButton } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { DemoFriendsSection } from '@/demo/demo-friends-section'; // DEMO
 import {
   acceptFriendRequest,
@@ -19,6 +19,8 @@ import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
 
 export default function FriendsScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { state, error, refresh, userId } = useFriends();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ query: string; profiles: PublicProfile[] } | null>(null);
@@ -175,10 +177,10 @@ export default function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   muted: { color: Colors.textMuted },
   error: { color: Colors.danger },
   actions: { flexDirection: 'row', gap: 6 },
-});
+}));

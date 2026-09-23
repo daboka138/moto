@@ -1,15 +1,16 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 import { Button, Field } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { useSession } from '@/lib/session';
 import { addWallPhoto } from '@/lib/wall';
 
 /** Publication d'une photo sur mon mur (la photo est choisie avant d'arriver ici). */
 export default function NewPhotoScreen() {
+  const styles = useStyles();
   const { uri, mimeType } = useLocalSearchParams<{ uri: string; mimeType?: string }>();
   const { session } = useSession();
   const [caption, setCaption] = useState('');
@@ -47,9 +48,9 @@ export default function NewPhotoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16 },
   preview: { width: '100%', aspectRatio: 1, borderRadius: 18, backgroundColor: Colors.border },
   caption: { minHeight: 70, textAlignVertical: 'top' },
-});
+}));

@@ -1,10 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
 import { RideView } from '@/components/ride-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
 import { demoRide } from '@/demo/rides';
 import { DEMO_LIVE_RIDE_ID } from '@/demo/social';
@@ -17,6 +17,7 @@ const routeCache = new Map<string, ComputedRoute>();
 
 /** Fiche d'une balade de démo (mêmes écrans que les vraies, données locales). */
 export default function DemoRideScreen() {
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const demo = useDemoMode();
   const { session, profile } = useSession();
@@ -111,9 +112,9 @@ export default function DemoRideScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   muted: { color: Colors.textMuted },
   actions: { gap: 10 },
   hint: { fontSize: 13, color: Colors.textMuted },
-});
+}));

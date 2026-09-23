@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { LeafletMap } from '@/components/leaflet-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
 import { createRide, RIDE_LEVELS, RIDE_VISIBILITIES, type RideLevel, type RideVisibility } from '@/lib/rides';
@@ -25,6 +25,8 @@ function defaultMeetingAt() {
 }
 
 export default function NewRideScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { session } = useSession();
   const [title, setTitle] = useState('');
   const [start, setStart] = useState<Place | null>(null);
@@ -126,7 +128,7 @@ export default function NewRideScreen() {
           <PlaceField
             label="Départ (A)"
             required
-            color="#16A34A"
+            color={Colors.success}
             value={start}
             placeholder="Choisir le point de départ"
             onPress={() => choose('Point de départ', setStart, start)}
@@ -135,7 +137,7 @@ export default function NewRideScreen() {
             <PlaceField
               key={i}
               label={`Étape ${i + 1}`}
-              color="#52525B"
+              color={Colors.neutral}
               value={w}
               placeholder=""
               onPress={() => choose(`Étape ${i + 1}`, (p) => setWaypoints((ws) => ws.map((x, j) => (j === i ? p : x))), w)}
@@ -153,7 +155,7 @@ export default function NewRideScreen() {
           <PlaceField
             label="Arrivée (B)"
             required
-            color="#DC2626"
+            color={Colors.danger}
             value={end}
             placeholder="Choisir le point d'arrivée"
             onPress={() => choose("Point d'arrivée", setEnd, end)}
@@ -252,7 +254,7 @@ export default function NewRideScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   addStep: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
@@ -270,4 +272,4 @@ const styles = StyleSheet.create({
   description: { minHeight: 90, textAlignVertical: 'top' },
   note: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
   noteText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
-});
+}));

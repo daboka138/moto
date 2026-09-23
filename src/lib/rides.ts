@@ -1,3 +1,4 @@
+import { LevelColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { photoUrl } from '@/lib/profile';
 import type { ComputedRoute } from '@/lib/routing';
@@ -11,9 +12,9 @@ export type RideVisibility = 'public' | 'friends' | 'private';
 export type RideStatus = 'upcoming' | 'live' | 'ended';
 
 export const RIDE_LEVELS: { value: RideLevel; label: string; color: string }[] = [
-  { value: 'tranquille', label: 'Tranquille', color: '#16A34A' },
-  { value: 'dynamique', label: 'Dynamique', color: '#F59E0B' },
-  { value: 'sportif', label: 'Sportif', color: '#DC2626' },
+  { value: 'tranquille', label: 'Tranquille', color: LevelColors.tranquille },
+  { value: 'dynamique', label: 'Dynamique', color: LevelColors.dynamique },
+  { value: 'sportif', label: 'Sportif', color: LevelColors.sportif },
 ];
 
 export const RIDE_VISIBILITIES: { value: RideVisibility; label: string; description: string }[] = [

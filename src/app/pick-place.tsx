@@ -7,13 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LeafletMap } from '@/components/leaflet-map';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
+import { useDrivingLock } from '@/lib/driving-lock';
 import type { LatLng } from '@/lib/geo';
 import { reverseGeocode, searchPlaces, type Place } from '@/lib/geocoding';
 import { pickerInitialPoint, resolvePick } from '@/lib/place-picker';
 
 /** Choix d'un lieu : recherche d'adresse ou appui sur la carte. */
 export default function PickPlaceScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { title } = useLocalSearchParams<{ title?: string }>();
   const [initial] = useState(pickerInitialPoint);
   const [me, setMe] = useState<LatLng | null>(null);
@@ -24,6 +27,7 @@ export default function PickPlaceScreen() {
   // Zone affichée : point initial, puis ma position, puis le résultat de recherche choisi
   const [focus, setFocus] = useState<LatLng | null>(initial);
   const validated = useRef(false);
+  const { locked } = useDrivingLock();
 
   // Sans validation (retour arrière), on renvoie null à l'écran appelant
   useEffect(() => () => {
@@ -99,7 +103,8 @@ export default function PickPlaceScreen() {
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder="Rechercher une adresse, un lieu…"
+            editable={!locked}
+            placeholder={locked ? 'Recherche désactivée en roulant' : 'Rechercher une adresse, un lieu…'}
             placeholderTextColor={Colors.textMuted}
             autoCorrect={false}
             returnKeyType="search"
@@ -148,7 +153,7 @@ export default function PickPlaceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
   search: { position: 'absolute', top: 12, left: 12, right: 12, gap: 6 },
   inputBox: {
@@ -159,7 +164,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 12,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
@@ -178,8 +183,8 @@ const styles = StyleSheet.create({
   empty: { padding: 12, color: Colors.textMuted },
   hint: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    color: '#fff',
+    backgroundColor: Colors.overlay,
+    color: Colors.white,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -198,4 +203,4 @@ const styles = StyleSheet.create({
   },
   selected: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   selectedText: { flex: 1, fontSize: 16, fontWeight: '600', color: Colors.text },
-});
+}));

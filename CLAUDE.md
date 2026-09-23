@@ -28,9 +28,25 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - location_privacy (+ _rules allow/block) : everyone / friends / selected / ghost (fait)
 - group_rides / group_ride_participants = balades planifiées (fait) : tracé, RDV, niveau, visibilité public/friends/private, max participants. Entre started_at et ended_at, les participants "joined" se voient toujours (même en fantôme) ; démarrage autorisé seulement de RDV-2 h à RDV+12 h
 - live_positions : lecture UNIQUEMENT via RLS + `can_view_location()` — toute règle de visibilité se code là, jamais seulement dans l'app
+- road_reports / road_report_votes : signalements style Waze (fait). Types autorisés uniquement : accident, gravel, oil, roadworks, object, animal, traffic_jam, stopped_vehicle, danger. JAMAIS radar/police/contrôle (refusé côté serveur). Expiration par type + votes « toujours là / plus là »
+- Navigation : OSRM (itinéraire normal) ; Valhalla FOSSGIS profil moto pour « éviter autoroutes » (les OSRM publics ne le permettent pas). Recherche : Géoplateforme (ex api-adresse) + Nominatim sur demande seulement (pas d'autocomplétion, 1 req/s)
+- Sécurité : saisie de texte bloquée en navigation > 10 km/h (DrivingLockProvider, appliqué dans Field)
 - circles / circle_members : groupes façon Life360
 - trips / trip_points : trajets enregistrés
 - sos_events : alertes SOS
+
+## Thème et couleurs
+- TOUTES les couleurs sont dans `src/constants/theme.tsx` (palettes claire + sombre, panneaux de signalement). Jamais de couleur en dur ailleurs
+- Couleur principale : bleu ciel (ACCENT), identique en clair et en sombre
+- Dans un composant : `const Colors = useColors()` et `const styles = useStyles()` avec `const useStyles = makeStyles((Colors) => ({...}))`
+- Thème Clair / Sombre / Automatique dans Paramètres, mémorisé ; la carte suit (tuiles OSM en clair, CARTO Dark Matter en sombre)
+
+## Supabase CLI (migrations)
+- CLI installée en devDependency : `npx supabase ...`. Projet lié : ref `yfewldnhnnrzzscmfjsd`
+- Secrets dans `.env.supabase` (ignoré par Git, créé par Dimitri) : SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD. Ne JAMAIS les afficher, les copier dans le code ou les commiter
+- Charger avant chaque commande (bash) : `set -a; . <(sed 's/$//' .env.supabase); set +a`
+- Nouvelle migration : fichier `supabase/migrations/<AAAAMMJJhhmmss>_nom.sql`, tester en local (PGlite), puis `npx supabase db push`
+- Les 5 premières migrations ont été collées à la main dans le SQL Editor : marquées « applied » avec `supabase migration repair`
 
 ## Feuille de route
 1. V1 Socle : auth téléphone, profil + moto, cercles, carte live, trajets, vitesse temps réel, SOS manuel

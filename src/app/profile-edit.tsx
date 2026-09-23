@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { ProfileForm } from '@/components/profile-form';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { fetchIdentity, type PrivateIdentity } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 
 export default function ProfileEditScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { session, profile, refreshProfile } = useSession();
   const userId = session?.user.id;
   // Prénom et nom sont dans une table privée : on les charge avant d'afficher le formulaire
@@ -46,6 +48,6 @@ export default function ProfileEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-});
+}));

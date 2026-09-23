@@ -1,13 +1,15 @@
-import { Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
 import { signOut } from '@/lib/auth';
+import { DrivingLockProvider } from '@/lib/driving-lock';
+import { MapLayersProvider } from '@/lib/map-layers';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 
@@ -15,18 +17,51 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <PrivacyProvider>
-        <DemoProvider /* DEMO */>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </DemoProvider>
-      </PrivacyProvider>
-    </SessionProvider>
+    <ThemeProvider>
+      <ThemedNavigation>
+        <SessionProvider>
+          <PrivacyProvider>
+            <DrivingLockProvider>
+              <MapLayersProvider>
+                <DemoProvider /* DEMO */>
+                  <RootNavigator />
+                </DemoProvider>
+              </MapLayersProvider>
+            </DrivingLockProvider>
+          </PrivacyProvider>
+        </SessionProvider>
+      </ThemedNavigation>
+    </ThemeProvider>
+  );
+}
+
+/** En-têtes, onglets et barre d'état aux couleurs du thème actif. */
+function ThemedNavigation({ children }: { children: ReactNode }) {
+  const { scheme, colors } = useTheme();
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.accent,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.danger,
+    },
+  };
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      {children}
+    </NavigationThemeProvider>
   );
 }
 
 function RootNavigator() {
+  const { colors: Colors } = useTheme();
+  const styles = useStyles();
   const { session, profile, profileError, refreshProfile } = useSession();
 
   useEffect(() => {
@@ -63,6 +98,7 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={!!session && !!profile}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
         <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
         <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
@@ -79,7 +115,7 @@ function RootNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: {
     flex: 1,
     alignItems: 'stretch',
@@ -89,4 +125,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   message: { fontSize: 16, textAlign: 'center', color: Colors.text },
-});
+}));

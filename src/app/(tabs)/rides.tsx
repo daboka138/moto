@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { photoUrl } from '@/lib/profile';
 import { RIDE_LEVELS, type RideLevel, type RideSummary } from '@/lib/rides';
@@ -39,6 +39,8 @@ function matchesDate(ride: RideSummary, filter: DateFilter) {
 }
 
 export default function RidesScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { session, profile } = useSession();
   const { rides, error, refreshing, refresh } = useUpcomingRides();
   const [me, setMe] = useState<LatLng | null>(null);
@@ -84,7 +86,7 @@ export default function RidesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Balades</Text>
         <Pressable style={styles.create} onPress={() => router.push('/ride/new')}>
-          <Ionicons name="add" size={20} color="#fff" />
+          <Ionicons name="add" size={20} color={Colors.white} />
           <Text style={styles.createText}>Créer</Text>
         </Pressable>
       </View>
@@ -134,7 +136,7 @@ export default function RidesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: 'row',
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  createText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  createText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
   filters: { gap: 8, paddingVertical: 8 },
   filterRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },
@@ -162,4 +164,4 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: 8, paddingTop: 48 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
-});
+}));

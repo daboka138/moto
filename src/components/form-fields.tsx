@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors, useTheme } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 
 /** Champ qui affiche un lieu choisi et ouvre le sélecteur au toucher. */
@@ -24,6 +24,8 @@ export function PlaceField({
   onClear?: () => void;
   color?: string;
 }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>
@@ -61,6 +63,9 @@ export function DateTimeField({
   onChange: (value: Date) => void;
   minimumDate?: Date;
 }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const { scheme } = useTheme();
   const [open, setOpen] = useState(false);
   const text =
     mode === 'date'
@@ -80,13 +85,20 @@ export function DateTimeField({
         <Text style={[styles.value, { textTransform: 'capitalize' }]}>{text}</Text>
       </Pressable>
       {open && (
-        <DateTimePicker value={value} mode={mode} is24Hour minimumDate={minimumDate} onChange={handle} />
+        <DateTimePicker
+          value={value}
+          mode={mode}
+          is24Hour
+          minimumDate={minimumDate}
+          themeVariant={scheme}
+          onChange={handle}
+        />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   field: { gap: 6 },
   label: { fontSize: 14, fontWeight: '600', color: Colors.text },
   box: {
@@ -102,4 +114,4 @@ const styles = StyleSheet.create({
   },
   value: { flex: 1, fontSize: 16, color: Colors.text },
   placeholder: { color: Colors.textMuted },
-});
+}));

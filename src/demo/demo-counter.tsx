@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import type { RoutingStats } from '@/demo/simulation';
+import { makeStyles } from '@/constants/theme';
 
 type Props = {
   /** Faux motards que j'ai le droit de voir */
@@ -17,6 +18,7 @@ type Props = {
 
 /** Badge de la démo en haut de la carte : compteur et trajet de groupe simulé. */
 export function DemoCounter({ visible, total, rendered, routing, rideTitle, rideActive, onToggleRide }: Props) {
+  const styles = useStyles();
   const details: string[] = [];
   if (total > visible) details.push(`${total - visible} masqués`);
   if (routing.fallback) details.push(`${routing.fallback} tracés de secours`);
@@ -35,9 +37,9 @@ export function DemoCounter({ visible, total, rendered, routing, rideTitle, ride
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   badge: {
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: Colors.overlay,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -45,9 +47,9 @@ const styles = StyleSheet.create({
     gap: 2,
     maxWidth: 220,
   },
-  title: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  details: { color: '#ccc', fontSize: 11 },
-  ride: { marginTop: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#52525B' },
-  rideOn: { backgroundColor: '#16A34A' },
-  rideText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-});
+  title: { color: Colors.white, fontSize: 14, fontWeight: '700' },
+  details: { color: Colors.textFaint, fontSize: 11 },
+  ride: { marginTop: 4, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: Colors.neutral },
+  rideOn: { backgroundColor: Colors.success },
+  rideText: { color: Colors.white, fontSize: 11, fontWeight: '700' },
+}));

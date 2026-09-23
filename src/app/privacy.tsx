@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import type { PublicProfile } from '@/lib/friends';
 import { PRIVACY_MODES, type PrivacySettings } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
@@ -14,6 +14,8 @@ import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
 
 export default function PrivacyScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { settings } = usePrivacy();
   if (!settings) {
     return (
@@ -27,6 +29,8 @@ export default function PrivacyScreen() {
 }
 
 function PrivacyForm({ initial }: { initial: PrivacySettings }) {
+  const Colors = useColors();
+  const styles = useStyles();
   const { update } = usePrivacy();
   const { state: friendsState } = useFriends();
   const [draft, setDraft] = useState(initial);
@@ -119,6 +123,8 @@ function FriendChecklist({
   checked: string[];
   onToggle: (id: string) => void;
 }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <Card title={title}>
       {friends === null ? (
@@ -147,7 +153,7 @@ function FriendChecklist({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
@@ -167,4 +173,4 @@ const styles = StyleSheet.create({
   note: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
   noteText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
   muted: { color: Colors.textMuted },
-});
+}));

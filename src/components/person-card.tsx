@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 
 type Props = {
   photoUrl: string;
@@ -19,6 +19,8 @@ type Props = {
 
 /** Fiche rapide affichée quand on appuie sur un motard de la carte. */
 export function PersonCard({ photoUrl, username, motoLabel, speedKmh, speeding, distanceM, badge, onViewProfile, onClose }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   const speed = speedKmh === null ? null : Math.round(speedKmh);
 
   return (
@@ -68,14 +70,14 @@ export function motoLabel(moto: { brand: string; model: string; displacement_cc:
   return `${moto.brand} ${moto.model}${moto.displacement_cc ? ` · ${moto.displacement_cc} cc` : ''}`;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
     padding: 16,
     gap: 14,
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
@@ -92,4 +94,4 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
   statLabel: { fontSize: 12, color: Colors.textMuted },
   divider: { width: 1, backgroundColor: Colors.border },
-});
+}));

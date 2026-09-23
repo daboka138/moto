@@ -1,16 +1,18 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { acceptFriendRequest, relationWith, removeFriendship, sendFriendRequest } from '@/lib/friends';
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
 import { useProfileWall } from '@/lib/use-profile-wall';
 
 export default function UserProfileScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, refresh, userId } = useFriends();
   const [loaded, setLoaded] = useState<{ id: string; profile: Profile | null } | null>(null);
@@ -90,9 +92,9 @@ export default function UserProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   muted: { color: Colors.textMuted },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
-});
+}));

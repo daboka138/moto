@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
+import { useDrivingLock } from '@/lib/driving-lock';
 
 type ButtonProps = {
   title: string;
@@ -12,6 +13,8 @@ type ButtonProps = {
 };
 
 export function Button({ title, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
+  const Colors = useColors();
+  const styles = useStyles();
   const inactive = disabled || loading;
   return (
     <Pressable
@@ -23,7 +26,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
         (pressed || inactive) && { opacity: 0.6 },
       ]}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#fff' : Colors.accent} />
+        <ActivityIndicator color={variant === 'primary' ? Colors.white : Colors.accent} />
       ) : (
         <Text style={[styles.buttonText, variant !== 'primary' && { color: Colors.text }]}>{title}</Text>
       )}
@@ -43,6 +46,8 @@ export function SmallButton({
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
 }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -57,21 +62,32 @@ export function SmallButton({
   );
 }
 
-type FieldProps =TextInputProps & { label: string; required?: boolean };
+type FieldProps = TextInputProps & { label: string; required?: boolean };
 
-export function Field({ label, required, style, ...props }: FieldProps) {
+export function Field({ label, required, style, editable, placeholder, ...props }: FieldProps) {
+  const Colors = useColors();
+  const styles = useStyles();
+  // Sécurité : pas de saisie pendant une navigation au-dessus de 10 km/h
+  const { locked } = useDrivingLock();
   return (
     <View style={styles.field}>
       <Text style={styles.label}>
         {label}
         {required && <Text style={{ color: Colors.accent }}> *</Text>}
       </Text>
-      <TextInput placeholderTextColor={Colors.textMuted} style={[styles.input, style]} {...props} />
+      <TextInput
+        placeholderTextColor={Colors.textMuted}
+        style={[styles.input, style, locked && { opacity: 0.5 }]}
+        editable={!locked && editable !== false}
+        placeholder={locked ? 'Désactivé en roulant' : placeholder}
+        {...props}
+      />
     </View>
   );
 }
 
 export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={[styles.chip, selected && styles.chipSelected]}>
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
@@ -80,6 +96,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
 }
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -88,7 +105,7 @@ export function Section({ title, children }: { title: string; children: ReactNod
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   button: {
     minHeight: 50,
     borderRadius: 14,
@@ -99,9 +116,9 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: Colors.accent },
   secondary: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   ghost: { backgroundColor: 'transparent' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
   small: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  smallText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  smallText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
   field: { gap: 6 },
   label: { fontSize: 14, fontWeight: '600', color: Colors.text },
   input: {
@@ -124,7 +141,7 @@ const styles = StyleSheet.create({
   },
   chipSelected: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   chipText: { fontSize: 14, color: Colors.text },
-  chipTextSelected: { color: '#fff', fontWeight: '600' },
+  chipTextSelected: { color: Colors.white, fontWeight: '600' },
   section: {
     backgroundColor: Colors.surface,
     borderRadius: 18,
@@ -132,4 +149,4 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-});
+}));

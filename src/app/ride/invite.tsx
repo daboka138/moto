@@ -1,18 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { photoUrl } from '@/lib/profile';
 import { fetchRide, inviteToRide } from '@/lib/rides';
 import { useFriends } from '@/lib/use-friends';
 
 /** L'organisateur invite des amis à sa balade. */
 export default function InviteScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, userId } = useFriends();
   const [already, setAlready] = useState<{ id: string; ids: string[] } | null>(null);
@@ -82,8 +84,8 @@ export default function InviteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16 },
   muted: { color: Colors.textMuted },
-});
+}));

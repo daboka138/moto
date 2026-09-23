@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { pickImage } from '@/lib/pick-image';
 import { photoUrl, type PhotoValue } from '@/lib/profile';
 
@@ -14,6 +14,8 @@ type Props = {
 };
 
 export function PhotoPicker({ value, onChange, shape, label }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   const uri = value.localUri ?? (value.path ? photoUrl(value.path) : null);
 
   const choose = async () => {
@@ -32,13 +34,13 @@ export function PhotoPicker({ value, onChange, shape, label }: Props) {
         </View>
       )}
       <View style={styles.badge}>
-        <Ionicons name="pencil" size={14} color="#fff" />
+        <Ionicons name="pencil" size={14} color={Colors.white} />
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   round: {
     width: 120,
     height: 120,
@@ -67,4 +69,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

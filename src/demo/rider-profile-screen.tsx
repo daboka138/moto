@@ -1,9 +1,9 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
 import { demoCover, demoPhotosOf } from '@/demo/photos';
 import { findDemoRider } from '@/demo/riders';
@@ -11,6 +11,7 @@ import { demoRideCountOf } from '@/demo/rides';
 
 /** Fiche complète d'un faux motard (les chemins de photo sont déjà des URL). */
 export default function DemoRiderProfileScreen() {
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const demo = useDemoMode();
   const rider = findDemoRider(id);
@@ -57,8 +58,8 @@ export default function DemoRiderProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted },
   badge: { alignSelf: 'center', color: Colors.textMuted, fontSize: 12 },
-});
+}));

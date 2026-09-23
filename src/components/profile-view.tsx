@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { photoUrl, RIDING_STYLES, type Motorcycle, type Profile } from '@/lib/profile';
 import type { ProfileStats, WallPhoto } from '@/lib/wall';
 
@@ -27,6 +27,8 @@ type Props = {
   onAddPhoto?: () => void;
   onDeletePhoto?: (photo: WallPhoto) => void;
   onEditCover?: () => void;
+  /** Mon profil : bouton engrenage vers les paramètres */
+  onOpenSettings?: () => void;
 };
 
 const COVER_HEIGHT = 170;
@@ -45,7 +47,10 @@ export function ProfileView({
   onAddPhoto,
   onDeletePhoto,
   onEditCover,
+  onOpenSettings,
 }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [tab, setTab] = useState<'photos' | 'about'>('photos');
@@ -62,12 +67,21 @@ export function ProfileView({
             <Image source={{ uri: resolvePhoto(profile.cover_path) }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : (
             <View style={styles.coverFallback}>
-              <MaterialCommunityIcons name="road-variant" size={64} color="rgba(255,255,255,0.08)" />
+              <MaterialCommunityIcons name="road-variant" size={64} color={Colors.coverIcon} />
             </View>
+          )}
+          {onOpenSettings && (
+            <Pressable
+              style={[styles.settingsButton, { top: (underStatusBar ? insets.top : 0) + 12 }]}
+              onPress={onOpenSettings}
+              hitSlop={8}
+              accessibilityLabel="Paramètres">
+              <Ionicons name="settings-sharp" size={22} color={Colors.white} />
+            </Pressable>
           )}
           {onEditCover && (
             <Pressable style={[styles.coverButton, { top: (underStatusBar ? insets.top : 0) + 12 }]} onPress={onEditCover}>
-              <Ionicons name="camera" size={16} color="#fff" />
+              <Ionicons name="camera" size={16} color={Colors.white} />
               <Text style={styles.coverButtonText}>Couverture</Text>
             </Pressable>
           )}
@@ -145,6 +159,7 @@ function About({
   resolvePhoto: (path: string) => string;
   footer?: ReactNode;
 }) {
+  const styles = useStyles();
   const licenseYears = profile.license_year ? new Date().getFullYear() - profile.license_year : null;
   const styleLabels = profile.riding_styles.map((s) => RIDING_STYLES.find((r) => r.value === s)?.label ?? s);
 
@@ -191,6 +206,8 @@ function About({
 }
 
 function Meta({ icon, text, community }: { icon: string; text: string; community?: boolean }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.meta}>
       {community ? (
@@ -204,6 +221,7 @@ function Meta({ icon, text, community }: { icon: string; text: string; community
 }
 
 function Stat({ value, label }: { value: number | undefined; label: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value ?? '–'}</Text>
@@ -223,6 +241,8 @@ function TabButton({
   active: boolean;
   onPress: () => void;
 }) {
+  const Colors = useColors();
+  const styles = useStyles();
   return (
     <Pressable style={[styles.tab, active && styles.tabActive]} onPress={onPress}>
       <Ionicons name={active ? icon : `${icon}-outline`} size={18} color={active ? Colors.accent : Colors.textMuted} />
@@ -232,6 +252,7 @@ function TabButton({
 }
 
 export function Card({ title, children }: { title: string; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -241,6 +262,8 @@ export function Card({ title, children }: { title: string; children: ReactNode }
 }
 
 function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (path: string) => string }) {
+  const Colors = useColors();
+  const styles = useStyles();
   const details = [moto.year?.toString(), moto.displacement_cc ? `${moto.displacement_cc} cc` : null, moto.color].filter(
     Boolean,
   );
@@ -263,30 +286,40 @@ function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (pat
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: 32 },
   cover: { backgroundColor: Colors.dark, overflow: 'hidden' },
-  coverFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#27272A' },
+  coverFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.darkSoft },
   coverButton: {
     position: 'absolute',
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: Colors.overlayLight,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  coverButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  settingsButton: {
+    position: 'absolute',
+    left: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.overlayLight,
+  },
+  coverButtonText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
   identity: { alignItems: 'center', paddingHorizontal: 24, marginTop: -AVATAR_SIZE / 2, gap: 6 },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: 4,
-    borderColor: Colors.background,
+    borderColor: Colors.accent,
     backgroundColor: Colors.border,
   },
   username: { fontSize: 28, fontWeight: '900', color: Colors.text, marginTop: 4 },
@@ -341,4 +374,4 @@ const styles = StyleSheet.create({
   motoInfo: { padding: 12, gap: 2 },
   motoBrand: { fontSize: 13, fontWeight: '700', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
   motoModel: { fontSize: 20, fontWeight: '800', color: Colors.text },
-});
+}));

@@ -1,10 +1,10 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { RideView } from '@/components/ride-view';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import {
   canStartNow,
   deleteRide,
@@ -18,6 +18,8 @@ import {
 import { useSession } from '@/lib/session';
 
 export default function RideScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
   const userId = session?.user.id;
@@ -157,9 +159,9 @@ export default function RideScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   actions: { gap: 10 },
   hint: { fontSize: 13, color: Colors.textMuted },
-});
+}));

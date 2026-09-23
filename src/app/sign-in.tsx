@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Field } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme';
 import { signInWithEmail, signUpWithEmail } from '@/lib/auth';
 
 // Connexion par email pour l'instant. Pour passer au téléphone : voir src/lib/auth.ts
 export default function SignInScreen() {
+  const styles = useStyles();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,10 +78,10 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
   hero: { alignItems: 'center', marginBottom: 24, gap: 6 },
   logo: { fontSize: 44, fontWeight: '900', letterSpacing: 6, color: Colors.accent },
   tagline: { fontSize: 16, color: Colors.textMuted },
-});
+}));

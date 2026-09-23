@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import {
   emptyMotorcycleDraft,
   INTEREST_SUGGESTIONS,
@@ -29,6 +29,8 @@ type Props = {
 };
 
 export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, header }: Props) {
+  const Colors = useColors();
+  const styles = useStyles();
   const [draft, setDraft] = useState<ProfileDraft>(() => profileToDraft(profile, identity));
   const [interestInput, setInterestInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -208,7 +210,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   hint: { color: Colors.textMuted },
   privateNote: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -229,4 +231,4 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   bio: { minHeight: 90, textAlignVertical: 'top' },
   addInterest: { justifyContent: 'flex-end' },
-});
+}));

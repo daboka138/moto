@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
 import { Button } from '@/components/ui';
-import { Colors } from '@/constants/theme';
+import { makeStyles, useColors } from '@/constants/theme';
 import { photoItems, rideItems, sortFeed, timeAgo, type FeedItem, type FeedPerson } from '@/lib/feed';
 import { fetchFriends } from '@/lib/friends';
 import { photoUrl } from '@/lib/profile';
@@ -25,6 +25,8 @@ type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; ri
 
 /** Onglet Mur : fil d'actualité de mes amis. */
 export default function FeedScreen() {
+  const Colors = useColors();
+  const styles = useStyles();
   const { session, profile } = useSession();
   const userId = session?.user.id;
   const [real, setReal] = useState<RealFeed | null>(null);
@@ -228,6 +230,7 @@ function Header({
   whoLabel?: string;
   onPersonPress: (p: FeedPerson) => void;
 }) {
+  const styles = useStyles();
   const first = people[0];
   return (
     <Pressable style={styles.header} onPress={() => onPersonPress(first)}>
@@ -246,7 +249,7 @@ function Header({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   title: { fontSize: 28, fontWeight: '900', color: Colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   list: { paddingBottom: 32, gap: 12 },
@@ -278,4 +281,4 @@ const styles = StyleSheet.create({
   rideBox: { paddingHorizontal: 12, gap: 10 },
   rideFrame: { borderWidth: 1, borderColor: Colors.border, borderRadius: 18, overflow: 'hidden' },
   joined: { color: Colors.accent, fontWeight: '700', textAlign: 'center' },
-});
+}));
