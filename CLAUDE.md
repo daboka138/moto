@@ -22,10 +22,12 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - motorcycles : owner_id, marque, modèle, année, cylindrée, couleur, photo_path — plusieurs par profil (fait)
 - Storage : bucket public `photos`, écriture limitée à `photos/<user_id>/...`
 - SQL dans `supabase/migrations/`, collé à la main dans le SQL Editor Supabase
+- friendships : demandes (pending) et amitiés (accepted), une ligne par paire (fait)
+- location_privacy (+ _rules allow/block) : everyone / friends / selected / ghost (fait)
+- group_rides / group_ride_participants = balades planifiées (fait) : tracé, RDV, niveau, visibilité public/friends/private, max participants. Entre started_at et ended_at, les participants "joined" se voient toujours (même en fantôme) ; démarrage autorisé seulement de RDV-2 h à RDV+12 h
+- live_positions : lecture UNIQUEMENT via RLS + `can_view_location()` — toute règle de visibilité se code là, jamais seulement dans l'app
 - circles / circle_members : groupes façon Life360
-- live_positions : user_id, geom, vitesse, cap, batterie, updated_at
 - trips / trip_points : trajets enregistrés
-- rides / ride_participants : balades planifiées, point de RDV
 - sos_events : alertes SOS
 
 ## Feuille de route

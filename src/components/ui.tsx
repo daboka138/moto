@@ -31,7 +31,33 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
   );
 }
 
-type FieldProps = TextInputProps & { label: string; required?: boolean };
+/** Petit bouton pour les lignes de liste (Ajouter, Accepter...) */
+export function SmallButton({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled,
+}: {
+  title: string;
+  onPress?: () => void;
+  variant?: 'primary' | 'secondary';
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || !onPress}
+      style={({ pressed }) => [
+        styles.small,
+        variant === 'primary' ? styles.primary : styles.secondary,
+        (pressed || disabled) && { opacity: 0.6 },
+      ]}>
+      <Text style={[styles.smallText, variant === 'secondary' && { color: Colors.text }]}>{title}</Text>
+    </Pressable>
+  );
+}
+
+type FieldProps =TextInputProps & { label: string; required?: boolean };
 
 export function Field({ label, required, style, ...props }: FieldProps) {
   return (
@@ -74,6 +100,8 @@ const styles = StyleSheet.create({
   secondary: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   ghost: { backgroundColor: 'transparent' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  small: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
+  smallText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   field: { gap: 6 },
   label: { fontSize: 14, fontWeight: '600', color: Colors.text },
   input: {

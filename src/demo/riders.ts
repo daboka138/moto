@@ -85,3 +85,7 @@ export const DEMO_RIDERS: DemoRider[] = SEEDS.map((s, i) => {
 export function findDemoRider(id: string) {
   return DEMO_RIDERS.find((r) => r.id === id);
 }
+
+export function findDemoRiderByUsername(username: string) {
+  return DEMO_RIDERS.find((r) => r.username === username);
+}

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
+import type { LatLng } from '@/lib/geo';
+
 export type MapPosition = {
   latitude: number;
   longitude: number;
@@ -18,14 +20,31 @@ export type MapMarker = {
   tone?: 'default' | 'muted' | 'alert';
 };
 
+/** Repère fixe : départ, arrivée, étape, point de RDV. */
+export type MapPin = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  kind: 'start' | 'end' | 'step' | 'meeting';
+  label: string;
+};
+
+/** Tracé : [[lat, lng], ...] */
+export type MapRoute = { id: string; points: [number, number][]; color?: string };
+
 type Props = {
   position: MapPosition | null;
-  follow: boolean;
-  onUserPan: () => void;
+  follow?: boolean;
+  onUserPan?: () => void;
   markers?: MapMarker[];
   selectedMarkerId?: string | null;
   onMarkerPress?: (id: string) => void;
-  onMapPress?: () => void;
+  onMapPress?: (point: LatLng) => void;
+  pins?: MapPin[];
+  onPinPress?: (id: string) => void;
+  routes?: MapRoute[];
+  /** Cadre la carte sur ces points à chaque changement */
+  fitPoints?: LatLng[];
   /** Nombre de pastilles réellement affichées dans la page (diagnostic) */
   onMarkersRendered?: (count: number) => void;
 };
@@ -33,8 +52,9 @@ type Props = {
 type WebMessage =
   | { type: 'ready' }
   | { type: 'pan' }
-  | { type: 'mapPress' }
+  | { type: 'mapPress'; latitude: number; longitude: number }
   | { type: 'marker'; id: string }
+  | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
   | { type: 'error'; message: string };
 
@@ -60,6 +80,15 @@ const HTML = `<!DOCTYPE html>
   .person.muted { border-color: #A1A1AA; }
   .person.alert { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,.35), 0 2px 6px rgba(0,0,0,.35); }
   .person.selected { transform: scale(1.25); }
+  .pin-wrap { background: none; border: none; }
+  .pin {
+    min-width: 28px; height: 28px; padding: 0 6px; box-sizing: border-box; border-radius: 14px;
+    border: 2px solid #fff; color: #fff; font: 700 12px sans-serif;
+    display: flex; align-items: center; justify-content: center; white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  }
+  .pin.start { background: #16A34A; } .pin.end { background: #DC2626; }
+  .pin.step { background: #52525B; } .pin.meeting { background: #F97316; }
 </style>
 </head>
 <body>
@@ -81,7 +110,7 @@ const HTML = `<!DOCTYPE html>
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
   map.on('dragstart', function () { post({ type: 'pan' }); });
-  map.on('click', function () { post({ type: 'mapPress' }); });
+  map.on('click', function (e) { post({ type: 'mapPress', latitude: e.latlng.lat, longitude: e.latlng.lng }); });
   // Pas d'animation de déplacement des pastilles pendant un zoom
   map.on('zoomstart', function () { map.getContainer().classList.add('zooming'); });
   map.on('zoomend', function () {
@@ -146,6 +175,37 @@ const HTML = `<!DOCTYPE html>
     if (count !== renderedCount) { renderedCount = count; post({ type: 'markers', count: count }); }
   };
 
+  var pins = {};
+  window.setPins = function (list) {
+    Object.keys(pins).forEach(function (id) { map.removeLayer(pins[id]); });
+    pins = {};
+    list.forEach(function (p) {
+      var el = document.createElement('div');
+      el.className = 'pin ' + p.kind;
+      el.textContent = p.label;
+      var icon = L.divIcon({ className: 'pin-wrap', html: el, iconSize: null, iconAnchor: [14, 14] });
+      var marker = L.marker([p.latitude, p.longitude], { icon: icon, zIndexOffset: 500 }).addTo(map);
+      marker.on('click', function () { post({ type: 'pin', id: p.id }); });
+      pins[p.id] = marker;
+    });
+  };
+
+  var routeLayer = L.layerGroup().addTo(map);
+  window.setRoutes = function (list) {
+    routeLayer.clearLayers();
+    list.forEach(function (r) {
+      L.polyline(r.points, { color: '#fff', weight: 8, opacity: 0.9 }).addTo(routeLayer);
+      L.polyline(r.points, { color: r.color || '#F97316', weight: 5, opacity: 0.95 }).addTo(routeLayer);
+    });
+  };
+
+  window.fitTo = function (points) {
+    if (!points.length) return;
+    centered = true;
+    if (points.length === 1) map.setView(points[0], 14, { animate: false });
+    else map.fitBounds(points, { padding: [40, 40], maxZoom: 15, animate: false });
+  };
+
   post({ type: 'ready' });
 </script>
 </body>
@@ -153,9 +213,13 @@ const HTML = `<!DOCTYPE html>
 
 export function LeafletMap({
   position,
-  follow,
+  follow = false,
   onUserPan,
   markers = [],
+  pins = [],
+  onPinPress,
+  routes = [],
+  fitPoints,
   selectedMarkerId = null,
   onMarkerPress,
   onMapPress,
@@ -179,6 +243,26 @@ export function LeafletMap({
     );
   }, [pageLoads, markers, selectedMarkerId]);
 
+  // Les tracés peuvent être gros : on ne les renvoie que s'ils ont changé
+  const pinsJson = JSON.stringify(pins);
+  const routesJson = JSON.stringify(routes);
+  const fitJson = fitPoints ? JSON.stringify(fitPoints.map((p) => [p.latitude, p.longitude])) : null;
+
+  useEffect(() => {
+    if (!pageLoads) return;
+    webRef.current?.injectJavaScript(`window.setPins && window.setPins(${pinsJson}); true;`);
+  }, [pageLoads, pinsJson]);
+
+  useEffect(() => {
+    if (!pageLoads) return;
+    webRef.current?.injectJavaScript(`window.setRoutes && window.setRoutes(${routesJson}); true;`);
+  }, [pageLoads, routesJson]);
+
+  useEffect(() => {
+    if (!pageLoads || !fitJson) return;
+    webRef.current?.injectJavaScript(`window.fitTo && window.fitTo(${fitJson}); true;`);
+  }, [pageLoads, fitJson]);
+
   const onMessage = (event: WebViewMessageEvent) => {
     let msg: WebMessage;
     try {
@@ -187,9 +271,10 @@ export function LeafletMap({
       return;
     }
     if (msg.type === 'ready') setPageLoads((n) => n + 1);
-    else if (msg.type === 'pan') onUserPan();
-    else if (msg.type === 'mapPress') onMapPress?.();
+    else if (msg.type === 'pan') onUserPan?.();
+    else if (msg.type === 'mapPress') onMapPress?.({ latitude: msg.latitude, longitude: msg.longitude });
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);
+    else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
     else if (msg.type === 'error') console.warn('[carte]', msg.message);
   };

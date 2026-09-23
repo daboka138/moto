@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 import { Colors } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
 import { signOut } from '@/lib/auth';
+import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync();
@@ -15,10 +16,12 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <SessionProvider>
-      <DemoProvider /* DEMO */>
-        <StatusBar style="dark" />
-        <RootNavigator />
-      </DemoProvider>
+      <PrivacyProvider>
+        <DemoProvider /* DEMO */>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </DemoProvider>
+      </PrivacyProvider>
     </SessionProvider>
   );
 }
@@ -61,7 +64,15 @@ function RootNavigator() {
       <Stack.Protected guard={!!session && !!profile}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
+        <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
+        <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
+        <Stack.Screen name="user/[id]" options={{ headerShown: true, title: '' }} />
+        <Stack.Screen name="ride/new" options={{ headerShown: true, title: 'Nouvelle balade' }} />
+        <Stack.Screen name="ride/[id]" options={{ headerShown: true, title: '' }} />
+        <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
+        <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
         <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
+        <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
       </Stack.Protected>
     </Stack>
   );
