@@ -1,4 +1,4 @@
-﻿@AGENTS.md
+@AGENTS.md
 
 # Projet MOTO (nom provisoire) — App communautaire pour motards
 Développeur : Dimitri (DK Elec). Communication en français, réponses courtes et directes.
@@ -18,7 +18,10 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - VPS Debian + Caddy : site vitrine / admin plus tard
 
 ## Données V1
-- profiles : id, téléphone, pseudo, photo, moto (marque, modèle, cylindrée), style, zone
+- profiles : id (= auth.users), prénom, nom, pseudo, avatar_path, bio, riding_styles, license_year, city, interests (fait)
+- motorcycles : owner_id, marque, modèle, année, cylindrée, couleur, photo_path — plusieurs par profil (fait)
+- Storage : bucket public `photos`, écriture limitée à `photos/<user_id>/...`
+- SQL dans `supabase/migrations/`, collé à la main dans le SQL Editor Supabase
 - circles / circle_members : groupes façon Life360
 - live_positions : user_id, geom, vitesse, cap, batterie, updated_at
 - trips / trip_points : trajets enregistrés

@@ -69,7 +69,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <LeafletMap position={position} follow={follow} onUserPan={() => setFollow(false)} />
-      <SafeAreaView style={styles.overlay} pointerEvents="box-none">
+      <SafeAreaView style={styles.overlay} edges={['top']} pointerEvents="box-none">
         <View style={styles.speed}>
           <Text style={styles.speedValue}>{kmh}</Text>
           <Text style={styles.speedUnit}>km/h</Text>
@@ -99,6 +99,6 @@ const styles = StyleSheet.create({
   },
   speedValue: { color: '#fff', fontSize: 36, fontWeight: '700', fontVariant: ['tabular-nums'] },
   speedUnit: { color: '#ccc', fontSize: 12 },
-  button: { backgroundColor: '#208AEF', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12 },
+  button: { backgroundColor: '#F97316', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });
