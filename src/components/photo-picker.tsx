@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { pickImage } from '@/lib/pick-image';
 import { photoUrl, type PhotoValue } from '@/lib/profile';
 
 type Props = {
@@ -14,38 +14,12 @@ type Props = {
 };
 
 export function PhotoPicker({ value, onChange, shape, label }: Props) {
-  const aspect: [number, number] = shape === 'round' ? [1, 1] : [4, 3];
   const uri = value.localUri ?? (value.path ? photoUrl(value.path) : null);
 
-  const pick = async (source: 'camera' | 'library') => {
-    if (source === 'camera') {
-      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-      if (!granted) {
-        Alert.alert('Appareil photo', "L'accès à l'appareil photo a été refusé.");
-        return;
-      }
-    }
-    const options: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect,
-      quality: 0.7,
-    };
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    onChange({ path: value.path, localUri: asset.uri, mimeType: asset.mimeType ?? undefined });
+  const choose = async () => {
+    const picked = await pickImage(label, shape === 'round' ? [1, 1] : [4, 3]);
+    if (picked) onChange({ path: value.path, localUri: picked.uri, mimeType: picked.mimeType });
   };
-
-  const choose = () =>
-    Alert.alert(label, undefined, [
-      { text: 'Galerie', onPress: () => pick('library') },
-      { text: 'Appareil photo', onPress: () => pick('camera') },
-      { text: 'Annuler', style: 'cancel' },
-    ]);
 
   return (
     <Pressable onPress={choose} style={shape === 'round' ? styles.round : styles.wide}>

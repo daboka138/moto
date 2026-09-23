@@ -59,7 +59,7 @@ export default function InviteScreen() {
               key={f.id}
               photoUrl={photoUrl(f.avatar_path)}
               title={`@${f.username}`}
-              subtitle={`${f.first_name} ${f.last_name}`}
+              subtitle={f.city}
               onPress={() => toggle(f.id)}
               right={
                 <Ionicons

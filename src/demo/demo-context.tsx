@@ -16,6 +16,8 @@ type DemoState = DemoSocialState & {
   acceptRequest: (id: string) => void;
   refuseRequest: (id: string) => void;
   removeFriend: (id: string) => void;
+  /** En démo, une demande envoyée est acceptée tout de suite */
+  addFriend: (id: string) => void;
   setRideActive: (active: boolean) => void;
   invitedRideIds: string[];
   joinRide: (id: string) => void;
@@ -69,6 +71,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     },
     refuseRequest: (id) => setIncomingIds((ids) => ids.filter((x) => x !== id)),
     removeFriend: (id) => setFriendIds((ids) => ids.filter((x) => x !== id)),
+    addFriend: (id) => {
+      setIncomingIds((ids) => ids.filter((x) => x !== id));
+      setFriendIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+    },
   };
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;

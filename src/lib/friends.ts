@@ -1,9 +1,8 @@
 import { supabase } from '@/lib/supabase';
 
+/** Ce que les autres voient d'un motard : jamais son prénom ni son nom. */
 export type PublicProfile = {
   id: string;
-  first_name: string;
-  last_name: string;
   username: string;
   avatar_path: string;
   city: string | null;
@@ -19,7 +18,7 @@ export type FriendsState = {
 
 export type Relation = 'self' | 'friend' | 'incoming' | 'outgoing' | 'none';
 
-const PROFILE_FIELDS = 'id, first_name, last_name, username, avatar_path, city';
+const PROFILE_FIELDS = 'id, username, avatar_path, city';
 
 type FriendshipRow = {
   requester_id: string;

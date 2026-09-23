@@ -87,7 +87,7 @@ export default function FriendsScreen() {
                 key={p.id}
                 photoUrl={photoUrl(p.avatar_path)}
                 title={`@${p.username}`}
-                subtitle={[`${p.first_name} ${p.last_name}`, p.city].filter(Boolean).join(' · ')}
+                subtitle={p.city}
                 onPress={() => openProfile(p.id)}
                 right={actionFor(p)}
               />
@@ -106,7 +106,7 @@ export default function FriendsScreen() {
                   key={p.id}
                   photoUrl={photoUrl(p.avatar_path)}
                   title={`@${p.username}`}
-                  subtitle={`${p.first_name} ${p.last_name}`}
+                  subtitle={p.city}
                   onPress={() => openProfile(p.id)}
                   right={
                     <View style={styles.actions}>
@@ -138,7 +138,7 @@ export default function FriendsScreen() {
                     key={p.id}
                     photoUrl={photoUrl(p.avatar_path)}
                     title={`@${p.username}`}
-                    subtitle={[`${p.first_name} ${p.last_name}`, p.city].filter(Boolean).join(' · ')}
+                    subtitle={p.city}
                     onPress={() => openProfile(p.id)}
                   />
                 ))

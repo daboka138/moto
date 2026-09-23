@@ -71,6 +71,7 @@ function RootNavigator() {
         <Stack.Screen name="ride/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
+        <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
         <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
         <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
       </Stack.Protected>

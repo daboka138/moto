@@ -193,8 +193,20 @@ function canSee(seed: DemoRideSeed, s: DemoRideState) {
   return false;
 }
 
+/** Nombre de balades de démo auxquelles participe ce faux motard */
+export function demoRideCountOf(username: string) {
+  return SEEDS.filter((seed) => seed.participants.includes(username)).length;
+}
+
+/** Date de publication inventée mais stable : quelques heures à quelques jours */
+function postedAt(seed: DemoRideSeed) {
+  const index = SEEDS.indexOf(seed);
+  return new Date(Date.now() - (3 + index * 11) * 3600 * 1000).toISOString();
+}
+
 function toDetails(seed: DemoRideSeed, s: DemoRideState, me: RidePerson): RideDetails {
   const joined = s.joinedRideIds.includes(seed.id);
+  const since = postedAt(seed);
   const status = seed.live ? (s.rideActive ? 'live' : 'ended') : 'upcoming';
   const participants = [
     ...seed.participants.map((u) => ({ ...person(u), status: 'joined' as const })),
@@ -212,6 +224,8 @@ function toDetails(seed: DemoRideSeed, s: DemoRideState, me: RidePerson): RideDe
     participantsCount: participants.length,
     maxParticipants: seed.max,
     organizer: person(seed.organizer),
+    members: participants.map((p) => ({ id: p.id, status: p.status, since })),
+    createdAt: since,
     status,
     joined,
     invited: !joined && s.invitedRideIds.includes(seed.id),

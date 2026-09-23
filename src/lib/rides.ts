@@ -27,6 +27,9 @@ export const visibilityInfo = (v: RideVisibility) => RIDE_VISIBILITIES.find((x) 
 
 export type RidePerson = { id: string; username: string; avatarUrl: string };
 
+/** Participant tel que vu dans la liste : sert au fil d'actualité (« X participe à… ») */
+export type RideMember = { id: string; status: 'invited' | 'joined'; since: string };
+
 export type RideSummary = {
   id: string;
   title: string;
@@ -39,6 +42,8 @@ export type RideSummary = {
   participantsCount: number;
   maxParticipants: number | null;
   organizer: RidePerson;
+  members: RideMember[];
+  createdAt: string;
   status: RideStatus;
   /** Je suis inscrit (joined) */
   joined: boolean;
@@ -95,22 +100,24 @@ type Row = {
   duration_s: number | null;
   started_at: string | null;
   ended_at: string | null;
+  created_at: string;
   organizer: { id: string; username: string; avatar_path: string } | null;
   participants: {
     user_id: string;
     status: 'invited' | 'joined';
-    profile: { id: string; username: string; avatar_path: string } | null;
+    created_at: string;
+    profile?: { id: string; username: string; avatar_path: string } | null;
   }[];
 };
 
 const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participants, meeting_at, meeting_label,
-  meeting_lat, meeting_lng, distance_m, duration_s, started_at, ended_at,
+  meeting_lat, meeting_lng, distance_m, duration_s, started_at, ended_at, created_at,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status)`;
+  participants:group_ride_participants(user_id, status, created_at)`;
 
 const DETAIL_FIELDS = `*,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, profile:profiles(id, username, avatar_path))`;
+  participants:group_ride_participants(user_id, status, created_at, profile:profiles(id, username, avatar_path))`;
 
 /** Pendant combien de temps après le RDV une balade non démarrée reste listée */
 const LISTED_AFTER_MEETING_MS = 12 * 3600 * 1000;
@@ -139,6 +146,8 @@ function toSummary(r: Row, userId: string): RideSummary {
       username: r.organizer?.username ?? '?',
       avatarUrl: r.organizer ? photoUrl(r.organizer.avatar_path) : '',
     },
+    members: r.participants.map((p) => ({ id: p.user_id, status: p.status, since: p.created_at })),
+    createdAt: r.created_at,
     status: statusOf(r),
     joined: mine?.status === 'joined',
     invited: mine?.status === 'invited',

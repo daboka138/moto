@@ -13,6 +13,7 @@ import {
   saveProfile,
   validateDraft,
   type MotorcycleDraft,
+  type PrivateIdentity,
   type Profile,
   type ProfileDraft,
 } from '@/lib/profile';
@@ -20,13 +21,15 @@ import {
 type Props = {
   userId: string;
   profile: Profile | null;
+  /** Prénom et nom actuels (privés), null à la création */
+  identity: PrivateIdentity | null;
   submitLabel: string;
   onSaved: () => void | Promise<void>;
   header?: React.ReactNode;
 };
 
-export function ProfileForm({ userId, profile, submitLabel, onSaved, header }: Props) {
-  const [draft, setDraft] = useState<ProfileDraft>(() => profileToDraft(profile));
+export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, header }: Props) {
+  const [draft, setDraft] = useState<ProfileDraft>(() => profileToDraft(profile, identity));
   const [interestInput, setInterestInput] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -71,17 +74,26 @@ export function ProfileForm({ userId, profile, submitLabel, onSaved, header }: P
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {header}
 
-        <Section title="Identité">
+        <Section title="Identité privée">
+          <View style={styles.privateNote}>
+            <Ionicons name="lock-closed" size={16} color={Colors.textMuted} />
+            <Text style={styles.privateText}>
+              Visible uniquement par toi. Les autres motards ne voient que ton pseudo.
+            </Text>
+          </View>
+          <Field label="Prénom" required value={draft.firstName} onChangeText={(v) => set('firstName', v)} />
+          <Field label="Nom" required value={draft.lastName} onChangeText={(v) => set('lastName', v)} />
+        </Section>
+
+        <Section title="Profil public">
           <PhotoPicker
             shape="round"
             label="Photo de profil *"
             value={draft.avatar}
             onChange={(v) => set('avatar', v)}
           />
-          <Field label="Prénom" required value={draft.firstName} onChangeText={(v) => set('firstName', v)} />
-          <Field label="Nom" required value={draft.lastName} onChangeText={(v) => set('lastName', v)} />
           <Field
-            label="Pseudo"
+            label="Pseudo (nom de rider)"
             required
             value={draft.username}
             onChangeText={(v) => set('username', v)}
@@ -199,6 +211,8 @@ export function ProfileForm({ userId, profile, submitLabel, onSaved, header }: P
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   hint: { color: Colors.textMuted },
+  privateNote: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  privateText: { flex: 1, fontSize: 13, color: Colors.textMuted },
   label: { fontSize: 14, fontWeight: '600', color: Colors.text },
   moto: {
     gap: 12,

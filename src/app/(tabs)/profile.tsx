@@ -9,17 +9,22 @@ import { Button } from '@/components/ui';
 import { Colors } from '@/constants/theme';
 import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
 import { signOut } from '@/lib/auth';
+import { pickImage } from '@/lib/pick-image';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 import { useSession } from '@/lib/session';
 import { useFriends } from '@/lib/use-friends';
+import { useProfileWall } from '@/lib/use-profile-wall';
+import { deleteWallPhoto, setCoverPhoto, type WallPhoto } from '@/lib/wall';
 
 export default function ProfileScreen() {
-  const { profile } = useSession();
+  const { session, profile, refreshProfile } = useSession();
+  const userId = session?.user.id;
   const { state: friends } = useFriends();
   const { settings } = usePrivacy();
+  const { photos, stats, refresh } = useProfileWall(userId);
 
-  // En-tête sombre : barre d'état claire tant que l'onglet est affiché
+  // Couverture sombre : barre d'état claire tant que l'onglet est affiché
   useFocusEffect(
     useCallback(() => {
       setStatusBarStyle('light');
@@ -27,7 +32,40 @@ export default function ProfileScreen() {
     }, []),
   );
 
-  if (!profile) return null;
+  if (!profile || !userId) return null;
+
+  const addPhoto = async () => {
+    const picked = await pickImage('Ajouter une photo', [1, 1]);
+    if (picked) router.push({ pathname: '/photo/new', params: { uri: picked.uri, mimeType: picked.mimeType ?? '' } });
+  };
+
+  const deletePhoto = (photo: WallPhoto) =>
+    Alert.alert('Supprimer la photo', 'Elle sera retirée de ton mur.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteWallPhoto(photo);
+            await refresh();
+          } catch (e) {
+            Alert.alert('Suppression impossible', e instanceof Error ? e.message : String(e));
+          }
+        },
+      },
+    ]);
+
+  const editCover = async () => {
+    const picked = await pickImage('Photo de couverture', [16, 9]);
+    if (!picked) return;
+    try {
+      await setCoverPhoto(userId, picked, profile.cover_path);
+      await refreshProfile();
+    } catch (e) {
+      Alert.alert('Couverture', e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const confirmSignOut = () =>
     Alert.alert('Déconnexion', 'Tu veux vraiment te déconnecter ?', [
@@ -40,6 +78,12 @@ export default function ProfileScreen() {
   return (
     <ProfileView
       profile={profile}
+      stats={stats}
+      photos={photos}
+      underStatusBar
+      onAddPhoto={addPhoto}
+      onDeletePhoto={deletePhoto}
+      onEditCover={editCover}
       actions={
         <>
           <Button title="Modifier mon profil" variant="secondary" onPress={() => router.push('/profile-edit')} />
@@ -97,7 +141,7 @@ function LinkRow({
 
 const styles = StyleSheet.create({
   links: { backgroundColor: Colors.surface, borderRadius: 18, paddingHorizontal: 16 },
-  link: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
   linkLabel: { flex: 1, fontSize: 16, fontWeight: '700', color: Colors.text },
   linkValue: { fontSize: 15, color: Colors.textMuted },
   badge: {

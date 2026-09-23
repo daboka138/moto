@@ -35,12 +35,12 @@ export type Motorcycle = {
   created_at: string;
 };
 
+/** Profil public : visible par tous les membres. Jamais de prénom ni de nom ici. */
 export type Profile = {
   id: string;
-  first_name: string;
-  last_name: string;
   username: string;
   avatar_path: string;
+  cover_path: string | null;
   bio: string | null;
   riding_styles: RidingStyle[];
   license_year: number | null;
@@ -76,7 +76,20 @@ export type ProfileDraft = {
   motorcycles: MotorcycleDraft[];
 };
 
+/** Identité privée (table profile_private) : lisible uniquement par son propriétaire. */
+export type PrivateIdentity = { firstName: string; lastName: string };
+
 const BUCKET = 'photos';
+
+export async function fetchIdentity(userId: string): Promise<PrivateIdentity | null> {
+  const { data, error } = await supabase
+    .from('profile_private')
+    .select('first_name, last_name')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { firstName: data.first_name, lastName: data.last_name } : null;
+}
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -105,10 +118,10 @@ export function emptyMotorcycleDraft(): MotorcycleDraft {
   };
 }
 
-export function profileToDraft(profile: Profile | null): ProfileDraft {
+export function profileToDraft(profile: Profile | null, identity: PrivateIdentity | null): ProfileDraft {
   return {
-    firstName: profile?.first_name ?? '',
-    lastName: profile?.last_name ?? '',
+    firstName: identity?.firstName ?? '',
+    lastName: identity?.lastName ?? '',
     username: profile?.username ?? '',
     avatar: { path: profile?.avatar_path ?? null, localUri: null },
     bio: profile?.bio ?? '',
@@ -158,10 +171,16 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
     if (previous?.avatar_path) oldPaths.push(previous.avatar_path);
   }
 
-  const { error } = await supabase.from('profiles').upsert({
-    id: userId,
+  // Identité privée d'abord (table séparée, lisible par moi seul)
+  const { error: identityError } = await supabase.from('profile_private').upsert({
+    user_id: userId,
     first_name: draft.firstName.trim(),
     last_name: draft.lastName.trim(),
+  });
+  if (identityError) throw identityError;
+
+  const { error } = await supabase.from('profiles').upsert({
+    id: userId,
     username: draft.username.trim(),
     avatar_path: avatarPath,
     bio: draft.bio.trim() || null,
@@ -217,7 +236,11 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
   if (oldPaths.length) await supabase.storage.from(BUCKET).remove(oldPaths);
 }
 
-async function uploadPhoto(userId: string, kind: 'avatar' | 'moto', photo: PhotoValue): Promise<string> {
+export async function uploadPhoto(
+  userId: string,
+  kind: 'avatar' | 'moto' | 'wall' | 'cover',
+  photo: PhotoValue,
+): Promise<string> {
   const contentType = photo.mimeType ?? 'image/jpeg';
   const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg';
   const path = `${userId}/${kind}-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;

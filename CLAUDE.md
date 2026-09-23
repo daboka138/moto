@@ -18,7 +18,9 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - VPS Debian + Caddy : site vitrine / admin plus tard
 
 ## Données V1
-- profiles : id (= auth.users), prénom, nom, pseudo, avatar_path, bio, riding_styles, license_year, city, interests (fait)
+- profiles (PUBLIC, lisible par tous les membres) : id, pseudo, avatar_path, cover_path, bio, riding_styles, license_year, city, interests (fait)
+- profile_private : prénom + nom, lisibles UNIQUEMENT par leur propriétaire (RLS). Ne jamais les afficher ni les remettre dans profiles : partout dans l'app, seul le pseudo est visible
+- wall_photos : mur de photos (fichiers dans photos/<user_id>/), + profile_stats() pour les compteurs (fait)
 - motorcycles : owner_id, marque, modèle, année, cylindrée, couleur, photo_path — plusieurs par profil (fait)
 - Storage : bucket public `photos`, écriture limitée à `photos/<user_id>/...`
 - SQL dans `supabase/migrations/`, collé à la main dans le SQL Editor Supabase

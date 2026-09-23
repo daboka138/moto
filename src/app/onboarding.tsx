@@ -16,6 +16,7 @@ export default function OnboardingScreen() {
       <ProfileForm
         userId={session.user.id}
         profile={null}
+        identity={null}
         submitLabel="Créer mon profil"
         // Une fois le profil chargé, _layout.tsx bascule vers les onglets
         onSaved={refreshProfile}

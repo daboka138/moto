@@ -1,101 +1,233 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
 import { Colors } from '@/constants/theme';
 import { photoUrl, RIDING_STYLES, type Motorcycle, type Profile } from '@/lib/profile';
+import type { ProfileStats, WallPhoto } from '@/lib/wall';
 
 type Props = {
   profile: Profile;
   /** Transforme un chemin de photo en URL (Supabase Storage par défaut) */
   resolvePhoto?: (path: string) => string;
-  /** Affiché juste sous les stats (ex. bouton Modifier) */
+  stats?: ProfileStats | null;
+  /** null pendant le chargement */
+  photos?: WallPhoto[] | null;
+  /** Boutons sous les compteurs (Modifier, Ajouter en ami...) */
   actions?: ReactNode;
-  /** Affiché en bas de la fiche (ex. réglages, déconnexion) */
+  /** En bas de l'onglet « À propos » (réglages, déconnexion...) */
   footer?: ReactNode;
+  /** Profil affiché sans barre de titre : la couverture passe sous la barre d'état */
+  underStatusBar?: boolean;
+  /** Mon profil : ajout/suppression de photos, changement de couverture */
+  onAddPhoto?: () => void;
+  onDeletePhoto?: (photo: WallPhoto) => void;
+  onEditCover?: () => void;
 };
 
-/** Fiche motard : en-tête, stats, bio, styles, garage, centres d'intérêt. */
-export function ProfileView({ profile, resolvePhoto = photoUrl, actions, footer }: Props) {
+const COVER_HEIGHT = 170;
+const AVATAR_SIZE = 108;
+const GRID_GAP = 2;
+
+/** Fiche motard façon réseau social : couverture, avatar, pseudo, compteurs, mur de photos. */
+export function ProfileView({
+  profile,
+  resolvePhoto = photoUrl,
+  stats,
+  photos,
+  actions,
+  footer,
+  underStatusBar,
+  onAddPhoto,
+  onDeletePhoto,
+  onEditCover,
+}: Props) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [tab, setTab] = useState<'photos' | 'about'>('photos');
+  const [viewing, setViewing] = useState<WallPhoto | null>(null);
+  const tile = (width - GRID_GAP * 2) / 3;
+  const coverHeight = COVER_HEIGHT + (underStatusBar ? insets.top : 0);
+  const mainMoto = profile.motorcycles[0];
+
+  return (
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={[styles.cover, { height: coverHeight }]}>
+          {profile.cover_path ? (
+            <Image source={{ uri: resolvePhoto(profile.cover_path) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <View style={styles.coverFallback}>
+              <MaterialCommunityIcons name="road-variant" size={64} color="rgba(255,255,255,0.08)" />
+            </View>
+          )}
+          {onEditCover && (
+            <Pressable style={[styles.coverButton, { top: (underStatusBar ? insets.top : 0) + 12 }]} onPress={onEditCover}>
+              <Ionicons name="camera" size={16} color="#fff" />
+              <Text style={styles.coverButtonText}>Couverture</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={styles.identity}>
+          <Image source={{ uri: resolvePhoto(profile.avatar_path) }} style={styles.avatar} contentFit="cover" />
+          <Text style={styles.username}>@{profile.username}</Text>
+          <View style={styles.metaRow}>
+            {!!profile.city && <Meta icon="location-sharp" text={profile.city} />}
+            {mainMoto && <Meta icon="motorbike" text={`${mainMoto.brand} ${mainMoto.model}`} community />}
+          </View>
+          {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+        </View>
+
+        <View style={styles.stats}>
+          <Stat value={stats?.photos} label="photos" />
+          <View style={styles.statDivider} />
+          <Stat value={stats?.friends} label="amis" />
+          <View style={styles.statDivider} />
+          <Stat value={stats?.rides} label="balades" />
+        </View>
+
+        {actions && <View style={styles.actions}>{actions}</View>}
+
+        <View style={styles.tabs}>
+          <TabButton label="Photos" icon="grid" active={tab === 'photos'} onPress={() => setTab('photos')} />
+          <TabButton label="À propos" icon="information-circle" active={tab === 'about'} onPress={() => setTab('about')} />
+        </View>
+
+        {tab === 'photos' ? (
+          <View style={styles.grid}>
+            {onAddPhoto && (
+              <Pressable style={[styles.tile, styles.addTile, { width: tile, height: tile }]} onPress={onAddPhoto}>
+                <Ionicons name="add" size={36} color={Colors.accent} />
+                <Text style={styles.addText}>Ajouter</Text>
+              </Pressable>
+            )}
+            {photos?.map((p) => (
+              <Pressable key={p.id} style={{ width: tile, height: tile }} onPress={() => setViewing(p)}>
+                <Image source={{ uri: p.url }} style={styles.tile} contentFit="cover" transition={150} />
+              </Pressable>
+            ))}
+            {photos && photos.length === 0 && !onAddPhoto && (
+              <Text style={styles.empty}>Aucune photo pour l’instant.</Text>
+            )}
+          </View>
+        ) : (
+          <About profile={profile} resolvePhoto={resolvePhoto} footer={footer} />
+        )}
+      </ScrollView>
+
+      <PhotoViewer
+        photo={viewing}
+        onClose={() => setViewing(null)}
+        onDelete={
+          onDeletePhoto
+            ? (p) => {
+                setViewing(null);
+                onDeletePhoto(p);
+              }
+            : undefined
+        }
+      />
+    </View>
+  );
+}
+
+function About({
+  profile,
+  resolvePhoto,
+  footer,
+}: {
+  profile: Profile;
+  resolvePhoto: (path: string) => string;
+  footer?: ReactNode;
+}) {
   const licenseYears = profile.license_year ? new Date().getFullYear() - profile.license_year : null;
   const styleLabels = profile.riding_styles.map((s) => RIDING_STYLES.find((r) => r.value === s)?.label ?? s);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.hero}>
-        <SafeAreaView edges={['top']} style={styles.heroInner}>
-          <Image source={{ uri: resolvePhoto(profile.avatar_path) }} style={styles.avatar} contentFit="cover" />
-          <Text style={styles.name}>
-            {profile.first_name} {profile.last_name}
-          </Text>
-          <Text style={styles.username}>@{profile.username}</Text>
-          {!!profile.city && (
-            <View style={styles.cityRow}>
-              <Ionicons name="location-sharp" size={14} color={Colors.accent} />
-              <Text style={styles.city}>{profile.city}</Text>
-            </View>
-          )}
-        </SafeAreaView>
-      </View>
-
-      <View style={styles.stats}>
-        <Stat value={profile.motorcycles.length} label={profile.motorcycles.length > 1 ? 'motos' : 'moto'} />
-        <View style={styles.statDivider} />
-        <Stat value={licenseYears ?? '–'} label={licenseYears !== null && licenseYears > 1 ? 'ans de permis' : 'an de permis'} />
-      </View>
-
-      <View style={styles.body}>
-        {actions}
-
-        {!!profile.bio && (
-          <Card title="Bio">
-            <Text style={styles.bio}>{profile.bio}</Text>
-          </Card>
-        )}
-
-        {styleLabels.length > 0 && (
-          <Card title="Style de conduite">
+    <View style={styles.about}>
+      {(styleLabels.length > 0 || licenseYears !== null) && (
+        <Card title="Style de conduite">
+          {styleLabels.length > 0 && (
             <View style={styles.chips}>
               {styleLabels.map((s) => (
                 <Chip key={s} label={s} selected />
               ))}
             </View>
-          </Card>
-        )}
-
-        <Card title="Garage">
-          {profile.motorcycles.length === 0 ? (
-            <Text style={styles.muted}>Aucune moto pour l&apos;instant.</Text>
-          ) : (
-            profile.motorcycles.map((m) => <MotoCard key={m.id} moto={m} resolvePhoto={resolvePhoto} />)
+          )}
+          {licenseYears !== null && (
+            <Text style={styles.muted}>
+              Permis depuis {licenseYears} an{licenseYears > 1 ? 's' : ''}
+            </Text>
           )}
         </Card>
+      )}
 
-        {profile.interests.length > 0 && (
-          <Card title="Centres d'intérêt">
-            <View style={styles.chips}>
-              {profile.interests.map((i) => (
-                <Chip key={i} label={i} />
-              ))}
-            </View>
-          </Card>
+      <Card title="Garage">
+        {profile.motorcycles.length === 0 ? (
+          <Text style={styles.muted}>Aucune moto pour l&apos;instant.</Text>
+        ) : (
+          profile.motorcycles.map((m) => <MotoCard key={m.id} moto={m} resolvePhoto={resolvePhoto} />)
         )}
+      </Card>
 
-        {footer}
-      </View>
-    </ScrollView>
+      {profile.interests.length > 0 && (
+        <Card title="Centres d'intérêt">
+          <View style={styles.chips}>
+            {profile.interests.map((i) => (
+              <Chip key={i} label={i} />
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {footer}
+    </View>
   );
 }
 
-function Stat({ value, label }: { value: number | string; label: string }) {
+function Meta({ icon, text, community }: { icon: string; text: string; community?: boolean }) {
+  return (
+    <View style={styles.meta}>
+      {community ? (
+        <MaterialCommunityIcons name={icon as 'motorbike'} size={16} color={Colors.accent} />
+      ) : (
+        <Ionicons name={icon as 'location-sharp'} size={14} color={Colors.accent} />
+      )}
+      <Text style={styles.metaText}>{text}</Text>
+    </View>
+  );
+}
+
+function Stat({ value, label }: { value: number | undefined; label: string }) {
   return (
     <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statValue}>{value ?? '–'}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
+  );
+}
+
+function TabButton({
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string;
+  icon: 'grid' | 'information-circle';
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={[styles.tab, active && styles.tabActive]} onPress={onPress}>
+      <Ionicons name={active ? icon : `${icon}-outline`} size={18} color={active ? Colors.accent : Colors.textMuted} />
+      <Text style={[styles.tabText, active && { color: Colors.accent }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -109,11 +241,9 @@ export function Card({ title, children }: { title: string; children: ReactNode }
 }
 
 function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (path: string) => string }) {
-  const details = [
-    moto.year?.toString(),
-    moto.displacement_cc ? `${moto.displacement_cc} cc` : null,
-    moto.color,
-  ].filter(Boolean);
+  const details = [moto.year?.toString(), moto.displacement_cc ? `${moto.displacement_cc} cc` : null, moto.color].filter(
+    Boolean,
+  );
 
   return (
     <View style={styles.moto}>
@@ -136,46 +266,73 @@ function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (pat
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: 32 },
-  hero: {
-    backgroundColor: Colors.dark,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    paddingBottom: 48,
+  cover: { backgroundColor: Colors.dark, overflow: 'hidden' },
+  coverFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#27272A' },
+  coverButton: {
+    position: 'absolute',
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  heroInner: { alignItems: 'center', paddingTop: 24, gap: 4 },
+  coverButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  identity: { alignItems: 'center', paddingHorizontal: 24, marginTop: -AVATAR_SIZE / 2, gap: 6 },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     borderWidth: 4,
-    borderColor: Colors.accent,
-    marginBottom: 12,
+    borderColor: Colors.background,
+    backgroundColor: Colors.border,
   },
-  name: { fontSize: 26, fontWeight: '900', color: '#fff' },
-  username: { fontSize: 16, color: Colors.accent, fontWeight: '600' },
-  cityRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  city: { color: '#D4D4D8', fontSize: 14 },
+  username: { fontSize: 28, fontWeight: '900', color: Colors.text, marginTop: 4 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 14, color: Colors.textMuted, fontWeight: '600' },
+  bio: { fontSize: 15, lineHeight: 21, color: Colors.text, textAlign: 'center', marginTop: 4 },
   stats: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
-    marginHorizontal: 24,
-    marginTop: -32,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 18,
-    paddingVertical: 14,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    paddingVertical: 12,
   },
   stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 24, fontWeight: '900', color: Colors.text },
+  statValue: { fontSize: 22, fontWeight: '900', color: Colors.text },
   statLabel: { fontSize: 13, color: Colors.textMuted },
   statDivider: { width: 1, backgroundColor: Colors.border },
-  body: { padding: 16, gap: 16 },
+  actions: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+  tabs: {
+    flexDirection: 'row',
+    marginTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: { borderBottomColor: Colors.accent },
+  tabText: { fontSize: 15, fontWeight: '700', color: Colors.textMuted },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP, marginTop: GRID_GAP },
+  tile: { flex: 1, backgroundColor: Colors.border },
+  addTile: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft, flex: 0 },
+  addText: { color: Colors.accent, fontWeight: '700', fontSize: 13 },
+  empty: { color: Colors.textMuted, padding: 24, textAlign: 'center', width: '100%' },
+  about: { padding: 16, gap: 16 },
   card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 12 },
   cardTitle: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  bio: { fontSize: 16, lineHeight: 22, color: Colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   muted: { color: Colors.textMuted, fontSize: 14 },
   moto: { borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.background },
