@@ -6,6 +6,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { Colors } from '@/constants/theme';
+import { DemoProvider } from '@/demo/demo-context'; // DEMO
 import { signOut } from '@/lib/auth';
 import { SessionProvider, useSession } from '@/lib/session';
 
@@ -14,8 +15,10 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <SessionProvider>
-      <StatusBar style="dark" />
-      <RootNavigator />
+      <DemoProvider /* DEMO */>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </DemoProvider>
     </SessionProvider>
   );
 }
@@ -58,6 +61,7 @@ function RootNavigator() {
       <Stack.Protected guard={!!session && !!profile}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
+        <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
       </Stack.Protected>
     </Stack>
   );
