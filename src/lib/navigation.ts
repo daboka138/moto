@@ -1,11 +1,13 @@
 import { distanceM, type LatLng } from '@/lib/geo';
+import type { RouteOptions } from '@/lib/moto';
 
 // Moteur de navigation : calcul d'itinéraire avec instructions, position sur le
 // trajet, prochaine manœuvre. Fonctions pures, testables sans téléphone.
 //
 // - Itinéraire normal : OSRM (serveur public), instructions rédigées ici en français.
-// - « Éviter autoroutes » : les serveurs OSRM publics ne le permettent pas ; on passe
-//   par Valhalla (serveur public FOSSGIS, profil moto), qui fournit ses instructions en français.
+// - Options (50 cm³, éviter autoroutes / péages / non goudronné, route plaisir) : les serveurs
+//   OSRM publics ne les gèrent pas ; on passe par Valhalla (serveur public FOSSGIS), qui fournit
+//   ses instructions en français. Profil « motor_scooter » (45 km/h, jamais d'autoroute) pour les 50 cm³.
 
 export type ManeuverIcon =
   | 'straight'
@@ -40,7 +42,8 @@ export type NavRoute = {
   durationS: number;
   steps: NavStep[];
   engine: 'osrm' | 'valhalla';
-  avoidHighways: boolean;
+  /** Options réellement appliquées (null = itinéraire standard OSRM) */
+  options: RouteOptions | null;
 };
 
 const TIMEOUT_MS = 12_000;
@@ -57,16 +60,52 @@ async function fetchJson(url: string, init?: RequestInit) {
   }
 }
 
-/** Itinéraire de from à to. Lève une erreur si aucun calcul n'est possible. */
-export async function fetchNavRoute(from: LatLng, to: LatLng, avoidHighways: boolean): Promise<NavRoute> {
-  if (avoidHighways) {
+/** L'itinéraire standard OSRM suffit-il pour ces options ? */
+export function needsValhalla(o: RouteOptions) {
+  return o.scooter50 || o.avoidHighways || o.avoidTolls || o.style === 'fun' || o.preferTrails;
+}
+
+/**
+ * Itinéraire de from à to. Lève une erreur si aucun calcul n'est possible.
+ * 50 cm³ : jamais de repli sur OSRM (il passerait par l'autoroute, interdite).
+ */
+export async function fetchNavRoute(from: LatLng, to: LatLng, options: RouteOptions): Promise<NavRoute> {
+  if (needsValhalla(options)) {
     try {
-      return await fetchValhalla(from, to);
+      return await fetchValhalla([from, to], options);
     } catch (e) {
-      console.warn('Valhalla indisponible, itinéraire normal', e);
+      if (options.scooter50) throw new Error('Itinéraire 50 cm³ indisponible pour le moment (serveur injoignable)');
+      console.warn('Valhalla indisponible, itinéraire standard', e);
     }
   }
   return fetchOsrm(from, to);
+}
+
+/** Paramètres Valhalla correspondant aux options */
+export function valhallaCosting(o: RouteOptions): { costing: string; options: Record<string, unknown> } {
+  const exclusions = {
+    ...(o.avoidTolls ? { exclude_tolls: true } : {}),
+    ...(o.avoidUnpaved ? { exclude_unpaved: true } : {}),
+  };
+  if (o.scooter50) {
+    // Cyclomoteur : 45 km/h, le profil exclut de lui-même autoroutes et voies rapides
+    return { costing: 'motor_scooter', options: { top_speed: 45, use_primary: 0.5, ...exclusions } };
+  }
+  if (o.style === 'fun') {
+    // Route plaisir : petites routes (on évite les grands axes), relief bienvenu
+    return {
+      costing: 'motor_scooter',
+      options: { top_speed: 90, use_primary: 0, use_hills: 1, use_trails: o.preferTrails ? 0.8 : 0, ...exclusions },
+    };
+  }
+  return {
+    costing: 'motorcycle',
+    options: {
+      ...(o.avoidHighways ? { exclude_highways: true } : {}),
+      use_trails: o.avoidUnpaved ? 0 : o.preferTrails ? 1 : 0.3,
+      ...exclusions,
+    },
+  };
 }
 
 // ---------- OSRM ----------
@@ -105,7 +144,7 @@ async function fetchOsrm(from: LatLng, to: LatLng): Promise<NavRoute> {
     durationS: route.duration,
     steps,
     engine: 'osrm',
-    avoidHighways: false,
+    options: null,
   };
 }
 
@@ -176,14 +215,12 @@ export function osrmInstruction(s: OsrmStep): { icon: ManeuverIcon; action: stri
 
 type ValhallaManeuver = { type: number; instruction: string; street_names?: string[]; begin_shape_index: number };
 
-async function fetchValhalla(from: LatLng, to: LatLng): Promise<NavRoute> {
+export async function fetchValhalla(stops: LatLng[], routeOptions: RouteOptions): Promise<NavRoute> {
+  const { costing, options } = valhallaCosting(routeOptions);
   const body = {
-    locations: [
-      { lat: from.latitude, lon: from.longitude },
-      { lat: to.latitude, lon: to.longitude },
-    ],
-    costing: 'motorcycle',
-    costing_options: { motorcycle: { use_highways: 0 } },
+    locations: stops.map((p) => ({ lat: p.latitude, lon: p.longitude })),
+    costing,
+    costing_options: { [costing]: options },
     directions_options: { language: 'fr-FR', units: 'kilometers' },
   };
   const { ok, json } = await fetchJson('https://valhalla1.openstreetmap.de/route', {
@@ -191,21 +228,32 @@ async function fetchValhalla(from: LatLng, to: LatLng): Promise<NavRoute> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const leg = json.trip?.legs?.[0];
-  if (!ok || !leg) throw new Error(json.error ?? 'Valhalla : pas d’itinéraire');
-  const points = decodePolyline6(leg.shape);
+  const legs = json.trip?.legs as { shape: string; maneuvers: ValhallaManeuver[] }[] | undefined;
+  if (!ok || !legs?.length) throw new Error(json.error ?? 'Valhalla : pas d’itinéraire');
+  // Un tronçon par étape : on les met bout à bout
+  const points: LatLng[] = [];
+  const legStarts: number[] = [];
+  for (const leg of legs) {
+    legStarts.push(points.length);
+    points.push(...decodePolyline6(leg.shape));
+  }
   const cumulative = cumulate(points);
-  const steps: NavStep[] = (leg.maneuvers as ValhallaManeuver[]).map((m) => {
-    const index = Math.min(m.begin_shape_index, points.length - 1);
-    return {
-      location: points[index],
-      alongM: cumulative[index],
-      icon: valhallaIcon(m.type),
-      // Valhalla rédige déjà l'instruction complète en français
-      action: m.instruction.replace(/\.$/, ''),
-      road: null,
-    };
-  });
+  const steps: NavStep[] = legs.flatMap((leg, li) =>
+    leg.maneuvers
+      // Arrivée intermédiaire à une étape : pas d'annonce « vous êtes arrivé »
+      .filter((m) => li === legs.length - 1 || valhallaIcon(m.type) !== 'arrive')
+      .map((m) => {
+        const index = Math.min(legStarts[li] + m.begin_shape_index, points.length - 1);
+        return {
+          location: points[index],
+          alongM: cumulative[index],
+          icon: valhallaIcon(m.type),
+          // Valhalla rédige déjà l'instruction complète en français
+          action: m.instruction.replace(/\.$/, ''),
+          road: null,
+        };
+      }),
+  );
   return {
     points,
     cumulative,
@@ -213,7 +261,7 @@ async function fetchValhalla(from: LatLng, to: LatLng): Promise<NavRoute> {
     durationS: json.trip.summary.time,
     steps,
     engine: 'valhalla',
-    avoidHighways: true,
+    options: routeOptions,
   };
 }
 

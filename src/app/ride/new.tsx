@@ -10,7 +10,15 @@ import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
-import { createRide, RIDE_LEVELS, RIDE_VISIBILITIES, type RideLevel, type RideVisibility } from '@/lib/rides';
+import { ALL_CATEGORIES, MOTO_CATEGORIES, PACES, SURFACES, type MotoCategory, type Pace, type Surface } from '@/lib/moto';
+import {
+  createRide,
+  RIDE_LEVELS,
+  RIDE_VISIBILITIES,
+  rideRouteOptions,
+  type RideLevel,
+  type RideVisibility,
+} from '@/lib/rides';
 import { computeRoute, formatDistance, formatDuration, type ComputedRoute } from '@/lib/routing';
 import { useSession } from '@/lib/session';
 
@@ -38,19 +46,26 @@ export default function NewRideScreen() {
   const [visibility, setVisibility] = useState<RideVisibility>('public');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [description, setDescription] = useState('');
+  const [categories, setCategories] = useState<MotoCategory[]>(ALL_CATEGORIES);
+  const [pace, setPace] = useState<Pace | null>(null);
+  const [surface, setSurface] = useState<Surface>('asphalt');
   const [saving, setSaving] = useState(false);
 
   // Tracé recalculé dès que départ, arrivée ou étapes changent
   const stops = start && end ? [start, ...waypoints, end] : null;
-  const stopsKey = stops ? JSON.stringify(stops.map((s) => [s.latitude, s.longitude])) : null;
+  const routeOptions = rideRouteOptions(categories, surface);
+  const stopsKey = stops
+    ? JSON.stringify({ stops: stops.map((s) => [s.latitude, s.longitude]), options: routeOptions ?? null })
+    : null;
   const [route, setRoute] = useState<{ key: string; route: ComputedRoute } | null>(null);
   const currentRoute = route && route.key === stopsKey ? route.route : null;
 
   useEffect(() => {
     if (!stopsKey) return;
-    const points = (JSON.parse(stopsKey) as [number, number][]).map(([latitude, longitude]) => ({ latitude, longitude }));
+    const parsed = JSON.parse(stopsKey) as { stops: [number, number][]; options: typeof routeOptions | null };
+    const points = parsed.stops.map(([latitude, longitude]) => ({ latitude, longitude }));
     let cancelled = false;
-    computeRoute(points)
+    computeRoute(points, parsed.options ?? undefined)
       .then((r) => !cancelled && setRoute({ key: stopsKey, route: r }))
       .catch((e) => console.warn('Calcul du tracé impossible', e));
     return () => {
@@ -89,6 +104,7 @@ export default function NewRideScreen() {
     if (max !== null && (!Number.isInteger(max) || max < 2 || max > 100))
       errors.push('Nombre max de participants : entre 2 et 100.');
     if (start && end && !currentRoute) errors.push('Le tracé est encore en cours de calcul, patiente une seconde.');
+    if (!categories.length) errors.push('Coche au moins une catégorie de moto acceptée.');
     if (errors.length) {
       Alert.alert('À compléter', errors.join('\n'));
       return;
@@ -108,6 +124,9 @@ export default function NewRideScreen() {
         visibility,
         maxParticipants: max,
         description,
+        categories,
+        pace,
+        surface,
       });
       router.replace({ pathname: '/ride/[id]', params: { id } });
     } catch (e) {
@@ -202,6 +221,44 @@ export default function NewRideScreen() {
             <View style={styles.colSmall}>
               <DateTimeField label="Heure" mode="time" value={meetingAt} onChange={setTimePart} />
             </View>
+          </View>
+        </Section>
+
+        <Section title="Motos et rythme">
+          <Text style={styles.label}>Motos acceptées</Text>
+          <View style={styles.chips}>
+            {MOTO_CATEGORIES.map((c) => (
+              <Chip
+                key={c.value}
+                label={c.short}
+                selected={categories.includes(c.value)}
+                onPress={() =>
+                  setCategories((cs) => (cs.includes(c.value) ? cs.filter((x) => x !== c.value) : [...cs, c.value]))
+                }
+              />
+            ))}
+          </View>
+          {categories.includes('cyclo') && (
+            <Text style={styles.hint}>Ouverte aux 50 cm³ : le tracé est calculé sans autoroute ni voie rapide.</Text>
+          )}
+
+          <Text style={styles.label}>Rythme</Text>
+          <View style={styles.chips}>
+            {PACES.map((p) => (
+              <Chip
+                key={p.value}
+                label={`${p.label} · ${p.description}`}
+                selected={pace === p.value}
+                onPress={() => setPace(pace === p.value ? null : p.value)}
+              />
+            ))}
+          </View>
+
+          <Text style={styles.label}>Type de route</Text>
+          <View style={styles.chips}>
+            {SURFACES.map((x) => (
+              <Chip key={x.value} label={x.label} selected={surface === x.value} onPress={() => setSurface(x.value)} />
+            ))}
           </View>
         </Section>
 

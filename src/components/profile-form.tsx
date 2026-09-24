@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PhotoPicker } from '@/components/photo-picker';
+import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACES } from '@/lib/moto';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import {
@@ -39,7 +40,20 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
     setDraft((d) => ({ ...d, [key]: value }));
 
   const setMoto = (key: string, patch: Partial<MotorcycleDraft>) =>
-    setDraft((d) => ({ ...d, motorcycles: d.motorcycles.map((m) => (m.key === key ? { ...m, ...patch } : m)) }));
+    setDraft((d) => ({
+      ...d,
+      motorcycles: d.motorcycles.map((m) => {
+        if (m.key !== key) return m;
+        const next = { ...m, ...patch };
+        if (!next.categoryChosen && ('displacement' in patch || 'model' in patch)) {
+          next.category = inferCategory(Number(next.displacement) || null, next.model);
+        }
+        return next;
+      }),
+    }));
+
+  const setMain = (key: string) =>
+    setDraft((d) => ({ ...d, motorcycles: d.motorcycles.map((m) => ({ ...m, isMain: m.key === key })) }));
 
   const removeMoto = (key: string) =>
     setDraft((d) => ({ ...d, motorcycles: d.motorcycles.filter((m) => m.key !== key) }));
@@ -111,6 +125,18 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
             <View key={moto.key} style={styles.moto}>
               <View style={styles.motoHeader}>
                 <Text style={styles.motoTitle}>Moto {index + 1}</Text>
+                {draft.motorcycles.length > 1 && (
+                  <Pressable style={styles.mainToggle} onPress={() => setMain(moto.key)} hitSlop={8}>
+                    <Ionicons
+                      name={moto.isMain ? 'star' : 'star-outline'}
+                      size={18}
+                      color={moto.isMain ? Colors.accent : Colors.textMuted}
+                    />
+                    <Text style={[styles.mainText, moto.isMain && { color: Colors.accent }]}>
+                      {moto.isMain ? 'Principale' : 'Définir comme principale'}
+                    </Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={() => removeMoto(moto.key)} hitSlop={10}>
                   <Ionicons name="trash-outline" size={20} color={Colors.danger} />
                 </Pressable>
@@ -138,6 +164,17 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
                 </View>
               </View>
               <Field label="Couleur" value={moto.color} onChangeText={(v) => setMoto(moto.key, { color: v })} />
+              <Text style={styles.label}>Catégorie{!moto.categoryChosen && moto.category ? ' (déduite de la cylindrée)' : ''}</Text>
+              <View style={styles.chips}>
+                {MOTO_CATEGORIES.map((c) => (
+                  <Chip
+                    key={c.value}
+                    label={c.short}
+                    selected={moto.category === c.value}
+                    onPress={() => setMoto(moto.key, { category: c.value, categoryChosen: true })}
+                  />
+                ))}
+              </View>
             </View>
           ))}
           <Button
@@ -157,6 +194,28 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
             placeholder="Quelques mots sur toi et ta façon de rouler"
             style={styles.bio}
           />
+          <Text style={styles.label}>Rythme préféré</Text>
+          <View style={styles.chips}>
+            {PACES.map((p) => (
+              <Chip
+                key={p.value}
+                label={`${p.label} · ${p.description}`}
+                selected={draft.pace === p.value}
+                onPress={() => set('pace', draft.pace === p.value ? null : p.value)}
+              />
+            ))}
+          </View>
+          <Text style={styles.label}>Disponibilités</Text>
+          <View style={styles.chips}>
+            {AVAILABILITIES.map((a) => (
+              <Chip
+                key={a.value}
+                label={a.label}
+                selected={draft.availability.includes(a.value)}
+                onPress={() => set('availability', toggle(draft.availability, a.value))}
+              />
+            ))}
+          </View>
           <Text style={styles.label}>Style de conduite</Text>
           <View style={styles.chips}>
             {RIDING_STYLES.map((s) => (
@@ -225,7 +284,9 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.background,
   },
   motoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  motoTitle: { fontSize: 16, fontWeight: '700' },
+  mainToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', marginRight: 12 },
+  mainText: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  motoTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

@@ -9,7 +9,8 @@ import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
-import { photoUrl } from '@/lib/profile';
+import { categoryInfo, rideFitsCategory } from '@/lib/moto';
+import { mainCategory, photoUrl } from '@/lib/profile';
 import { RIDE_LEVELS, type RideLevel, type RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
 import { useUpcomingRides } from '@/lib/use-rides';
@@ -47,6 +48,9 @@ export default function RidesScreen() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [maxKm, setMaxKm] = useState<number | null>(null);
   const [levels, setLevels] = useState<RideLevel[]>([]);
+  // Filtre automatique sur la catégorie de ma moto principale (désactivable : « Tout voir »)
+  const myCategory = mainCategory(profile);
+  const [onlyMine, setOnlyMine] = useState(true);
 
   useEffect(() => {
     Location.getLastKnownPositionAsync()
@@ -69,6 +73,7 @@ export default function RidesScreen() {
   const filtered = all?.filter((r) => {
     if (!matchesDate(r, dateFilter)) return false;
     if (levels.length && !levels.includes(r.level)) return false;
+    if (onlyMine && myCategory && !r.categories.includes(myCategory)) return false;
     const d = distanceOf(r);
     if (maxKm !== null && d !== null && d > maxKm * 1000) return false;
     return true;
@@ -93,6 +98,17 @@ export default function RidesScreen() {
 
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {myCategory && (
+            <>
+              <Chip
+                label={`Pour ma moto (${categoryInfo(myCategory).short})`}
+                selected={onlyMine}
+                onPress={() => setOnlyMine(true)}
+              />
+              <Chip label="Tout voir" selected={!onlyMine} onPress={() => setOnlyMine(false)} />
+              <View style={styles.separator} />
+            </>
+          )}
           {DATE_FILTERS.map((f) => (
             <Chip key={f.value} label={f.label} selected={dateFilter === f.value} onPress={() => setDateFilter(f.value)} />
           ))}
@@ -123,11 +139,21 @@ export default function RidesScreen() {
           keyExtractor={(r) => r.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
-          renderItem={({ item }) => <RideCard ride={item} distanceFromMeM={distanceOf(item)} onPress={() => open(item)} />}
+          renderItem={({ item }) => (
+            <RideCard
+              ride={item}
+              distanceFromMeM={distanceOf(item)}
+              fit={rideFitsCategory(item.categories, myCategory)}
+              onPress={() => open(item)}
+            />
+          )}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="map-outline" size={40} color={Colors.textMuted} />
               <Text style={styles.muted}>Aucune balade ne correspond à ces filtres.</Text>
+              {onlyMine && myCategory && (
+                <Chip label="Voir aussi les autres balades" onPress={() => setOnlyMine(false)} />
+              )}
             </View>
           }
         />

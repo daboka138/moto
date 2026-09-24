@@ -9,11 +9,11 @@ export function DemoToggle() {
   const styles = useStyles();
   const { enabled, setEnabled } = useDemoMode();
   return (
-    <Card title="Développement">
+    <Card title="Démonstration">
       <View style={styles.row}>
         <View style={styles.text}>
           <Text style={styles.label}>Mode démo</Text>
-          <Text style={styles.hint}>15 faux motards simulés autour de toi sur la carte.</Text>
+          <Text style={styles.hint}>18 faux motards simulés autour de toi (carte, Mur, balades, stories, messages). Désactivé par défaut.</Text>
         </View>
         <Switch
           value={enabled}

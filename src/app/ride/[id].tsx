@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { RideView } from '@/components/ride-view';
+import { openRideConversation } from '@/lib/messages';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import {
@@ -15,13 +16,16 @@ import {
   startRide,
   type RideDetails,
 } from '@/lib/rides';
+import { mainCategory } from '@/lib/profile';
 import { useSession } from '@/lib/session';
+import { confirmJoinRide } from '@/lib/join-ride';
 
 export default function RideScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session } = useSession();
+  const { session, profile } = useSession();
+  const myCategory = mainCategory(profile);
   const userId = session?.user.id;
   const [loaded, setLoaded] = useState<{ id: string; ride: RideDetails | null } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,14 +82,7 @@ export default function RideScreen() {
   const canJoin = !ride.joined && ride.status !== 'ended' && (ride.invited || ride.visibility !== 'private');
 
   const confirmJoin = () =>
-    Alert.alert(
-      'Participer à la balade',
-      'Pendant la balade, les autres participants verront ta position sur la carte, même si tu es en mode fantôme.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Je participe', onPress: () => run(() => joinRide(ride.id, userId, ride.invited)) },
-      ],
-    );
+    confirmJoinRide(ride.categories, myCategory, () => run(() => joinRide(ride.id, userId, ride.invited)));
 
   const confirmLeave = () =>
     Alert.alert('Se désister', 'Tu ne participeras plus à cette balade.', [
@@ -111,8 +108,15 @@ export default function RideScreen() {
       { text: 'Supprimer', style: 'destructive', onPress: () => run(() => deleteRide(ride.id), () => router.back()) },
     ]);
 
+  const openChat = () =>
+    run(async () => {
+      const conversationId = await openRideConversation(ride.id);
+      router.push({ pathname: '/chat/[id]', params: { id: conversationId } });
+    });
+
   const actions = (
     <View style={styles.actions}>
+      {(isOrganizer || ride.joined) && <Button title="💬 Discussion de la balade" onPress={openChat} loading={busy} />}
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
       )}
@@ -152,6 +156,7 @@ export default function RideScreen() {
       <Stack.Screen options={{ title: '' }} />
       <RideView
         ride={ride}
+        myCategory={myCategory}
         actions={actions}
         onPersonPress={(pid) => pid !== userId && router.push({ pathname: '/user/[id]', params: { id: pid } })}
       />

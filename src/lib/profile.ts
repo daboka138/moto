@@ -1,5 +1,6 @@
 import { File } from 'expo-file-system';
 
+import { inferCategory, type Availability, type MotoCategory, type Pace } from '@/lib/moto';
 import { supabase } from '@/lib/supabase';
 
 export const RIDING_STYLES = [
@@ -32,6 +33,8 @@ export type Motorcycle = {
   displacement_cc: number | null;
   color: string | null;
   photo_path: string | null;
+  category: MotoCategory | null;
+  is_main: boolean;
   created_at: string;
 };
 
@@ -46,6 +49,8 @@ export type Profile = {
   license_year: number | null;
   city: string | null;
   interests: string[];
+  pace: Pace | null;
+  availability: Availability[];
   motorcycles: Motorcycle[];
 };
 
@@ -61,6 +66,10 @@ export type MotorcycleDraft = {
   displacement: string;
   color: string;
   photo: PhotoValue;
+  category: MotoCategory | null;
+  /** true si l'utilisateur a choisi la catégorie lui-même (on ne la déduit plus de la cylindrée) */
+  categoryChosen: boolean;
+  isMain: boolean;
 };
 
 export type ProfileDraft = {
@@ -73,6 +82,8 @@ export type ProfileDraft = {
   licenseYear: string;
   city: string;
   interests: string[];
+  pace: Pace | null;
+  availability: Availability[];
   motorcycles: MotorcycleDraft[];
 };
 
@@ -115,7 +126,22 @@ export function emptyMotorcycleDraft(): MotorcycleDraft {
     displacement: '',
     color: '',
     photo: { path: null, localUri: null },
+    category: null,
+    categoryChosen: false,
+    isMain: false,
   };
+}
+
+/** Moto principale d'un profil (celle marquée, sinon la première) */
+export function mainMotorcycle(profile: Pick<Profile, 'motorcycles'> | null | undefined): Motorcycle | null {
+  const motos = profile?.motorcycles ?? [];
+  return motos.find((m) => m.is_main) ?? motos[0] ?? null;
+}
+
+/** Catégorie de la moto principale (déduite de la cylindrée si non renseignée) */
+export function mainCategory(profile: Pick<Profile, 'motorcycles'> | null | undefined): MotoCategory | null {
+  const m = mainMotorcycle(profile);
+  return m ? (m.category ?? inferCategory(m.displacement_cc, m.model)) : null;
 }
 
 export function profileToDraft(profile: Profile | null, identity: PrivateIdentity | null): ProfileDraft {
@@ -129,7 +155,9 @@ export function profileToDraft(profile: Profile | null, identity: PrivateIdentit
     licenseYear: profile?.license_year?.toString() ?? '',
     city: profile?.city ?? '',
     interests: profile?.interests ?? [],
-    motorcycles: (profile?.motorcycles ?? []).map((m) => ({
+    pace: profile?.pace ?? null,
+    availability: profile?.availability ?? [],
+    motorcycles: (profile?.motorcycles ?? []).map((m, i, all) => ({
       key: m.id,
       id: m.id,
       brand: m.brand,
@@ -138,6 +166,9 @@ export function profileToDraft(profile: Profile | null, identity: PrivateIdentit
       displacement: m.displacement_cc?.toString() ?? '',
       color: m.color ?? '',
       photo: { path: m.photo_path, localUri: null },
+      category: m.category ?? inferCategory(m.displacement_cc, m.model),
+      categoryChosen: m.category !== null,
+      isMain: m.is_main || (i === 0 && !all.some((x) => x.is_main)),
     })),
   };
 }
@@ -188,6 +219,8 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
     license_year: toIntOrNull(draft.licenseYear),
     city: draft.city.trim() || null,
     interests: draft.interests,
+    pace: draft.pace,
+    availability: draft.availability,
   });
   if (error) {
     if (error.code === '23505') throw new Error('Ce pseudo est déjà pris.');
@@ -196,6 +229,10 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
 
   const previousMotos = previous?.motorcycles ?? [];
   const keptIds = new Set(draft.motorcycles.map((m) => m.id).filter(Boolean));
+
+  // Moto principale : celle cochée, sinon la première
+  const mainKey = (draft.motorcycles.find((m) => m.isMain) ?? draft.motorcycles[0])?.key;
+  let mainId: string | null = null;
 
   for (const moto of draft.motorcycles) {
     let photoPath = moto.photo.path;
@@ -212,11 +249,17 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
       displacement_cc: toIntOrNull(moto.displacement),
       color: moto.color.trim() || null,
       photo_path: photoPath,
+      category: moto.category ?? inferCategory(toIntOrNull(moto.displacement), moto.model),
     };
-    const { error: motoError } = moto.id
-      ? await supabase.from('motorcycles').update(row).eq('id', moto.id)
-      : await supabase.from('motorcycles').insert(row);
-    if (motoError) throw motoError;
+    if (moto.id) {
+      const { error: motoError } = await supabase.from('motorcycles').update(row).eq('id', moto.id);
+      if (motoError) throw motoError;
+      if (moto.key === mainKey) mainId = moto.id;
+    } else {
+      const { data, error: motoError } = await supabase.from('motorcycles').insert(row).select('id').single();
+      if (motoError) throw motoError;
+      if (moto.key === mainKey) mainId = data.id;
+    }
   }
 
   const removed = previousMotos.filter((m) => !keptIds.has(m.id));
@@ -230,6 +273,12 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
       );
     if (deleteError) throw deleteError;
     removed.forEach((m) => m.photo_path && oldPaths.push(m.photo_path));
+  }
+
+  // Une seule moto principale : changement atomique côté serveur
+  if (mainId) {
+    const { error: mainError } = await supabase.rpc('set_main_motorcycle', { moto: mainId });
+    if (mainError) throw mainError;
   }
 
   // Nettoyage des anciennes photos : pas bloquant si ça échoue

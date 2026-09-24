@@ -6,11 +6,14 @@ import { RideView } from '@/components/ride-view';
 import { Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
+import { useDemoMessages } from '@/demo/messages';
 import { demoRide } from '@/demo/rides';
 import { DEMO_LIVE_RIDE_ID } from '@/demo/social';
-import { photoUrl } from '@/lib/profile';
+import { mainCategory, photoUrl } from '@/lib/profile';
+import { rideRouteOptions } from '@/lib/rides';
 import { computeRoute, type ComputedRoute } from '@/lib/routing';
 import { useSession } from '@/lib/session';
+import { confirmJoinRide } from '@/lib/join-ride';
 
 // Tracés calculés une seule fois par balade de démo
 const routeCache = new Map<string, ComputedRoute>();
@@ -20,7 +23,9 @@ export default function DemoRideScreen() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const demo = useDemoMode();
+  const demoMessages = useDemoMessages();
   const { session, profile } = useSession();
+  const myCategory = mainCategory(profile);
   const [route, setRoute] = useState<{ id: string; route: ComputedRoute } | null>(() => {
     const cached = routeCache.get(id);
     return cached ? { id, route: cached } : null;
@@ -32,12 +37,16 @@ export default function DemoRideScreen() {
     avatarUrl: profile ? photoUrl(profile.avatar_path) : '',
   };
   const ride = demoRide(id, demo, me);
-  const stopsKey = ride ? JSON.stringify([ride.start, ...ride.waypoints, ride.end]) : null;
+  const routeOptions = ride ? rideRouteOptions(ride.categories, ride.surface) : undefined;
+  const stopsKey = ride
+    ? JSON.stringify({ stops: [ride.start, ...ride.waypoints, ride.end], options: routeOptions ?? null })
+    : null;
 
   useEffect(() => {
     if (!stopsKey || routeCache.has(id)) return;
     let cancelled = false;
-    computeRoute(JSON.parse(stopsKey)).then((r) => {
+    const parsed = JSON.parse(stopsKey);
+    computeRoute(parsed.stops, parsed.options ?? undefined).then((r) => {
       routeCache.set(id, r);
       if (!cancelled) setRoute({ id, route: r });
     });
@@ -62,14 +71,7 @@ export default function DemoRideScreen() {
   const canJoin = !ride.joined && ride.status !== 'ended' && (ride.invited || ride.visibility !== 'private');
 
   const join = () =>
-    Alert.alert(
-      'Participer à la balade',
-      'Pendant la balade, les autres participants verront ta position sur la carte, même si tu es en mode fantôme.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Je participe', onPress: () => demo.joinRide(ride.id) },
-      ],
-    );
+    confirmJoinRide(ride.categories, myCategory, () => demo.joinRide(ride.id));
 
   const leave = () =>
     Alert.alert('Se désister', 'Tu ne participeras plus à cette balade.', [
@@ -77,8 +79,15 @@ export default function DemoRideScreen() {
       { text: 'Me désister', style: 'destructive', onPress: () => demo.leaveRide(ride.id) },
     ]);
 
+  const openChat = () => {
+    const riderIds = ride.participants.filter((p) => p.id.startsWith('demo-') && p.status === 'joined').map((p) => p.id);
+    const conversationId = demoMessages.openRide(ride.id, ride.title, riderIds);
+    router.push({ pathname: '/chat/[id]', params: { id: conversationId } });
+  };
+
   const actions = (
     <View style={styles.actions}>
+      {ride.joined && <Button title="💬 Discussion de la balade" onPress={openChat} />}
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
       )}
@@ -105,6 +114,7 @@ export default function DemoRideScreen() {
       <Stack.Screen options={{ title: '' }} />
       <RideView
         ride={details}
+        myCategory={myCategory}
         actions={actions}
         onPersonPress={(pid) => pid.startsWith('demo-') && router.push({ pathname: '/demo-rider/[id]', params: { id: pid } })}
       />

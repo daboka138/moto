@@ -1,4 +1,6 @@
 import { distanceM, type LatLng } from '@/lib/geo';
+import type { RouteOptions } from '@/lib/moto';
+import { fetchValhalla, needsValhalla } from '@/lib/navigation';
 
 // Calcul d'itinéraire via le serveur de démo public OSRM.
 // OK pour le dev, à remplacer par un service avec clé (ou un OSRM hébergé) avant la prod.
@@ -15,8 +17,29 @@ export type ComputedRoute = {
 const MAX_POINTS = 500;
 const TIMEOUT_MS = 10_000;
 
-export async function computeRoute(stops: LatLng[]): Promise<ComputedRoute> {
+/**
+ * Tracé passant par les étapes. Avec des options (ex. balade ouverte aux 50 cm³),
+ * le calcul passe par Valhalla ; pour les 50 cm³, jamais de repli sur OSRM
+ * (il emprunterait l'autoroute) mais sur le tracé de secours.
+ */
+export async function computeRoute(stops: LatLng[], options?: RouteOptions): Promise<ComputedRoute> {
   if (stops.length < 2) throw new Error('Il faut au moins un départ et une arrivée');
+  if (options && needsValhalla(options)) {
+    try {
+      const r = await fetchValhalla(stops, options);
+      return {
+        points: downsample(
+          r.points.map((p) => [p.latitude, p.longitude] as [number, number]),
+          MAX_POINTS,
+        ),
+        distanceM: Math.round(r.distanceM),
+        durationS: Math.round(r.durationS),
+        onRoads: true,
+      };
+    } catch {
+      if (options.scooter50) return straightRoute(stops);
+    }
+  }
   const coords = stops.map((s) => `${s.longitude},${s.latitude}`).join(';');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

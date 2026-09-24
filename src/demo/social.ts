@@ -30,6 +30,9 @@ const SOCIAL: Record<string, Social> = {
   lea_tenere: { relation: 'friend', privacy: 'ghost' }, // amie mais fantôme → invisible
   mehdi_africa: { relation: 'none', privacy: 'friends' },
   chloe_zx6r: { relation: 'incoming', privacy: 'everyone' },
+  ines_kisbee: { relation: 'none', privacy: 'everyone' },
+  noah_mt125: { relation: 'friend', privacy: 'friends' },
+  zoe_cb125r: { relation: 'none', privacy: 'everyone' },
 };
 
 export function demoSocial(rider: DemoRider): Social {

@@ -1,6 +1,7 @@
 import { findDemoRiderByUsername } from '@/demo/riders';
 import { DEMO_LIVE_RIDE_ID, DEMO_RIDE_TITLE } from '@/demo/social';
 import type { Place } from '@/lib/geocoding';
+import type { MotoCategory, Pace, Surface } from '@/lib/moto';
 import type { RideDetails, RideLevel, RidePerson, RideSummary, RideVisibility } from '@/lib/rides';
 
 // Balades organisées par les faux motards autour de Marseille.
@@ -34,6 +35,9 @@ type DemoRideSeed = {
   max: number | null;
   description: string;
   live?: boolean;
+  categories: MotoCategory[];
+  pace: Pace;
+  surface: Surface;
 };
 
 const P = (label: string, latitude: number, longitude: number): Place => ({ label, latitude, longitude });
@@ -56,6 +60,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 15,
     durationMin: 23,
     max: 8,
+    categories: ['125', 'a2', 'big', 'trail'], pace: 'cool', surface: 'asphalt',
     description: 'La route des Crêtes tranquille, pause photo au Cap Canaille puis glace sur le port de La Ciotat.',
     live: true,
   },
@@ -75,6 +80,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 38,
     durationMin: 53,
     max: 10,
+    categories: ['125', 'a2', 'big', 'trail'], pace: 'cool', surface: 'asphalt',
     description: 'Tour de la montagne Sainte-Victoire à allure cool. Café au barrage de Bimont.',
   },
   {
@@ -93,6 +99,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 23,
     durationMin: 36,
     max: 6,
+    categories: ['a2', 'big', 'trail'], pace: 'soutenu', surface: 'asphalt',
     description: 'Virages à gogo dans l’Espigoulier. Rythme soutenu mais on s’attend en haut.',
   },
   {
@@ -111,6 +118,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 18,
     durationMin: 25,
     max: 12,
+    categories: ['cyclo', '125', 'a2', 'big', 'trail'], pace: 'cool', surface: 'asphalt',
     description: 'Petite boucle au coucher du soleil, apéro à Martigues pour ceux qui veulent.',
   },
   {
@@ -129,6 +137,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 24,
     durationMin: 30,
     max: 8,
+    categories: ['a2', 'big'], pace: 'soutenu', surface: 'asphalt',
     description: 'On monte ensemble pour la journée de roulage. Réservé aux amis.',
   },
   {
@@ -147,6 +156,7 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 38,
     durationMin: 44,
     max: 5,
+    categories: ['trail'], pace: 'modere', surface: 'mixed',
     description: 'Petites routes et quelques chemins faciles. Trails uniquement, sur invitation.',
   },
   {
@@ -165,9 +175,55 @@ const SEEDS: DemoRideSeed[] = [
     distanceKm: 45,
     durationMin: 45,
     max: 6,
+    categories: ['big'], pace: 'soutenu', surface: 'asphalt',
     description: 'Invisible pour moi en démo : balade « amis » d’un motard qui n’est pas mon ami.',
   },
 ];
+
+SEEDS.push(
+  {
+    id: 'demo-ride-8',
+    title: 'Corniche cool en 50 et 125',
+    organizer: 'ines_kisbee',
+    participants: ['ines_kisbee', 'zoe_cb125r'],
+    level: 'tranquille',
+    visibility: 'public',
+    day: 2,
+    time: [17, 30],
+    meeting: P('Plage des Catalans, Marseille', 43.2903, 5.3551),
+    start: P('Plage des Catalans, Marseille', 43.2903, 5.3551),
+    waypoints: [P('Vallon des Auffes', 43.2855, 5.3494)],
+    end: P('Les Goudes', 43.2167, 5.3497),
+    distanceKm: 13,
+    durationMin: 35,
+    max: 8,
+    description: 'Balade tranquille le long de la Corniche jusqu’aux Goudes. Ouverte aux 50 cm³ : on reste à 45 km/h.',
+    categories: ['cyclo', '125'],
+    pace: 'cool',
+    surface: 'asphalt',
+  },
+  {
+    id: 'demo-ride-9',
+    title: 'Initiation 125 vers la Sainte-Baume',
+    organizer: 'noah_mt125',
+    participants: ['noah_mt125', 'zoe_cb125r', 'lucas_mt07'],
+    level: 'tranquille',
+    visibility: 'public',
+    day: 5,
+    time: [10, 0],
+    meeting: P('Parking de la Gare, Aubagne', 43.2923, 5.5689),
+    start: P('Aubagne', 43.2927, 5.5708),
+    waypoints: [P('Gémenos', 43.296, 5.628)],
+    end: P("Plan-d'Aups-Sainte-Baume", 43.3337, 5.7231),
+    distanceKm: 24,
+    durationMin: 40,
+    max: 10,
+    description: 'Pour jeunes permis : on prend le temps dans les virages de l’Espigoulier, pauses fréquentes.',
+    categories: ['125', 'a2'],
+    pace: 'modere',
+    surface: 'asphalt',
+  },
+);
 
 export const DEMO_INITIAL_JOINED = [DEMO_LIVE_RIDE_ID];
 export const DEMO_INITIAL_INVITED = ['demo-ride-6'];
@@ -226,6 +282,9 @@ function toDetails(seed: DemoRideSeed, s: DemoRideState, me: RidePerson): RideDe
     organizer: person(seed.organizer),
     members: participants.map((p) => ({ id: p.id, status: p.status, since })),
     createdAt: since,
+    categories: seed.categories,
+    pace: seed.pace,
+    surface: seed.surface,
     status,
     joined,
     invited: !joined && s.invitedRideIds.includes(seed.id),

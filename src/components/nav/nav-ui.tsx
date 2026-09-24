@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { shortDistance, type ManeuverIcon, type NavRoute } from '@/lib/navigation';
+import type { RouteOptions } from '@/lib/moto';
+import { needsValhalla, shortDistance, type ManeuverIcon, type NavRoute } from '@/lib/navigation';
 import { reportInfo } from '@/lib/reports';
 import type { SearchResult } from '@/lib/search';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
@@ -34,8 +35,9 @@ export function RoutePreviewCard({
   route,
   loading,
   error,
-  avoidHighways,
-  onToggleAvoidHighways,
+  options,
+  moto,
+  onChangeOptions,
   onStart,
   onCancel,
 }: {
@@ -43,14 +45,16 @@ export function RoutePreviewCard({
   route: NavRoute | null;
   loading: boolean;
   error: string | null;
-  avoidHighways: boolean;
-  onToggleAvoidHighways: (value: boolean) => void;
+  options: RouteOptions;
+  /** Moto utilisée pour préremplir les options, ex. « Kisbee · 50 cm³ » */
+  moto: string | null;
+  onChangeOptions: (patch: Partial<RouteOptions>) => void;
   onStart: () => void;
   onCancel: () => void;
 }) {
   const Colors = useColors();
   const styles = useStyles();
-  const avoidFailed = avoidHighways && route && !route.avoidHighways;
+  const fallback = route && route.engine === 'osrm' && needsValhalla(options);
   return (
     <View style={styles.card}>
       <View style={styles.destRow}>
@@ -76,16 +80,41 @@ export function RoutePreviewCard({
         </View>
       ) : null}
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Éviter les autoroutes</Text>
-        <Switch
-          value={avoidHighways}
-          onValueChange={onToggleAvoidHighways}
-          trackColor={{ true: Colors.accent, false: Colors.border }}
-          thumbColor={Colors.white}
+      {moto && (
+        <View style={styles.motoRow}>
+          <MaterialCommunityIcons name="motorbike" size={18} color={Colors.accent} />
+          <Text style={styles.muted}>Options préréglées pour ta {moto}</Text>
+        </View>
+      )}
+
+      <View style={styles.optionChips}>
+        <OptionChip
+          label={options.scooter50 ? 'Sans autoroute (obligatoire en 50)' : 'Sans autoroute'}
+          active={options.avoidHighways}
+          locked={options.scooter50}
+          onPress={() => onChangeOptions({ avoidHighways: !options.avoidHighways })}
+        />
+        <OptionChip label="Sans péage" active={options.avoidTolls} onPress={() => onChangeOptions({ avoidTolls: !options.avoidTolls })} />
+        <OptionChip
+          label="Sans non-goudronné"
+          active={options.avoidUnpaved}
+          onPress={() => onChangeOptions({ avoidUnpaved: !options.avoidUnpaved, preferTrails: false })}
         />
       </View>
-      {avoidFailed && <Text style={styles.warning}>Calcul sans autoroute indisponible, itinéraire normal affiché.</Text>}
+      <View style={styles.segment}>
+        {(['fast', 'fun'] as const).map((style) => (
+          <Pressable
+            key={style}
+            style={[styles.segmentItem, options.style === style && styles.segmentItemOn]}
+            onPress={() => onChangeOptions({ style })}>
+            <Text style={[styles.segmentText, options.style === style && styles.segmentTextOn]}>
+              {style === 'fast' ? 'Route rapide' : 'Route plaisir'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {options.style === 'fun' && <Text style={styles.warning}>Petites routes, grands axes évités quand c’est possible.</Text>}
+      {fallback && <Text style={styles.warning}>Options indisponibles pour le moment : itinéraire standard affiché.</Text>}
 
       <View style={styles.buttons}>
         <View style={{ flex: 1 }}>
@@ -96,6 +125,34 @@ export function RoutePreviewCard({
         </View>
       </View>
     </View>
+  );
+}
+
+function OptionChip({
+  label,
+  active,
+  locked,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  locked?: boolean;
+  onPress: () => void;
+}) {
+  const Colors = useColors();
+  const styles = useStyles();
+  return (
+    <Pressable
+      style={[styles.optionChip, active && styles.optionChipOn, locked && { opacity: 0.7 }]}
+      onPress={onPress}
+      disabled={locked}>
+      <Ionicons
+        name={locked ? 'lock-closed' : active ? 'checkmark-circle' : 'ellipse-outline'}
+        size={16}
+        color={active ? Colors.white : Colors.textMuted}
+      />
+      <Text style={[styles.optionText, active && styles.optionTextOn]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -197,8 +254,27 @@ const useStyles = makeStyles((Colors) => ({
   muted: { fontSize: 14, color: Colors.textMuted },
   error: { color: Colors.danger, fontWeight: '600' },
   warning: { color: Colors.textMuted, fontSize: 13 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  switchLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  motoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  optionChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  optionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  optionChipOn: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  optionText: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  optionTextOn: { color: Colors.white },
+  segment: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: 14, padding: 4 },
+  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
+  segmentItemOn: { backgroundColor: Colors.accent },
+  segmentText: { fontSize: 15, fontWeight: '700', color: Colors.textMuted },
+  segmentTextOn: { color: Colors.white },
   buttons: { flexDirection: 'row', gap: 10 },
   bannerWrap: { gap: 8 },
   banner: {

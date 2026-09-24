@@ -2,18 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
+import { StoryRow } from '@/components/story-row';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { photoItems, rideItems, sortFeed, timeAgo, type FeedItem, type FeedPerson } from '@/lib/feed';
 import { fetchFriends } from '@/lib/friends';
-import { photoUrl } from '@/lib/profile';
+import { mainCategory, photoUrl } from '@/lib/profile';
+import { rideFitsCategory } from '@/lib/moto';
 import { fetchUpcomingRides, joinRide, type RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
+import { useStories } from '@/lib/stories-context';
+import { confirmJoinRide } from '@/lib/join-ride';
 import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
 // DEMO
 import { useDemoMode } from '@/demo/demo-context';
@@ -28,12 +32,14 @@ export default function FeedScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session, profile } = useSession();
+  const myCategory = mainCategory(profile);
   const userId = session?.user.id;
   const [real, setReal] = useState<RealFeed | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  const { refresh: refreshStories } = useStories();
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -97,14 +103,7 @@ export default function FeedScreen() {
       : router.push({ pathname: '/ride/[id]', params: { id: r.id } });
 
   const join = (r: RideSummary) =>
-    Alert.alert(
-      'Participer à la balade',
-      'Pendant la balade, les autres participants verront ta position sur la carte, même si tu es en mode fantôme.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Je participe',
-          onPress: async () => {
+    confirmJoinRide(r.categories, myCategory, async () => {
             if (r.isDemo) return demo.joinRide(r.id);
             if (!userId) return;
             setJoiningId(r.id);
@@ -116,10 +115,7 @@ export default function FeedScreen() {
             } finally {
               setJoiningId(null);
             }
-          },
-        },
-      ],
-    );
+          });
 
   const renderItem = ({ item }: { item: FeedItem }) => {
     if (item.kind === 'photo') {
@@ -145,7 +141,12 @@ export default function FeedScreen() {
         <Header people={item.people} text={verb} at={item.at} whoLabel={who} onPersonPress={openPerson} />
         <View style={styles.rideBox}>
           <View style={styles.rideFrame}>
-            <RideCard ride={r} distanceFromMeM={null} onPress={() => openRide(r)} />
+            <RideCard
+              ride={r}
+              distanceFromMeM={null}
+              fit={rideFitsCategory(r.categories, myCategory)}
+              onPress={() => openRide(r)}
+            />
           </View>
           {canJoin && (
             <Button
@@ -162,7 +163,13 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <Text style={styles.title}>Mur</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Mur</Text>
+        <Pressable style={styles.findButton} onPress={() => router.push('/riders')}>
+          <Ionicons name="search" size={18} color={Colors.white} />
+          <Text style={styles.findText}>Trouver des motards</Text>
+        </Pressable>
+      </View>
 
       {!items ? (
         <View style={styles.center}>
@@ -174,25 +181,17 @@ export default function FeedScreen() {
           keyExtractor={(i) => i.key}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} colors={[Colors.accent]} />}
-          ListHeaderComponent={
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friends}>
-              <Pressable style={styles.friend} onPress={() => router.push('/friends')}>
-                <View style={[styles.friendAvatar, styles.addFriend]}>
-                  <Ionicons name="person-add" size={24} color={Colors.accent} />
-                </View>
-                <Text style={styles.friendName}>Ajouter</Text>
-              </Pressable>
-              {friends.map((f) => (
-                <Pressable key={f.id} style={styles.friend} onPress={() => openPerson(f)}>
-                  <Image source={{ uri: f.avatarUrl }} style={styles.friendAvatar} />
-                  <Text style={styles.friendName} numberOfLines={1}>
-                    {f.username}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                load();
+                refreshStories();
+              }}
+              colors={[Colors.accent]}
+            />
           }
+          ListHeaderComponent={<StoryRow />}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="newspaper-outline" size={40} color={Colors.textMuted} />
@@ -251,23 +250,22 @@ function Header({
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
+  findButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  findText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
   title: { fontSize: 28, fontWeight: '900', color: Colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   list: { paddingBottom: 32, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   empty: { alignItems: 'center', gap: 8, padding: 32 },
-  friends: { paddingHorizontal: 16, paddingVertical: 12, gap: 14 },
-  friend: { alignItems: 'center', width: 68, gap: 4 },
-  friendAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    borderColor: Colors.accent,
-    backgroundColor: Colors.border,
-  },
-  addFriend: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft, borderStyle: 'dashed' },
-  friendName: { fontSize: 12, color: Colors.text, maxWidth: 68 },
   card: { backgroundColor: Colors.surface, paddingVertical: 12, gap: 10 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
   avatars: { flexDirection: 'row' },

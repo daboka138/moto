@@ -4,7 +4,8 @@ import { DEMO_RIDERS } from '@/demo/riders';
 import { DEMO_INITIAL_INVITED, DEMO_INITIAL_JOINED } from '@/demo/rides';
 import { demoSocial, type DemoSocialState } from '@/demo/social';
 
-// Mode démo : faux motards simulés sur la carte. Activé par défaut en dev.
+// Mode démo : faux motards simulés sur la carte. Activé par défaut en dev (__DEV__) seulement :
+// désactivé par défaut dans les APK de test et de prod, activable dans Paramètres.
 // Le choix est mémorisé sur l'appareil (localStorage fourni par expo-sqlite).
 // Les amitiés et le trajet de groupe de démo ne vivent qu'en mémoire.
 

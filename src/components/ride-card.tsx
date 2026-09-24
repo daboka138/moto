@@ -10,10 +10,12 @@ type Props = {
   ride: RideSummary;
   /** Distance entre moi et le point de RDV */
   distanceFromMeM: number | null;
+  /** Compatibilité avec ma moto : true / false, null si inconnue (pas de badge) */
+  fit?: boolean | null;
   onPress: () => void;
 };
 
-export function RideCard({ ride, distanceFromMeM, onPress }: Props) {
+export function RideCard({ ride, distanceFromMeM, fit = null, onPress }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const level = levelInfo(ride.level);
@@ -45,6 +47,19 @@ export function RideCard({ ride, distanceFromMeM, onPress }: Props) {
           <Text style={styles.info}>
             {formatDistance(ride.distanceM)}
             {ride.durationS !== null ? ` · ${formatDuration(ride.durationS)}` : ''}
+          </Text>
+        </View>
+      )}
+
+      {fit !== null && (
+        <View style={[styles.fit, { backgroundColor: fit ? Colors.successSoft : Colors.accentSoft }]}>
+          <Ionicons
+            name={fit ? 'checkmark-circle' : 'alert-circle'}
+            size={16}
+            color={fit ? Colors.success : Colors.danger}
+          />
+          <Text style={[styles.fitText, { color: fit ? Colors.success : Colors.danger }]}>
+            {fit ? 'Adaptée à ta moto' : 'Pas adaptée à ta moto'}
           </Text>
         </View>
       )}
@@ -89,6 +104,8 @@ const useStyles = makeStyles((Colors) => ({
   title: { fontSize: 18, fontWeight: '800', color: Colors.text },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   info: { flex: 1, fontSize: 13, color: Colors.textMuted },
+  fit: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  fitText: { fontSize: 13, fontWeight: '800' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   avatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.border },
   organizer: { fontSize: 13, fontWeight: '600', color: Colors.text, flexShrink: 1 },

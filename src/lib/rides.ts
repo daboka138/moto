@@ -1,8 +1,12 @@
 import { LevelColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
+import type { MotoCategory, Pace, Surface } from '@/lib/moto';
+
 import { photoUrl } from '@/lib/profile';
 import type { ComputedRoute } from '@/lib/routing';
 import { supabase } from '@/lib/supabase';
+
+export { rideRouteOptions } from '@/lib/moto';
 
 // Balades planifiées = table group_rides. Qui voit quoi et qui peut s'inscrire
 // est décidé par Supabase (RLS, can_see_ride, can_join_ride, capacité).
@@ -45,6 +49,10 @@ export type RideSummary = {
   organizer: RidePerson;
   members: RideMember[];
   createdAt: string;
+  /** Catégories de motos acceptées */
+  categories: MotoCategory[];
+  pace: Pace | null;
+  surface: Surface;
   status: RideStatus;
   /** Je suis inscrit (joined) */
   joined: boolean;
@@ -75,6 +83,9 @@ export type RideDraft = {
   visibility: RideVisibility;
   maxParticipants: number | null;
   description: string;
+  categories: MotoCategory[];
+  pace: Pace | null;
+  surface: Surface;
 };
 
 type Row = {
@@ -102,6 +113,9 @@ type Row = {
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
+  categories: MotoCategory[];
+  pace: Pace | null;
+  surface: Surface;
   organizer: { id: string; username: string; avatar_path: string } | null;
   participants: {
     user_id: string;
@@ -112,7 +126,7 @@ type Row = {
 };
 
 const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participants, meeting_at, meeting_label,
-  meeting_lat, meeting_lng, distance_m, duration_s, started_at, ended_at, created_at,
+  meeting_lat, meeting_lng, distance_m, duration_s, started_at, ended_at, created_at, categories, pace, surface,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
   participants:group_ride_participants(user_id, status, created_at)`;
 
@@ -149,6 +163,9 @@ function toSummary(r: Row, userId: string): RideSummary {
     },
     members: r.participants.map((p) => ({ id: p.user_id, status: p.status, since: p.created_at })),
     createdAt: r.created_at,
+    categories: r.categories,
+    pace: r.pace,
+    surface: r.surface,
     status: statusOf(r),
     joined: mine?.status === 'joined',
     invited: mine?.status === 'invited',
@@ -205,6 +222,9 @@ export async function createRide(userId: string, d: RideDraft): Promise<string> 
       level: d.level,
       visibility: d.visibility,
       max_participants: d.maxParticipants,
+      categories: d.categories,
+      pace: d.pace,
+      surface: d.surface,
       meeting_at: d.meetingAt.toISOString(),
       meeting_label: d.meeting.label,
       meeting_lat: d.meeting.latitude,

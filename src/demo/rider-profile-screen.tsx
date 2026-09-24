@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 
 import { ProfileView } from '@/components/profile-view';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
 import { demoCover, demoPhotosOf } from '@/demo/photos';
+import { useDemoMessages } from '@/demo/messages';
 import { findDemoRider } from '@/demo/riders';
 import { demoRideCountOf } from '@/demo/rides';
 
@@ -14,6 +15,7 @@ export default function DemoRiderProfileScreen() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const demo = useDemoMode();
+  const demoMessages = useDemoMessages();
   const rider = findDemoRider(id);
 
   if (!rider) {
@@ -50,6 +52,11 @@ export default function DemoRiderProfileScreen() {
         actions={
           <>
             {actions}
+            <Button
+              title="Message"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/chat/[id]', params: { id: demoMessages.openDirect(rider.id) } })}
+            />
             <Text style={styles.badge}>Profil de démonstration</Text>
           </>
         }

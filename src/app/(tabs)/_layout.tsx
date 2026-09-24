@@ -4,6 +4,7 @@ import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/constants/theme';
+import { useInbox } from '@/lib/use-inbox';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -17,6 +18,7 @@ function icon(active: IconName, inactive: IconName) {
 export default function TabsLayout() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
+  const { unreadTotal } = useInbox();
   return (
     <Tabs
       screenOptions={{
@@ -37,6 +39,15 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline') }} />
       <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
       <Tabs.Screen name="rides" options={{ title: 'Balades', tabBarIcon: icon('flag', 'flag-outline') }} />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarIcon: icon('chatbubbles', 'chatbubbles-outline'),
+          tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.danger, color: Colors.white, fontSize: 11, fontWeight: '800' },
+        }}
+      />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: icon('person', 'person-outline') }} />
     </Tabs>
   );

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-import { SIGN_INK, useTheme, type Palette, type SignStyle } from '@/constants/theme';
+import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette, type SignStyle } from '@/constants/theme';
 import type { LatLng } from '@/lib/geo';
+import { useMapDark } from '@/lib/use-map-dark';
 
 export type MapPosition = {
   latitude: number;
@@ -65,7 +66,8 @@ type WebMessage =
 
 const BASE_URL = 'https://localhost/';
 
-// Tuiles : OSM en clair, CARTO Dark Matter en sombre. OK pour le dev, à remplacer par un
+// Tuiles : OSM classique par défaut, CARTO Dark Matter si le style de carte est sombre
+// (réglage séparé du thème de l'app). OK pour le dev, à remplacer par un
 // fournisseur avec contrat avant la prod (usage limité sur ces serveurs publics).
 const TILES = {
   light: {
@@ -79,9 +81,11 @@ const TILES = {
   },
 };
 
-/** Page de la carte, aux couleurs du thème actif. */
+/** Page de la carte : marqueurs aux couleurs du thème, tuiles selon le style de carte. */
 function buildHtml(Colors: Palette, dark: boolean) {
   const tiles = dark ? TILES.dark : TILES.light;
+  // Fond pendant le chargement des tuiles : celui du style de carte, pas du thème
+  Colors = { ...Colors, mapBackground: dark ? DarkColors.mapBackground : LightColors.mapBackground };
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -313,9 +317,10 @@ export function LeafletMap({
   onMarkersRendered,
 }: Props) {
   const webRef = useRef<WebView>(null);
-  const { colors, scheme } = useTheme();
-  // Changer de thème recharge la page (l'état est renvoyé au « ready » suivant)
-  const html = useMemo(() => buildHtml(colors, scheme === 'dark'), [colors, scheme]);
+  const { colors } = useTheme();
+  const mapDark = useMapDark(position ?? null);
+  // Changer de thème ou de style de carte recharge la page (l'état est renvoyé au « ready » suivant)
+  const html = useMemo(() => buildHtml(colors, mapDark), [colors, mapDark]);
   // Incrémenté à chaque chargement de la page : après un rechargement, tout l'état est renvoyé
   const [pageLoads, setPageLoads] = useState(0);
 

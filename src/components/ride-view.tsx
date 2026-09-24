@@ -7,6 +7,7 @@ import { LeafletMap, type MapPin } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
+import { categoryInfo, paceInfo, surfaceInfo, type MotoCategory } from '@/lib/moto';
 import { formatRideDate, levelInfo, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 
@@ -15,6 +16,8 @@ type Props = {
   /** Boutons (Je participe, Démarrer...) */
   actions?: ReactNode;
   onPersonPress?: (id: string) => void;
+  /** Catégorie de ma moto principale : met en avant si la balade l'accepte */
+  myCategory?: MotoCategory | null;
 };
 
 const at = (p: { latitude: number; longitude: number }) => ({ latitude: p.latitude, longitude: p.longitude });
@@ -34,7 +37,7 @@ export function ridePins(ride: {
 }
 
 /** Fiche balade : carte avec tracé, infos, organisateur, participants. */
-export function RideView({ ride, actions, onPersonPress }: Props) {
+export function RideView({ ride, actions, onPersonPress, myCategory = null }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const level = levelInfo(ride.level);
@@ -80,6 +83,32 @@ export function RideView({ ride, actions, onPersonPress }: Props) {
         </View>
 
         {actions}
+
+        <Card title="Motos et rythme">
+          <View style={styles.categoryRow}>
+            {ride.categories.map((c) => {
+              const mine = c === myCategory;
+              return (
+                <View key={c} style={[styles.categoryChip, mine && styles.categoryChipMine]}>
+                  <Text style={[styles.categoryText, mine && styles.categoryTextMine]}>
+                    {categoryInfo(c).short}
+                    {mine ? ' · ta moto' : ''}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          {myCategory && !ride.categories.includes(myCategory) && (
+            <InfoRow icon="alert-circle" color={Colors.danger} text={`Pas prévue pour ta moto (${categoryInfo(myCategory).short})`} />
+          )}
+          {ride.categories.includes('cyclo') && (
+            <InfoRow icon="information-circle" text="Ouverte aux 50 cm³ : tracé sans autoroute, 45 km/h max" />
+          )}
+          {ride.pace && (
+            <InfoRow icon="speedometer" text={`Rythme ${paceInfo(ride.pace).label.toLowerCase()} (${paceInfo(ride.pace).description})`} />
+          )}
+          <InfoRow icon="trail-sign" text={`Route : ${surfaceInfo(ride.surface).label.toLowerCase()}`} />
+        </Card>
 
         <Card title="Regroupement">
           <InfoRow icon="calendar" text={formatRideDate(ride.meetingAt)} />
@@ -189,6 +218,11 @@ const useStyles = makeStyles((Colors) => ({
   chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipOutline: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
   chipText: { color: Colors.white, fontSize: 12, fontWeight: '700' },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  categoryChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: Colors.border },
+  categoryChipMine: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  categoryText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  categoryTextMine: { color: Colors.white },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   infoText: { flex: 1, fontSize: 15, color: Colors.text, textTransform: 'none' },
   person: { flexDirection: 'row', alignItems: 'center', gap: 10 },

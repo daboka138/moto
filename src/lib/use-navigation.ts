@@ -9,6 +9,7 @@ import {
   type NavRoute,
   type NavStep,
 } from '@/lib/navigation';
+import { defaultRouteOptions, type MotoCategory, type RouteOptions } from '@/lib/moto';
 import type { SearchResult } from '@/lib/search';
 import { speak } from '@/lib/voice';
 
@@ -55,10 +56,11 @@ function thresholds(speedKmh: number) {
  * Navigation guidée : aperçu d'itinéraire, puis guidage avec annonces vocales,
  * recalcul si je sors du trajet, arrivée.
  */
-export function useNavigation(me: LatLng | null, speedKmh: number) {
+export function useNavigation(me: LatLng | null, speedKmh: number, category: MotoCategory | null) {
   const [phase, setPhase] = useState<NavPhase>('idle');
   const [destination, setDestination] = useState<SearchResult | null>(null);
-  const [avoidHighways, setAvoidHighways] = useState(false);
+  // Options préremplies selon la moto principale, modifiables à chaque trajet
+  const [options, setOptions] = useState<RouteOptions>(() => defaultRouteOptions(category));
   const [route, setRoute] = useState<NavRoute | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function useNavigation(me: LatLng | null, speedKmh: number) {
     meRef.current = me;
   }, [me]);
 
-  const compute = async (dest: SearchResult, avoid: boolean) => {
+  const compute = async (dest: SearchResult, opts: RouteOptions) => {
     const from = meRef.current;
     if (!from) {
       setError('Position GPS indisponible');
@@ -83,7 +85,7 @@ export function useNavigation(me: LatLng | null, speedKmh: number) {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetchNavRoute(from, dest, avoid);
+      const r = await fetchNavRoute(from, dest, opts);
       setRoute(r);
       return r;
     } catch (e) {
@@ -95,15 +97,21 @@ export function useNavigation(me: LatLng | null, speedKmh: number) {
   };
 
   const choose = (dest: SearchResult) => {
+    // Chaque nouveau trajet repart des options de la moto
+    const opts = defaultRouteOptions(category);
+    setOptions(opts);
     setDestination(dest);
     setPhase('preview');
     setRoute(null);
-    compute(dest, avoidHighways);
+    compute(dest, opts);
   };
 
-  const toggleAvoidHighways = (value: boolean) => {
-    setAvoidHighways(value);
-    if (destination) compute(destination, value);
+  const updateOptions = (patch: Partial<RouteOptions>) => {
+    const next = { ...options, ...patch };
+    // 50 cm³ : l'autoroute reste interdite quoi qu'il arrive
+    if (next.scooter50) next.avoidHighways = true;
+    setOptions(next);
+    if (destination) compute(destination, next);
   };
 
   const start = () => {
@@ -149,7 +157,7 @@ export function useNavigation(me: LatLng | null, speedKmh: number) {
       rerouting.current = true;
       lastReroute.current = Date.now();
       speak("Recalcul de l'itinéraire", true);
-      fetchNavRoute(me, destination, avoidHighways)
+      fetchNavRoute(me, destination, options)
         .then((r) => {
           setRoute(r);
           spoken.current = new Set();
@@ -186,9 +194,9 @@ export function useNavigation(me: LatLng | null, speedKmh: number) {
     loading,
     error,
     progress,
-    avoidHighways,
+    options,
     choose,
-    toggleAvoidHighways,
+    updateOptions,
     start,
     stop,
   };

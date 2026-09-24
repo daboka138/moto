@@ -4,14 +4,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { ActionSheetHost } from '@/components/action-sheet';
+import { MessageToast } from '@/components/message-toast';
 import { Button } from '@/components/ui';
 import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
+import { DemoMessagesProvider } from '@/demo/messages'; // DEMO
 import { signOut } from '@/lib/auth';
 import { DrivingLockProvider } from '@/lib/driving-lock';
 import { MapLayersProvider } from '@/lib/map-layers';
+import { MessagesProvider } from '@/lib/messages-context';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
+import { StoriesProvider } from '@/lib/stories-context';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,7 +29,15 @@ export default function RootLayout() {
             <DrivingLockProvider>
               <MapLayersProvider>
                 <DemoProvider /* DEMO */>
-                  <RootNavigator />
+                  <StoriesProvider>
+                    <MessagesProvider>
+                      <DemoMessagesProvider /* DEMO */>
+                        <RootNavigator />
+                        <MessageToast />
+                        <ActionSheetHost />
+                      </DemoMessagesProvider>
+                    </MessagesProvider>
+                  </StoriesProvider>
                 </DemoProvider>
               </MapLayersProvider>
             </DrivingLockProvider>
@@ -101,6 +114,7 @@ function RootNavigator() {
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
         <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
+        <Stack.Screen name="riders" options={{ headerShown: true, title: 'Trouver des motards' }} />
         <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
         <Stack.Screen name="user/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="ride/new" options={{ headerShown: true, title: 'Nouvelle balade' }} />
@@ -108,6 +122,13 @@ function RootNavigator() {
         <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
         <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
+        <Stack.Screen name="chat/[id]" />
+        <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />
+        <Stack.Screen name="story/new" options={{ headerShown: true, title: 'Nouvelle story' }} />
+        <Stack.Screen
+          name="story/[ownerId]"
+          options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: Colors.dark } }}
+        />
         <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
         <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
       </Stack.Protected>

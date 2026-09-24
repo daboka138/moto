@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
+import { AVAILABILITIES, categoryInfo, inferCategory, paceInfo } from '@/lib/moto';
 import { photoUrl, RIDING_STYLES, type Motorcycle, type Profile } from '@/lib/profile';
 import type { ProfileStats, WallPhoto } from '@/lib/wall';
 
@@ -165,7 +166,7 @@ function About({
 
   return (
     <View style={styles.about}>
-      {(styleLabels.length > 0 || licenseYears !== null) && (
+      {(styleLabels.length > 0 || licenseYears !== null || !!profile.pace || profile.availability?.length > 0) && (
         <Card title="Style de conduite">
           {styleLabels.length > 0 && (
             <View style={styles.chips}>
@@ -177,6 +178,16 @@ function About({
           {licenseYears !== null && (
             <Text style={styles.muted}>
               Permis depuis {licenseYears} an{licenseYears > 1 ? 's' : ''}
+            </Text>
+          )}
+          {!!profile.pace && (
+            <Text style={styles.muted}>
+              Rythme : {paceInfo(profile.pace).label} ({paceInfo(profile.pace).description})
+            </Text>
+          )}
+          {profile.availability?.length > 0 && (
+            <Text style={styles.muted}>
+              Dispo : {AVAILABILITIES.filter((a) => profile.availability.includes(a.value)).map((a) => a.label.toLowerCase()).join(' et ')}
             </Text>
           )}
         </Card>
@@ -267,6 +278,7 @@ function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (pat
   const details = [moto.year?.toString(), moto.displacement_cc ? `${moto.displacement_cc} cc` : null, moto.color].filter(
     Boolean,
   );
+  const category = moto.category ?? inferCategory(moto.displacement_cc, moto.model);
 
   return (
     <View style={styles.moto}>
@@ -278,7 +290,15 @@ function MotoCard({ moto, resolvePhoto }: { moto: Motorcycle; resolvePhoto: (pat
         </View>
       )}
       <View style={styles.motoInfo}>
-        <Text style={styles.motoBrand}>{moto.brand}</Text>
+        <View style={styles.motoTop}>
+          <Text style={styles.motoBrand}>{moto.brand}</Text>
+          {moto.is_main && <Ionicons name="star" size={14} color={Colors.accent} />}
+          {category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{categoryInfo(category).short}</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.motoModel}>{moto.model}</Text>
         {details.length > 0 && <Text style={styles.muted}>{details.join(' · ')}</Text>}
       </View>
@@ -372,6 +392,9 @@ const useStyles = makeStyles((Colors) => ({
   motoPhoto: { width: '100%', aspectRatio: 16 / 9 },
   motoPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.border },
   motoInfo: { padding: 12, gap: 2 },
+  motoTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  categoryBadge: { backgroundColor: Colors.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  categoryText: { color: Colors.accent, fontSize: 12, fontWeight: '800' },
   motoBrand: { fontSize: 13, fontWeight: '700', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
   motoModel: { fontSize: 20, fontWeight: '800', color: Colors.text },
 }));

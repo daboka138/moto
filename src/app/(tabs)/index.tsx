@@ -16,7 +16,8 @@ import { useMapLayers } from '@/lib/map-layers';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { LivePositionInput } from '@/lib/live-location';
 import { usePrivacy } from '@/lib/privacy-context';
-import { photoUrl } from '@/lib/profile';
+import { categoryInfo } from '@/lib/moto';
+import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
 import { createReport, deleteReport, reportInfo, voteReport, type ReportType, type Vote } from '@/lib/reports';
 import type { RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
@@ -82,7 +83,9 @@ export default function MapScreen() {
   const kmh = location?.coords.speed != null && location.coords.speed >= 0 ? Math.round(location.coords.speed * 3.6) : 0;
 
   // ---------- Navigation ----------
-  const nav = useNavigation(position, kmh);
+  const myCategory = mainCategory(profile);
+  const myMoto = mainMotorcycle(profile);
+  const nav = useNavigation(position, kmh, myCategory);
   const navigating = nav.phase === 'navigating';
 
   // Sécurité : pas de saisie de texte en navigation au-dessus de 10 km/h
@@ -444,8 +447,9 @@ export default function MapScreen() {
                 route={nav.route}
                 loading={nav.loading}
                 error={nav.error}
-                avoidHighways={nav.avoidHighways}
-                onToggleAvoidHighways={nav.toggleAvoidHighways}
+                options={nav.options}
+                moto={myMoto ? `${myMoto.model}${myCategory ? ` (${categoryInfo(myCategory).short})` : ''}` : null}
+                onChangeOptions={nav.updateOptions}
                 onStart={() => {
                   setSelectedId(null);
                   nav.start();
@@ -544,7 +548,7 @@ function demoBadge(rider: Parameters<typeof demoSocial>[0], friendIds: string[],
 const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
-  message: { fontSize: 16, textAlign: 'center' },
+  message: { fontSize: 16, textAlign: 'center', color: Colors.text },
   overlay: {
     position: 'absolute',
     top: 0,
