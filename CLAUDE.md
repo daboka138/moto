@@ -74,4 +74,4 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Légal France : jamais signaler police/radars, uniquement "zones de danger"
 - Batterie : fréquence géoloc adaptative
 - Secrets dans .env (non commité)
-- Petites étapes testables, commit Git après chaque étape qui marche
+- Petites étapes testables, commit Git après chaque étape qui marche, puis `git push` (remote `origin` = GitHub privé daboka138/moto, branche `main`)
