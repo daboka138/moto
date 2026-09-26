@@ -1,6 +1,6 @@
 # Distribution Android aux testeurs (EAS Build + EAS Update)
 
-App : **MotoPotes** — identifiant `com.dkelec.moto`.
+App : **PasseRyder** — identifiant `com.passeryder.app` (sites : passeryder.fr, passeryder.com).
 Profil de build : `preview` (APK installable, canal de mises à jour `preview`, environnement EAS `preview`).
 
 Toutes les commandes se lancent **dans un PowerShell séparé**, dans `C:\projets\moto`
@@ -59,7 +59,7 @@ eas build -p android --profile preview
 1. Envoie-leur le lien (ou le QR code) de la page du build.
 2. Sur leur téléphone Android : ouvrir le lien → **Install** → télécharger l'APK.
 3. Autoriser l'installation d'applis de **sources inconnues** pour le navigateur quand Android le demande.
-4. Ouvrir MotoPotes, accepter la localisation, créer son compte.
+4. Ouvrir PasseRyder, accepter la localisation, créer son compte.
 
 Le mode démo est **désactivé** par défaut ; il s'active dans Paramètres > Démonstration.
 Un nouvel APK s'installe par-dessus l'ancien (mêmes identifiant et signature) : pas besoin de désinstaller.

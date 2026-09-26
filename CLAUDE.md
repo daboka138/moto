@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Projet MOTO (nom provisoire) — App communautaire pour motards
+# PasseRyder — App communautaire pour motards
 Développeur : Dimitri (DK Elec). Communication en français, réponses courtes et directes.
 
 ## Vision
@@ -55,7 +55,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Les 5 premières migrations ont été collées à la main dans le SQL Editor : marquées « applied » avec `supabase migration repair`
 
 ## Distribution testeurs (EAS)
-- App « MotoPotes », identifiant Android/iOS `com.dkelec.moto`. Icônes provisoires dans assets/images (moto blanche sur bleu ciel)
+- App « PasseRyder » (domaines passeryder.fr et passeryder.com), identifiant Android/iOS `com.passeryder.app`, scheme `passeryder`. Le slug EAS reste `moto` (lié au projectId) et le dossier reste `C:\projets\moto`. Icônes provisoires dans assets/images (moto blanche sur bleu ciel)
 - eas.json : profil `preview` = APK installable (distribution internal, canal `preview`, environnement EAS `preview`), versionCode géré par EAS (appVersionSource remote + autoIncrement)
 - EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update` ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)

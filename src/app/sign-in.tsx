@@ -43,7 +43,7 @@ export default function SignInScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
-            <Text style={styles.logo}>MOTO</Text>
+            <Text style={styles.logo}>PasseRyder</Text>
             <Text style={styles.tagline}>Roule avec ta communauté.</Text>
           </View>
 
@@ -82,6 +82,6 @@ const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
   hero: { alignItems: 'center', marginBottom: 24, gap: 6 },
-  logo: { fontSize: 44, fontWeight: '900', letterSpacing: 6, color: Colors.accent },
+  logo: { fontSize: 40, fontWeight: '900', letterSpacing: 1, color: Colors.accent },
   tagline: { fontSize: 16, color: Colors.textMuted },
 }));

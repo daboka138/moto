@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "MotoPotes",
+    "name": "PasseRyder",
     "slug": "moto",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "moto",
+    "scheme": "passeryder",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.dkelec.moto"
+      "bundleIdentifier": "com.passeryder.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.dkelec.moto",
+      "package": "com.passeryder.app",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
@@ -34,15 +34,15 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Moto utilise ta position pour l'afficher sur la carte."
+          "locationWhenInUsePermission": "PasseRyder utilise ta position pour l'afficher sur la carte."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Moto accède à tes photos pour ton profil, tes motos, tes stories et tes messages.",
-          "cameraPermission": "Moto utilise l'appareil photo pour ton profil, tes motos, tes stories et tes messages.",
-          "microphonePermission": "Moto utilise le micro pour le son de tes stories vidéo."
+          "photosPermission": "PasseRyder accède à tes photos pour ton profil, tes motos, tes stories et tes messages.",
+          "cameraPermission": "PasseRyder utilise l'appareil photo pour ton profil, tes motos, tes stories et tes messages.",
+          "microphonePermission": "PasseRyder utilise le micro pour le son de tes stories vidéo."
         }
       ],
       [

@@ -42,7 +42,7 @@ async function nominatim(params: URLSearchParams): Promise<SearchResult[]> {
   const wait = lastNominatimCall + 1100 - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastNominatimCall = Date.now();
-  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'MotoApp/0.1 (application mobile, dev)' } });
+  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'PasseRyder/1.0 (https://passeryder.fr)' } });
   if (!res.ok) throw new Error(`Recherche de lieux indisponible (${res.status})`);
   const json: { lat: string; lon: string; name?: string; display_name: string }[] = await res.json();
   return json.map((p) => {
