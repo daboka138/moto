@@ -7,7 +7,7 @@ import { useDrivingLock } from '@/lib/driving-lock';
 type ButtonProps = {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
   disabled?: boolean;
 };
@@ -16,6 +16,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
   const Colors = useColors();
   const styles = useStyles();
   const inactive = disabled || loading;
+  const filled = variant === 'primary' || variant === 'danger';
   return (
     <Pressable
       onPress={onPress}
@@ -26,9 +27,9 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
         (pressed || inactive) && { opacity: 0.6 },
       ]}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? Colors.white : Colors.accent} />
+        <ActivityIndicator color={filled ? Colors.white : Colors.accent} />
       ) : (
-        <Text style={[styles.buttonText, variant !== 'primary' && { color: Colors.text }]}>{title}</Text>
+        <Text style={[styles.buttonText, !filled && { color: Colors.text }]}>{title}</Text>
       )}
     </Pressable>
   );
@@ -116,6 +117,7 @@ const useStyles = makeStyles((Colors) => ({
   primary: { backgroundColor: Colors.accent },
   secondary: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   ghost: { backgroundColor: 'transparent' },
+  danger: { backgroundColor: Colors.danger },
   buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
   small: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
   smallText: { color: Colors.white, fontSize: 14, fontWeight: '700' },

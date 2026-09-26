@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
 import { UpdateCard } from '@/components/update-card';
@@ -15,7 +15,10 @@ import { useMapLayers, type MapStyle } from '@/lib/map-layers';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 
-type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
+const PRIVACY_POLICY_URL = 'https://passeryder.fr/confidentialite';
+const CONTACT_EMAIL = 'passeryder@gmail.com';
+
+type Option<T> ={ value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
 const THEMES: Option<ThemePreference>[] = [
   { value: 'light', label: 'Clair', description: 'Toujours en thème clair', icon: 'sunny' },
@@ -112,6 +115,19 @@ export default function SettingsScreen() {
         <LinkRow icon="create-outline" label="Modifier mon profil" onPress={() => router.push('/profile-edit')} />
         <LinkSeparator />
         <LinkRow icon="log-out-outline" label="Se déconnecter" danger onPress={confirmSignOut} />
+        <LinkSeparator />
+        <LinkRow icon="trash-outline" label="Supprimer mon compte" danger onPress={() => router.push('/delete-account')} />
+      </LinkGroup>
+
+      <Text style={styles.section}>Informations</Text>
+      <LinkGroup>
+        <LinkRow
+          icon="shield-checkmark-outline"
+          label="Politique de confidentialité"
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+        />
+        <LinkSeparator />
+        <LinkRow icon="mail-outline" label="Contact" value={CONTACT_EMAIL} onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)} />
       </LinkGroup>
 
       <UpdateCard />

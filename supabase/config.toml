@@ -417,3 +417,7 @@ enabled = true
 # Nettoyage des stories expirées : appelée par pg_cron, sans jeton (ne fait que supprimer ce qui a expiré)
 [functions.cleanup-stories]
 verify_jwt = false
+
+# Suppression de compte : le jeton de l'utilisateur est vérifié dans la fonction (auth.getUser)
+[functions.delete-account]
+verify_jwt = false

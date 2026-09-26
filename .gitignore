@@ -45,3 +45,6 @@ example
 .env
 .env.*
 !.env.example
+
+# Clé du compte de service Google Play (eas submit) : secret, jamais commitée
+google-service-account.json

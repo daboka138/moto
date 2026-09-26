@@ -37,6 +37,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Stories 24 h (fait) : stories (photo, ou vidéo ≤ 30 s, texte ≤ 200, visibilité friends/everyone), story_views. expires_at forcé côté serveur (now + 24 h), stories expirées jamais renvoyées (RLS). Fichiers dans le bucket PRIVÉ `stories` (URL signées), nettoyés par l'Edge Function `cleanup-stories` lancée par pg_cron toutes les 30 min
 - Messages (fait) : conversations (direct / ride, une par balade, membres synchronisés avec les inscrits), conversation_members (last_read_at = « vu »), messages (texte ≤ 2000 et/ou photo dans le bucket PRIVÉ `chat`). Lecture réservée aux membres (RLS), temps réel via Supabase Realtime, liste via my_conversations()
 - Modération (obligatoire stores) : user_blocks (bloquer coupe messages, position, stories, recherche, amitié — tout côté serveur) et content_reports (message / story / user). Menus à plus de 3 choix : showActionSheet (Android n'affiche que 3 boutons dans Alert)
+- Suppression de compte (fait, obligatoire Play Store) : Paramètres > Supprimer mon compte → Edge Function `delete-account` (fichiers des buckets photos/stories/chat, conversations privées, puis auth.admin.deleteUser : tout le reste part en cascade). Toute nouvelle table liée à un utilisateur doit avoir `on delete cascade` ; tout nouveau bucket doit être ajouté dans la fonction
 - circles / circle_members : groupes façon Life360
 - trips / trip_points : trajets enregistrés
 - sos_events : alertes SOS
@@ -60,6 +61,8 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update` ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)
 - Les commandes eas (login, init, build, update) sont interactives : c'est Dimitri qui les lance
+- Google Play (voir PLAY_STORE.md) : éditeur DK Tech Lab, contact passeryder@gmail.com. Profil `production` = AAB, canal `production`, environnement EAS `production` ; `eas submit` vers le test interne avec `google-service-account.json` (secret, ignoré par Git). Visuels du store dans `store/`
+- Site passeryder.fr : fichiers statiques dans `site/` (accueil, /confidentialite, /supprimer-mon-compte), servis par Caddy depuis /var/www/passeryder.fr sur le VPS. Toute nouvelle donnée collectée doit être ajoutée à la politique de confidentialité et à la Sécurité des données Play
 - Mode démo désactivé par défaut hors __DEV__ (APK), activable dans Paramètres. Paramètres > À propos : version, canal, bouton « Rechercher une mise à jour »
 
 ## Feuille de route

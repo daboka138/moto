@@ -1,5 +1,6 @@
 import type { AuthError } from '@supabase/supabase-js';
 
+import { clearHistory } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 
 // Toute l'authentification passe par ce fichier. Le reste de l'app ne dépend que
@@ -35,6 +36,21 @@ export async function verifyPhoneCode(phone: string, token: string) {
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(authErrorMessage(error));
+}
+
+/**
+ * Supprime définitivement le compte et toutes ses données (Edge Function
+ * delete-account), puis efface la session et l'historique de recherche du téléphone.
+ */
+export async function deleteAccount() {
+  const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json().catch(() => null);
+    throw new Error(body?.error ?? 'La suppression a échoué. Vérifie ta connexion et réessaie.');
+  }
+  clearHistory();
+  // Le compte n'existe plus côté serveur : on ne vide que la session locale
+  await supabase.auth.signOut({ scope: 'local' });
 }
 
 function authErrorMessage(error: AuthError): string {
