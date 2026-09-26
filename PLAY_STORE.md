@@ -254,9 +254,32 @@ et l'envoyer. Les testeurs ouvrent le lien, acceptent, puis installent PasseRyde
 
 ---
 
-## 5. Avant la production (points restants côté app)
+## 5. À faire avant la production
+
+### 5.1 Emails d'authentification : SMTP Brevo + confirmation d'email
+Aujourd'hui, aucun SMTP n'est configuré dans Supabase et la confirmation d'email est **désactivée**
+(`mailer_autoconfirm = true`) : n'importe quelle adresse peut créer un compte, et aucun email n'est envoyé
+(pas de « mot de passe oublié » possible).
+
+1. **Brevo** (brevo.com, offre gratuite : 300 emails/jour) › Expéditeurs, domaines › **ajouter le domaine passeryder.fr**,
+   puis créer chez OVH (Zone DNS de passeryder.fr) les enregistrements TXT/CNAME **DKIM** et **DMARC** que Brevo affiche.
+   Attendre que Brevo indique le domaine « authentifié ».
+2. Brevo › **SMTP et API** › créer une **clé SMTP** (la garder secrète, ne jamais la commiter).
+3. Supabase › Authentication › Emails › **SMTP Settings** › Enable custom SMTP :
+   - Sender email : `noreply@passeryder.fr` — Sender name : `PasseRyder`
+   - Host : `smtp-relay.brevo.com` — Port : `587`
+   - Username : l'identifiant SMTP Brevo — Password : la clé SMTP
+4. Supabase › Authentication › **URL Configuration** › Site URL : `https://passeryder.fr`
+   (aujourd'hui `http://localhost:3000` : les liens des emails pointeraient vers localhost).
+5. Supabase › Authentication › Emails › **Templates** : traduire en français les modèles « Confirm signup » et « Reset password ».
+6. Supabase › Authentication › Rate Limits : relever la limite d'envoi d'emails (2/heure par défaut).
+7. Supabase › Authentication › Sign In / Providers › Email › **réactiver « Confirm email »**.
+8. Tester : créer un compte avec une vraie adresse, vérifier la réception (et pas dans les spams), cliquer sur le lien, se connecter.
+
+À prévoir côté app ensuite : un écran « Mot de passe oublié » (`resetPasswordForEmail`) et une page d'arrivée
+sur passeryder.fr après confirmation (« Email confirmé, retourne dans l'app »).
+
+### 5.2 Déjà fait
 - ✅ **Conditions d'utilisation** (exigées par Google pour le contenu publié par les membres) : page `/conditions`, case obligatoire
   à l'inscription, date d'acceptation enregistrée dans `terms_acceptances`. Les comptes existants doivent les accepter à la prochaine ouverture.
 - ✅ **Mentions légales** : page `/mentions-legales` (éditeur EI, SIRET, adresse, hébergeurs Hostinger et Supabase, crédits).
-- **Emails d'authentification** : la confirmation d'email est désactivée et aucun SMTP n'est configuré dans Supabase
-  → pas de « mot de passe oublié » possible. Configurer un SMTP (ex. Brevo) avant l'ouverture au public.
