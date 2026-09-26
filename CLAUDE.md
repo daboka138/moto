@@ -62,7 +62,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)
 - Les commandes eas (login, init, build, update) sont interactives : c'est Dimitri qui les lance
 - Google Play (voir PLAY_STORE.md) : éditeur DK Tech Lab, contact passeryder@gmail.com. Profil `production` = AAB, canal `production`, environnement EAS `production` ; `eas submit` vers le test interne avec `google-service-account.json` (secret, ignoré par Git). Visuels du store dans `store/`
-- Site passeryder.fr : fichiers statiques dans `site/` (accueil, /confidentialite, /supprimer-mon-compte), servis par Caddy depuis /var/www/passeryder.fr sur le VPS. Toute nouvelle donnée collectée doit être ajoutée à la politique de confidentialité et à la Sécurité des données Play
+- Site passeryder.fr : fichiers statiques dans `site/` (accueil, /confidentialite, /supprimer-mon-compte), servis par Caddy depuis /var/www/passeryder sur le VPS 187.6.165.249 (ssh root, clé), republier avec la commande tar de PLAY_STORE.md. Toute nouvelle donnée collectée doit être ajoutée à la politique de confidentialité et à la Sécurité des données Play
 - Mode démo désactivé par défaut hors __DEV__ (APK), activable dans Paramètres. Paramètres > À propos : version, canal, bouton « Rechercher une mise à jour »
 
 ## Feuille de route

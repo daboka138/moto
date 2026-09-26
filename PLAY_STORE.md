@@ -6,67 +6,55 @@ Identifiant : `com.passeryder.app` — étapes : test interne → test fermé �
 
 Fichiers prêts dans le dépôt :
 - `store/icon-512.png` (icône 512 × 512) et `store/feature-graphic-1024x500.png` (bannière)
-- `site/` : site passeryder.fr (accueil, `/confidentialite`, `/supprimer-mon-compte`)
+- `site/` : site passeryder.fr (accueil, `/confidentialite`, `/supprimer-mon-compte`), en ligne sur le VPS
 - `eas.json` : profil `production` (AAB, canal `production`) + `submit.production` (piste `internal`, version brouillon)
 
 ---
 
-## 1. Mettre le site en ligne (avant la Play Console : elle vérifie les URL)
+## 1. Site passeryder.fr — ✅ en ligne depuis le 26/09/2026
 
-### 1.1 DNS chez OVH
-OVH › Web Cloud › Domaines › **passeryder.fr** › Zone DNS. Remplace `IPV4_DU_VPS` par l'IP du VPS
-(la même que pour comptaeasy.fr : `dig +short comptaeasy.fr`).
+- VPS Debian + Caddy 2.11 : `187.6.165.249` (le même que comptaeasy.fr), accès `ssh root@187.6.165.249` par clé
+- DNS OVH : A `@` et `www` → `187.6.165.249` (pas d'AAAA). Certificats HTTPS automatiques (Caddy / Let's Encrypt)
+- Fichiers : `/var/www/passeryder` (propriétaire `caddy`), copie du dossier `site/` du dépôt
+- URL : https://passeryder.fr, https://passeryder.fr/confidentialite, https://passeryder.fr/supprimer-mon-compte
+  (`/confidentialite` redirige vers `/confidentialite/`, `www.passeryder.fr` redirige vers `passeryder.fr`)
 
-| Sous-domaine | Type | Cible |
-|---|---|---|
-| *(vide)* | A | `IPV4_DU_VPS` |
-| www | CNAME | `passeryder.fr.` |
-| *(vide)* | AAAA | `IPV6_DU_VPS` — seulement si le VPS a une IPv6 configurée |
-
-**Supprime** les enregistrements A / AAAA / CNAME créés par défaut par OVH sur `@` et `www` (sinon le certificat HTTPS échoue).
-Ne touche pas aux MX / TXT (inutiles ici : le contact est une adresse Gmail).
-
-Même chose pour **passeryder.com** (A `@` → IP du VPS, CNAME `www` → `passeryder.com.`) : il redirigera vers passeryder.fr.
-
-Vérification (quelques minutes à quelques heures) : `dig +short passeryder.fr` et `dig +short www.passeryder.com` doivent renvoyer l'IP du VPS.
-
-### 1.2 Copier le site sur le VPS
-Sur le VPS :
+### 1.1 Republier le site après une modification
+Depuis Git Bash, dans `C:projetsmoto` :
 ```bash
-sudo mkdir -p /var/www/passeryder.fr
-sudo chown $USER: /var/www/passeryder.fr
+tar -C site -cf - . | ssh root@187.6.165.249 'tar -C /var/www/passeryder --no-same-owner -xf - && chown -R caddy:caddy /var/www/passeryder'
 ```
-Depuis le PC (Git Bash, dans `C:\projets\moto`) — à relancer à chaque modification du site :
-```bash
-scp -r site/* UTILISATEUR@IPV4_DU_VPS:/var/www/passeryder.fr/
-```
+Pas besoin de recharger Caddy pour un simple changement de fichiers.
 
-### 1.3 Caddy
-Ajoute à la fin de `/etc/caddy/Caddyfile` (le bloc comptaeasy.fr ne change pas) :
+### 1.2 Bloc Caddy en place
+À la fin de `/etc/caddy/Caddyfile`, après le bloc comptaeasy.fr (inchangé) ; sauvegarde de l'ancienne version : `/etc/caddy/Caddyfile.bak-*`.
 ```caddy
 passeryder.fr {
-	root * /var/www/passeryder.fr
-	encode zstd gzip
-	file_server
-	header {
-		Strict-Transport-Security "max-age=31536000"
-		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-Server
-	}
+    root * /var/www/passeryder
+    encode zstd gzip
+    file_server
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
 }
 
-www.passeryder.fr, passeryder.com, www.passeryder.com {
-	redir https://passeryder.fr{uri} permanent
+www.passeryder.fr {
+    redir https://passeryder.fr{uri} permanent
 }
 ```
-Puis :
+Après toute modification du Caddyfile, toujours valider avant de recharger (un Caddyfile invalide n'est pas chargé, mais autant le savoir tout de suite) :
 ```bash
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl reload caddy
+caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy
 ```
-Caddy obtient seul les certificats HTTPS (il faut que le DNS pointe déjà vers le VPS et que les ports 80/443 soient ouverts).
-Test : https://passeryder.fr, https://passeryder.fr/confidentialite, https://passeryder.fr/supprimer-mon-compte, https://www.passeryder.com (→ redirection).
+
+### 1.3 À faire : passeryder.com
+Le DNS de passeryder.com ne pointe pas encore vers le VPS, il n'est donc pas dans le Caddyfile.
+1. OVH › **passeryder.com** › Zone DNS : A `@` → `187.6.165.249`, CNAME `www` → `passeryder.com.` ; supprimer les A / AAAA / CNAME par défaut d'OVH sur `@` et `www`.
+2. Quand `nslookup passeryder.com` renvoie `187.6.165.249`, remplacer sur le VPS la ligne `www.passeryder.fr {`
+   par `www.passeryder.fr, passeryder.com, www.passeryder.com {`, puis valider et recharger (commande ci-dessus).
 
 ---
 
