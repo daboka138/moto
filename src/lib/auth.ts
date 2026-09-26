@@ -2,6 +2,7 @@ import type { AuthError } from '@supabase/supabase-js';
 
 import { clearHistory } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
+import { TERMS_VERSION } from '@/lib/terms';
 
 // Toute l'authentification passe par ce fichier. Le reste de l'app ne dépend que
 // de la session (voir session.tsx), pas de la méthode de connexion.
@@ -15,9 +16,17 @@ export async function signInWithEmail(email: string, password: string) {
   if (error) throw new Error(authErrorMessage(error));
 }
 
-/** Retourne true si Supabase attend la confirmation de l'email avant d'ouvrir une session. */
+/**
+ * Retourne true si Supabase attend la confirmation de l'email avant d'ouvrir une session.
+ * La version des CGU acceptée (case cochée) part dans les métadonnées : un trigger
+ * l'enregistre dans terms_acceptances en même temps que le compte.
+ */
 export async function signUpWithEmail(email: string, password: string): Promise<boolean> {
-  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { data: { terms_version: TERMS_VERSION } },
+  });
   if (error) throw new Error(authErrorMessage(error));
   return !data.session;
 }

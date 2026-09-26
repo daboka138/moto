@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { TermsCheckbox } from '@/components/terms-checkbox';
 import { Button, Field } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { signInWithEmail, signUpWithEmail } from '@/lib/auth';
@@ -13,10 +14,15 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const submit = async () => {
     if (!email.trim() || !password) {
       Alert.alert('Connexion', 'Renseigne ton email et ton mot de passe.');
+      return;
+    }
+    if (mode === 'signUp' && !termsAccepted) {
+      Alert.alert('Inscription', "Coche la case pour accepter les conditions d'utilisation et la politique de confidentialité.");
       return;
     }
     setLoading(true);
@@ -66,7 +72,14 @@ export default function SignInScreen() {
             onSubmitEditing={submit}
           />
 
-          <Button title={mode === 'signIn' ? 'Se connecter' : 'Créer mon compte'} onPress={submit} loading={loading} />
+          {mode === 'signUp' && <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />}
+
+          <Button
+            title={mode === 'signIn' ? 'Se connecter' : 'Créer mon compte'}
+            onPress={submit}
+            loading={loading}
+            disabled={mode === 'signUp' && !termsAccepted}
+          />
           <Button
             variant="ghost"
             title={mode === 'signIn' ? 'Pas encore de compte ? Inscris-toi' : 'Déjà un compte ? Connecte-toi'}

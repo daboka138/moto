@@ -11,14 +11,12 @@ import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
 import { useSession } from '@/lib/session';
+import { CONTACT_EMAIL, PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
 import { useMapLayers, type MapStyle } from '@/lib/map-layers';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 
-const PRIVACY_POLICY_URL = 'https://passeryder.fr/confidentialite';
-const CONTACT_EMAIL = 'passeryder@gmail.com';
-
-type Option<T> ={ value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
+type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
 const THEMES: Option<ThemePreference>[] = [
   { value: 'light', label: 'Clair', description: 'Toujours en thème clair', icon: 'sunny' },
@@ -121,6 +119,8 @@ export default function SettingsScreen() {
 
       <Text style={styles.section}>Informations</Text>
       <LinkGroup>
+        <LinkRow icon="document-text-outline" label="Conditions d'utilisation" onPress={() => Linking.openURL(TERMS_URL)} />
+        <LinkSeparator />
         <LinkRow
           icon="shield-checkmark-outline"
           label="Politique de confidentialité"

@@ -38,6 +38,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Messages (fait) : conversations (direct / ride, une par balade, membres synchronisés avec les inscrits), conversation_members (last_read_at = « vu »), messages (texte ≤ 2000 et/ou photo dans le bucket PRIVÉ `chat`). Lecture réservée aux membres (RLS), temps réel via Supabase Realtime, liste via my_conversations()
 - Modération (obligatoire stores) : user_blocks (bloquer coupe messages, position, stories, recherche, amitié — tout côté serveur) et content_reports (message / story / user). Menus à plus de 3 choix : showActionSheet (Android n'affiche que 3 boutons dans Alert)
 - Suppression de compte (fait, obligatoire Play Store) : Paramètres > Supprimer mon compte → Edge Function `delete-account` (fichiers des buckets photos/stories/chat, conversations privées, puis auth.admin.deleteUser : tout le reste part en cascade). Toute nouvelle table liée à un utilisateur doit avoir `on delete cascade` ; tout nouveau bucket doit être ajouté dans la fonction
+- CGU (fait) : terms_acceptances (user_id, version, accepted_at, historique). Inscription : case obligatoire, version envoyée dans les métadonnées → trigger sur auth.users. Membre sans la version en vigueur → écran terms.tsx (RPC accept_terms). Modifier les CGU = changer la date sur site/conditions ET `TERMS_VERSION` (lib/terms.ts) : tout le monde réaccepte
 - circles / circle_members : groupes façon Life360
 - trips / trip_points : trajets enregistrés
 - sos_events : alertes SOS
@@ -62,7 +63,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)
 - Les commandes eas (login, init, build, update) sont interactives : c'est Dimitri qui les lance
 - Google Play (voir PLAY_STORE.md) : éditeur DK Tech Lab, contact passeryder@gmail.com. Profil `production` = AAB, canal `production`, environnement EAS `production` ; `eas submit` vers le test interne avec `google-service-account.json` (secret, ignoré par Git). Visuels du store dans `store/`
-- Site passeryder.fr : fichiers statiques dans `site/` (accueil, /confidentialite, /supprimer-mon-compte), servis par Caddy depuis /var/www/passeryder sur le VPS 187.6.165.249 (ssh root, clé), republier avec la commande tar de PLAY_STORE.md. Toute nouvelle donnée collectée doit être ajoutée à la politique de confidentialité et à la Sécurité des données Play
+- Site passeryder.fr : fichiers statiques dans `site/` (accueil, /conditions, /confidentialite, /supprimer-mon-compte), servis par Caddy depuis /var/www/passeryder sur le VPS 187.6.165.249 (ssh root, clé), republier avec la commande tar de PLAY_STORE.md. Toute nouvelle donnée collectée doit être ajoutée à la politique de confidentialité et à la Sécurité des données Play
 - Mode démo désactivé par défaut hors __DEV__ (APK), activable dans Paramètres. Paramètres > À propos : version, canal, bouton « Rechercher une mise à jour »
 
 ## Feuille de route

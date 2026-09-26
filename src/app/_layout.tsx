@@ -75,7 +75,7 @@ function ThemedNavigation({ children }: { children: ReactNode }) {
 function RootNavigator() {
   const { colors: Colors } = useTheme();
   const styles = useStyles();
-  const { session, profile, profileError, refreshProfile } = useSession();
+  const { session, profile, termsAccepted, profileError, refreshProfile } = useSession();
 
   useEffect(() => {
     if (session !== undefined) SplashScreen.hideAsync();
@@ -106,10 +106,13 @@ function RootNavigator() {
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
       </Stack.Protected>
-      <Stack.Protected guard={!!session && !profile}>
+      <Stack.Protected guard={!!session && !termsAccepted}>
+        <Stack.Screen name="terms" />
+      </Stack.Protected>
+      <Stack.Protected guard={!!session && !!termsAccepted && !profile}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
-      <Stack.Protected guard={!!session && !!profile}>
+      <Stack.Protected guard={!!session && !!termsAccepted && !!profile}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />

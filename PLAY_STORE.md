@@ -6,7 +6,7 @@ Identifiant : `com.passeryder.app` — étapes : test interne → test fermé �
 
 Fichiers prêts dans le dépôt :
 - `store/icon-512.png` (icône 512 × 512) et `store/feature-graphic-1024x500.png` (bannière)
-- `site/` : site passeryder.fr (accueil, `/confidentialite`, `/supprimer-mon-compte`), en ligne sur le VPS
+- `site/` : site passeryder.fr (accueil, `/conditions`, `/confidentialite`, `/supprimer-mon-compte`), en ligne sur le VPS
 - `eas.json` : profil `production` (AAB, canal `production`) + `submit.production` (piste `internal`, version brouillon)
 
 ---
@@ -16,7 +16,7 @@ Fichiers prêts dans le dépôt :
 - VPS Debian + Caddy 2.11 : `187.6.165.249` (le même que comptaeasy.fr), accès `ssh root@187.6.165.249` par clé
 - DNS OVH : A `@` et `www` → `187.6.165.249` (pas d'AAAA). Certificats HTTPS automatiques (Caddy / Let's Encrypt)
 - Fichiers : `/var/www/passeryder` (propriétaire `caddy`), copie du dossier `site/` du dépôt
-- URL : https://passeryder.fr, https://passeryder.fr/confidentialite, https://passeryder.fr/supprimer-mon-compte
+- URL : https://passeryder.fr, https://passeryder.fr/conditions, https://passeryder.fr/confidentialite, https://passeryder.fr/supprimer-mon-compte
   (`/confidentialite` redirige vers `/confidentialite/`, `www.passeryder.fr` redirige vers `passeryder.fr`)
 
 ### 1.1 Republier le site après une modification
@@ -255,8 +255,8 @@ et l'envoyer. Les testeurs ouvrent le lien, acceptent, puis installent PasseRyde
 ---
 
 ## 5. Avant la production (points restants côté app)
-- **Conditions d'utilisation** : les règles Google sur le contenu généré par les utilisateurs (chat, photos, stories) exigent
-  des conditions d'utilisation acceptées à l'inscription, interdisant les contenus répréhensibles. À ajouter (page `/conditions` + case à cocher).
+- ✅ **Conditions d'utilisation** (exigées par Google pour le contenu publié par les membres) : page `/conditions`, case obligatoire
+  à l'inscription, date d'acceptation enregistrée dans `terms_acceptances`. Les comptes existants doivent les accepter à la prochaine ouverture.
 - **Mentions légales** du site (obligatoires en France pour un éditeur professionnel) : adresse de DK Tech Lab, SIRET, hébergeur du VPS.
 - **Emails d'authentification** : la confirmation d'email est désactivée et aucun SMTP n'est configuré dans Supabase
   → pas de « mot de passe oublié » possible. Configurer un SMTP (ex. Brevo) avant l'ouverture au public.

@@ -3,19 +3,22 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { fetchProfile, type Profile } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
+import { hasAcceptedTerms } from '@/lib/terms';
 
 type SessionState = {
   /** undefined tant que la session stockée n'a pas été relue */
   session: Session | null | undefined;
   /** undefined tant que le profil n'est pas chargé, null si pas encore créé */
   profile: Profile | null | undefined;
+  /** CGU en vigueur acceptées ? undefined tant que ce n'est pas chargé */
+  termsAccepted: boolean | undefined;
   /** true si le chargement du profil a échoué (réseau...) */
   profileError: boolean;
   refreshProfile: () => Promise<void>;
 };
 
 /** Résultat du dernier chargement, rattaché à l'utilisateur concerné */
-type ProfileResult = { userId: string; profile: Profile | null; error: boolean };
+type ProfileResult = { userId: string; profile: Profile | null; termsAccepted: boolean; error: boolean };
 
 const SessionContext = createContext<SessionState | null>(null);
 
@@ -33,10 +36,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async (id: string): Promise<ProfileResult> => {
     try {
-      return { userId: id, profile: await fetchProfile(id), error: false };
+      const [profile, termsAccepted] = await Promise.all([fetchProfile(id), hasAcceptedTerms(id)]);
+      return { userId: id, profile, termsAccepted, error: false };
     } catch (e) {
       console.warn('Chargement du profil impossible', e);
-      return { userId: id, profile: null, error: true };
+      return { userId: id, profile: null, termsAccepted: false, error: true };
     }
   }, []);
 
@@ -61,6 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       value={{
         session,
         profile: current && !current.error ? current.profile : undefined,
+        termsAccepted: current && !current.error ? current.termsAccepted : undefined,
         profileError: current?.error ?? false,
         refreshProfile,
       }}>
