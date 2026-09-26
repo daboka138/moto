@@ -9,6 +9,7 @@ export const TERMS_VERSION = '2026-09-27';
 
 export const TERMS_URL = 'https://passeryder.fr/conditions';
 export const PRIVACY_POLICY_URL = 'https://passeryder.fr/confidentialite';
+export const LEGAL_NOTICE_URL = 'https://passeryder.fr/mentions-legales';
 export const CONTACT_EMAIL = 'passeryder@gmail.com';
 
 /** Le membre a-t-il accepté la version en vigueur ? */

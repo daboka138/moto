@@ -11,7 +11,7 @@ import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
 import { useSession } from '@/lib/session';
-import { CONTACT_EMAIL, PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
+import { CONTACT_EMAIL, LEGAL_NOTICE_URL, PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
 import { useMapLayers, type MapStyle } from '@/lib/map-layers';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
@@ -126,6 +126,8 @@ export default function SettingsScreen() {
           label="Politique de confidentialité"
           onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
         />
+        <LinkSeparator />
+        <LinkRow icon="information-circle-outline" label="Mentions légales" onPress={() => Linking.openURL(LEGAL_NOTICE_URL)} />
         <LinkSeparator />
         <LinkRow icon="mail-outline" label="Contact" value={CONTACT_EMAIL} onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)} />
       </LinkGroup>
