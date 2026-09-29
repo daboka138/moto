@@ -7,23 +7,30 @@ import type { Place } from '@/lib/geocoding';
 //   const place = await pickPlace({ title: 'Point de départ' });
 // Renvoie null si l'utilisateur revient sans valider.
 
-let pending: ((place: Place | null) => void) | null = null;
-let pendingInitial: LatLng | null = null;
+type Request = { id: number; initial: LatLng | null; at: number; resolve: (place: Place | null) => void };
+
+let current: Request | null = null;
+let nextId = 1;
 
 export function pickPlace(options: { title: string; initial?: LatLng | null }): Promise<Place | null> {
-  pending?.(null);
-  pendingInitial = options.initial ?? null;
-  router.push({ pathname: '/pick-place', params: { title: options.title } });
+  // Double appui sur le champ : un seul écran de choix, sinon le lieu validé irait à une demande abandonnée
+  if (current && Date.now() - current.at < 1500) return Promise.resolve(null);
+  current?.resolve(null);
   return new Promise((resolve) => {
-    pending = resolve;
+    current = { id: nextId++, initial: options.initial ?? null, at: Date.now(), resolve };
+    router.push({ pathname: '/pick-place', params: { title: options.title } });
   });
 }
 
-export function pickerInitialPoint() {
-  return pendingInitial;
+/** Demande en cours, lue une fois à l'ouverture de l'écran de choix. */
+export function currentPickRequest() {
+  return current ? { id: current.id, initial: current.initial } : null;
 }
 
-export function resolvePick(place: Place | null) {
-  pending?.(place);
-  pending = null;
+/** Ne répond qu'à la demande qui a ouvert l'écran (id), jamais à une autre. */
+export function resolvePick(id: number | undefined, place: Place | null) {
+  if (!current || current.id !== id) return;
+  const { resolve } = current;
+  current = null;
+  resolve(place);
 }

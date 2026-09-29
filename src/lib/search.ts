@@ -8,10 +8,25 @@ import { distanceM, type LatLng } from '@/lib/geo';
 
 export type SearchResult = LatLng & { label: string; detail?: string; source: 'adresse' | 'lieu' };
 
-const BAN = 'https://data.geopf.fr/geocodage/search';
-const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const BAN = 'https://data.geopf.fr/geocodage';
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const USER_AGENT = 'PasseRyder/1.0 (https://passeryder.fr)';
+const TIMEOUT_MS = 10_000;
 const HISTORY_KEY = 'moto.searchHistory';
 const HISTORY_MAX = 8;
+
+/** Requête JSON avec User-Agent identifié et délai max (sinon une requête bloquée fige l'écran). */
+async function getJson<T>(url: string, what: string): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal: controller.signal });
+    if (!res.ok) throw new Error(`${what} indisponible (${res.status})`);
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function searchAddresses(query: string, near: LatLng | null): Promise<SearchResult[]> {
   const q = query.trim();
@@ -21,11 +36,9 @@ export async function searchAddresses(query: string, near: LatLng | null): Promi
     params.set('lat', String(near.latitude));
     params.set('lon', String(near.longitude));
   }
-  const res = await fetch(`${BAN}?${params}`);
-  if (!res.ok) throw new Error(`Recherche d'adresse indisponible (${res.status})`);
-  const json = await res.json();
+  const json = await getJson<{ features?: BanFeature[] }>(`${BAN}/search?${params}`, "Recherche d'adresse");
   return (json.features ?? []).map(
-    (f: { geometry: { coordinates: [number, number] }; properties: { label: string; context?: string } }) => ({
+    (f) => ({
       label: f.properties.label,
       detail: f.properties.context,
       latitude: f.geometry.coordinates[1],
@@ -35,16 +48,21 @@ export async function searchAddresses(query: string, near: LatLng | null): Promi
   );
 }
 
+type BanFeature = { geometry: { coordinates: [number, number] }; properties: { label: string; context?: string } };
+type NominatimPlace = { lat: string; lon: string; name?: string; display_name: string };
+
 let lastNominatimCall = 0;
 
-async function nominatim(params: URLSearchParams): Promise<SearchResult[]> {
+async function nominatimGet<T>(path: string, params: URLSearchParams): Promise<T> {
   // Charte Nominatim : 1 requête par seconde maximum
   const wait = lastNominatimCall + 1100 - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastNominatimCall = Date.now();
-  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { 'User-Agent': 'PasseRyder/1.0 (https://passeryder.fr)' } });
-  if (!res.ok) throw new Error(`Recherche de lieux indisponible (${res.status})`);
-  const json: { lat: string; lon: string; name?: string; display_name: string }[] = await res.json();
+  return getJson<T>(`${NOMINATIM}/${path}?${params}`, 'Recherche de lieux');
+}
+
+async function nominatim(params: URLSearchParams): Promise<SearchResult[]> {
+  const json = await nominatimGet<NominatimPlace[]>('search', params);
   return json.map((p) => {
     const parts = p.display_name.split(', ');
     return {
@@ -85,6 +103,41 @@ export async function searchPlaces(query: string, near: LatLng | null): Promise<
     return (await nominatim(params)).filter((r) => distanceM(near, r) <= MAX_PLACE_DISTANCE_M);
   }
   return nominatim(params);
+}
+
+/**
+ * Libellé du point touché sur la carte : adresse la plus proche (Géoplateforme), sinon lieu OSM
+ * (Nominatim, utile hors agglomération), sinon les coordonnées.
+ */
+export async function reverseGeocode(point: LatLng): Promise<LatLng & { label: string }> {
+  const fallback = { ...point, label: `Point ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}` };
+  const coords = { lat: String(point.latitude), lon: String(point.longitude) };
+  try {
+    const json = await getJson<{ features?: BanFeature[] }>(
+      `${BAN}/reverse?${new URLSearchParams({ ...coords, limit: '1' })}`,
+      "Recherche d'adresse",
+    );
+    const label = json.features?.[0]?.properties.label;
+    if (label) return { ...point, label };
+  } catch (e) {
+    console.warn('Adresse du point impossible (Géoplateforme)', e);
+  }
+  try {
+    const json = await nominatimGet<{ name?: string; display_name?: string; error?: string }>(
+      'reverse',
+      new URLSearchParams({ ...coords, format: 'jsonv2', zoom: '17', 'accept-language': 'fr' }),
+    );
+    if (json.display_name) {
+      const parts = json.display_name.split(', ');
+      const label = [json.name || parts[0], parts.find((x, i) => i > 0 && x !== json.name && !/^\d/.test(x))]
+        .filter(Boolean)
+        .join(', ');
+      return { ...point, label };
+    }
+  } catch (e) {
+    console.warn('Adresse du point impossible (Nominatim)', e);
+  }
+  return fallback;
 }
 
 // Historique local des destinations choisies (reste sur le téléphone)

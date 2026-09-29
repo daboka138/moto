@@ -17,10 +17,14 @@ import {
 type Props = {
   near: LatLng | null;
   onSelect: (result: SearchResult) => void;
+  placeholder?: string;
 };
 
-/** Recherche de destination : adresses (API Adresse) en direct, lieux (Nominatim) sur demande. */
-export function SearchBar({ near, onSelect }: Props) {
+/**
+ * Recherche de destination : adresses (API Adresse) en direct, lieux (Nominatim) sur demande.
+ * Utilisée par l'onglet Carte et par l'écran « Choisir un lieu » (balades).
+ */
+export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?' }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const { locked } = useDrivingLock();
@@ -68,7 +72,9 @@ export function SearchBar({ near, onSelect }: Props) {
 
   const shownAddresses = addresses?.query === q ? addresses.results : null;
   const shownPlaces = places?.query === q ? places.results : null;
-  const open = focused && !locked;
+  // La liste ne dépend pas du clavier : le fermer (bouton retour Android) retire le focus,
+  // et la liste disparaissait avant l'appui sur un résultat. Elle reste tant qu'une recherche est tapée.
+  const open = !locked && (focused || q.length >= 3);
 
   return (
     <View style={styles.wrap}>
@@ -79,10 +85,10 @@ export function SearchBar({ near, onSelect }: Props) {
           value={query}
           onChangeText={setQuery}
           onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onBlur={() => setFocused(false)}
           onSubmitEditing={searchPlacesNow}
           editable={!locked}
-          placeholder={locked ? 'Recherche désactivée en roulant' : 'Où va-t-on ?'}
+          placeholder={locked ? 'Recherche désactivée en roulant' : placeholder}
           placeholderTextColor={Colors.textMuted}
           returnKeyType="search"
           autoCorrect={false}
@@ -95,7 +101,7 @@ export function SearchBar({ near, onSelect }: Props) {
       </View>
 
       {open && (
-        <ScrollView style={styles.results} keyboardShouldPersistTaps="handled">
+        <ScrollView style={styles.results} keyboardShouldPersistTaps="always">
           {q.length < 3 ? (
             history.length > 0 ? (
               <>

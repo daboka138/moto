@@ -129,7 +129,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
 <body>
 <div id="map"></div>
 <script>
-  function post(msg) { window.ReactNativeWebView.postMessage(JSON.stringify(msg)); }
+  function post(msg) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg)); }
   // Remonte les erreurs JS de la page dans les logs de l'app
   window.onerror = function (message, source, line) {
     post({ type: 'error', message: String(message) + ' (' + source + ':' + line + ')' });
@@ -156,7 +156,24 @@ function buildHtml(Colors: Palette, dark: boolean) {
     attribution: '${tiles.attribution}'
   }).addTo(map);
   map.on('dragstart', function () { post({ type: 'pan' }); });
-  map.on('click', function (e) { post({ type: 'mapPress', latitude: e.latlng.lat, longitude: e.latlng.lng }); });
+  // Appui sur la carte détecté à la main : le « click » de Leaflet est annulé dès que le doigt
+  // bouge de 3 px (vu comme un glissement), ce qui arrive sur la plupart des appuis au doigt.
+  var tap = null;
+  var container = map.getContainer();
+  container.addEventListener('pointerdown', function (e) {
+    var onItem = e.target.closest && e.target.closest('.leaflet-marker-icon, .leaflet-control');
+    tap = e.isPrimary && !onItem ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now() } : null;
+  }, true);
+  container.addEventListener('pointerup', function (e) {
+    var t = tap;
+    tap = null;
+    if (!t || e.pointerId !== t.id) return;
+    if (Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y) > 16 || Date.now() - t.t > 700) return;
+    var rect = container.getBoundingClientRect();
+    var ll = map.containerPointToLatLng(L.point(e.clientX - rect.left, e.clientY - rect.top));
+    post({ type: 'mapPress', latitude: ll.lat, longitude: ll.lng });
+  }, true);
+  container.addEventListener('pointercancel', function () { tap = null; }, true);
   // Pas d'animation de déplacement des pastilles pendant un zoom
   map.on('zoomstart', function () { map.getContainer().classList.add('zooming'); });
   map.on('zoomend', function () {
