@@ -52,7 +52,7 @@ export const LightColors = {
   me: '#2563EB',
   /** Tracé de l'itinéraire */
   route: '#2563EB',
-  /** Fond de carte pendant le chargement des tuiles (proche du fond CARTO Voyager) */
+  /** Fond de carte pendant le chargement des tuiles (proche du fond MapTiler Streets) */
   mapBackground: '#F2EFE9',
 
   // Voiles et ombres

@@ -71,20 +71,22 @@ type WebMessage =
 
 const BASE_URL = 'https://localhost/';
 
-// Tuiles : CARTO Voyager (propre et lisible, façon Google Maps) par défaut, CARTO Dark Matter
-// si le style de carte est sombre (réglage séparé du thème de l'app). Les tuiles OSM standard
-// affichaient plein de petits points noirs (pylônes, bornes, lieux-dits…) : Voyager ne les dessine pas.
-// Serveurs publics à usage limité : à remplacer par un fournisseur avec contrat si le trafic grossit.
-const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Tuiles : MapTiler « streets-v2 » (propre et lisible, façon Google Maps), « streets-v2-dark » si le
+// style de carte est sombre (réglage séparé du thème de l'app). Clé : EXPO_PUBLIC_MAPTILER_KEY (.env
+// en local, variables EAS preview/production). Sans clé ou si MapTiler refuse les tuiles (quota, clé
+// invalide…), la page repasse sur les tuiles OpenStreetMap standard.
+const MAPTILER_KEY = process.env.EXPO_PUBLIC_MAPTILER_KEY ?? '';
+const OSM_COPYRIGHT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const TILES = {
-  light: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTRIBUTION },
-  dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTRIBUTION },
+  light: 'https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}{r}.png?key=',
+  dark: 'https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}{r}.png?key=',
+  attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> ' + OSM_COPYRIGHT,
+  fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 };
 
 /** Page de la carte : marqueurs aux couleurs du thème, tuiles selon le style de carte. */
 function buildHtml(Colors: Palette, dark: boolean) {
-  const tiles = dark ? TILES.dark : TILES.light;
+  const tilesUrl = MAPTILER_KEY ? (dark ? TILES.dark : TILES.light) + encodeURIComponent(MAPTILER_KEY) : '';
   // Fond pendant le chargement des tuiles : celui du style de carte, pas du thème
   Colors = { ...Colors, mapBackground: dark ? DarkColors.mapBackground : LightColors.mapBackground };
   return `<!DOCTYPE html>
@@ -163,11 +165,28 @@ function buildHtml(Colors: Palette, dark: boolean) {
     bearing: 0
   }).setView([46.6, 2.4], 6);
   function mapBearing() { return map.getBearing ? map.getBearing() : 0; }
-  L.tileLayer('${tiles.url}', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: '${tiles.attribution}'
-  }).addTo(map);
+  // Fond MapTiler, avec repli sur OpenStreetMap si les tuiles sont refusées
+  var fallenBack = false, primary = null;
+  function useFallbackTiles(reason) {
+    if (fallenBack) return;
+    fallenBack = true;
+    if (primary) map.removeLayer(primary);
+    L.tileLayer('${TILES.fallback}', { maxZoom: 19, attribution: '${OSM_COPYRIGHT}' }).addTo(map);
+    post({ type: 'error', message: 'Tuiles MapTiler indisponibles (' + reason + ') : repli sur OpenStreetMap' });
+  }
+  if ('${tilesUrl}') {
+    var loaded = 0, failed = 0;
+    primary = L.tileLayer('${tilesUrl}', { maxZoom: 19, attribution: '${TILES.attribution}' });
+    primary.on('tileload', function () { loaded++; });
+    primary.on('tileerror', function () {
+      failed++;
+      // Aucune tuile reçue, ou beaucoup plus d'échecs que de réussites : MapTiler ne répond pas
+      if ((failed >= 3 && loaded === 0) || (failed >= 10 && failed > loaded)) useFallbackTiles('erreurs de chargement');
+    });
+    primary.addTo(map);
+  } else {
+    useFallbackTiles('clé absente');
+  }
 
   var container = map.getContainer();
   var lastDragAt = 0;

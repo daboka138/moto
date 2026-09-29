@@ -48,7 +48,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - TOUTES les couleurs sont dans `src/constants/theme.tsx` (palettes claire + sombre, panneaux de signalement). Jamais de couleur en dur ailleurs
 - Couleur principale : bleu ciel (ACCENT), identique en clair et en sombre
 - Dans un composant : `const Colors = useColors()` et `const styles = useStyles()` avec `const useStyles = makeStyles((Colors) => ({...}))`
-- Thème Clair / Sombre / Automatique dans Paramètres, mémorisé. La carte NE suit PAS le thème : réglage séparé « Style de carte » (Classique = CARTO Voyager par défaut / Sombre CARTO Dark Matter / Automatique = sombre du coucher au lever du soleil, lib/sun.ts), mémorisé
+- Thème Clair / Sombre / Automatique dans Paramètres, mémorisé. La carte NE suit PAS le thème : réglage séparé « Style de carte » (Classique = MapTiler streets-v2 par défaut / Sombre = MapTiler streets-v2-dark, clé EXPO_PUBLIC_MAPTILER_KEY, repli automatique sur les tuiles OSM standard / Automatique = sombre du coucher au lever du soleil, lib/sun.ts), mémorisé
 
 ## Supabase CLI (migrations)
 - CLI installée en devDependency : `npx supabase ...`. Projet lié : ref `yfewldnhnnrzzscmfjsd`
