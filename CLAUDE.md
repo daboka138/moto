@@ -26,10 +26,11 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - SQL dans `supabase/migrations/`, collé à la main dans le SQL Editor Supabase
 - friendships : demandes (pending) et amitiés (accepted), une ligne par paire (fait)
 - location_privacy (+ _rules allow/block) : everyone / friends / selected / ghost (fait)
-- group_rides / group_ride_participants = balades planifiées (fait) : tracé, RDV, niveau, visibilité public/friends/private, max participants. Entre started_at et ended_at, les participants "joined" se voient toujours (même en fantôme) ; démarrage autorisé seulement de RDV-2 h à RDV+12 h
+- group_rides / group_ride_participants = balades planifiées (fait) : tracé, RDV, niveau, visibilité public/friends/private, max participants. Entre started_at et ended_at, les participants "joined" se voient toujours (même en fantôme) ; démarrage autorisé seulement de RDV-2 h à RDV+12 h. Suppression automatique 1 h après la fin (ended_at, sinon départ + duration_s) : pg_cron toutes les 15 min → Edge Function `cleanup-rides` → RPC purge_finished_rides() (+ photos du chat)
 - live_positions : lecture UNIQUEMENT via RLS + `can_view_location()` — toute règle de visibilité se code là, jamais seulement dans l'app
 - road_reports / road_report_votes : signalements style Waze (fait). Types autorisés uniquement : accident, gravel, oil, roadworks, object, animal, traffic_jam, stopped_vehicle, danger. JAMAIS radar/police/contrôle (refusé côté serveur). Expiration par type + votes « toujours là / plus là »
 - Navigation : OSRM (itinéraire normal) ; Valhalla FOSSGIS profil moto pour « éviter autoroutes » (les OSRM publics ne le permettent pas). Recherche : Géoplateforme (ex api-adresse) + Nominatim sur demande seulement (pas d'autocomplétion, 1 req/s)
+- Carte (leaflet-map.tsx, WebView Leaflet) : ma position = flèche (cap GPS en mouvement, boussole à l'arrêt via useCompass), interpolée et lissée dans la page ; en navigation, carte cap en haut, flèche à 72 % de la hauteur. Appui long = point posé (Aller ici / Départ-Arrivée-RDV de balade / Signaler), aussi dans ride/new. Balades publiques + amis + inscrites affichées par défaut, tracé au toucher
 - Sécurité : saisie de texte bloquée en navigation > 10 km/h (DrivingLockProvider, appliqué dans Field et dans la saisie des messages ; les notifications de message restent affichées)
 - Catégories de moto (fait) : motorcycles.category (cyclo / 125 / a2 / big / trail, déduite de la cylindrée, modifiable) + is_main (une seule, via set_main_motorcycle). profiles.pace / availability. group_rides.categories / pace / surface
 - 50 cm³ : JAMAIS d'autoroute ni de voie rapide → Valhalla motor_scooter (45 km/h), jamais de repli OSRM. Options d'itinéraire préremplies selon la moto principale (lib/moto.ts)
@@ -47,12 +48,13 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - TOUTES les couleurs sont dans `src/constants/theme.tsx` (palettes claire + sombre, panneaux de signalement). Jamais de couleur en dur ailleurs
 - Couleur principale : bleu ciel (ACCENT), identique en clair et en sombre
 - Dans un composant : `const Colors = useColors()` et `const styles = useStyles()` avec `const useStyles = makeStyles((Colors) => ({...}))`
-- Thème Clair / Sombre / Automatique dans Paramètres, mémorisé. La carte NE suit PAS le thème : réglage séparé « Style de carte » (Classique OSM par défaut / Sombre CARTO Dark Matter / Automatique = sombre du coucher au lever du soleil, lib/sun.ts), mémorisé
+- Thème Clair / Sombre / Automatique dans Paramètres, mémorisé. La carte NE suit PAS le thème : réglage séparé « Style de carte » (Classique = CARTO Voyager par défaut / Sombre CARTO Dark Matter / Automatique = sombre du coucher au lever du soleil, lib/sun.ts), mémorisé
 
 ## Supabase CLI (migrations)
 - CLI installée en devDependency : `npx supabase ...`. Projet lié : ref `yfewldnhnnrzzscmfjsd`
 - Secrets dans `.env.supabase` (ignoré par Git, créé par Dimitri) : SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD. Ne JAMAIS les afficher, les copier dans le code ou les commiter
-- Charger avant chaque commande (bash) : `set -a; . <(sed 's/$//' .env.supabase); set +a`
+- Charger avant chaque commande (bash) : `set -a; . <(sed 's/
+$//' .env.supabase); set +a`
 - Nouvelle migration : fichier `supabase/migrations/<AAAAMMJJhhmmss>_nom.sql`, tester en local (PGlite), puis `npx supabase db push`
 - Les 5 premières migrations ont été collées à la main dans le SQL Editor : marquées « applied » avec `supabase migration repair`
 

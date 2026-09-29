@@ -3,7 +3,8 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 // Calques et style de la carte, mémorisés sur le téléphone.
 // Masquer les signalements ne coupe PAS les alertes vocales de danger (sécurité).
 
-const KEYS = { reports: 'moto.map.showReports', rides: 'moto.map.showRides', style: 'moto.map.style' };
+// Balades : nouvelle clé pour qu'elles réapparaissent par défaut chez ceux qui les avaient masquées
+const KEYS = { reports: 'moto.map.showReports', rides: 'moto.map.showRides.v2', style: 'moto.map.style' };
 
 /** Style des tuiles, indépendant du thème de l'app. Automatique = sombre entre le coucher et le lever du soleil. */
 export type MapStyle = 'classic' | 'dark' | 'auto';

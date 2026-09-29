@@ -25,7 +25,7 @@ const THEMES: Option<ThemePreference>[] = [
 ];
 
 const MAP_STYLES: Option<MapStyle>[] = [
-  { value: 'classic', label: 'Classique', description: 'Carte OpenStreetMap habituelle', icon: 'map' },
+  { value: 'classic', label: 'Classique', description: 'Carte claire et lisible (CARTO Voyager)', icon: 'map' },
   { value: 'dark', label: 'Sombre', description: 'Toujours sombre', icon: 'moon' },
   { value: 'auto', label: 'Automatique', description: 'Sombre du coucher au lever du soleil', icon: 'partly-sunny' },
 ];

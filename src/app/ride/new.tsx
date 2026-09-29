@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import * as Location from 'expo-location';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { LeafletMap } from '@/components/leaflet-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
+import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
 import { ALL_CATEGORIES, MOTO_CATEGORIES, PACES, SURFACES, type MotoCategory, type Pace, type Surface } from '@/lib/moto';
@@ -20,6 +23,7 @@ import {
   type RideVisibility,
 } from '@/lib/rides';
 import { computeRoute, formatDistance, formatDuration, type ComputedRoute } from '@/lib/routing';
+import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
 const MAX_WAYPOINTS = 8;
@@ -32,15 +36,26 @@ function defaultMeetingAt() {
   return d;
 }
 
+/** Lieu passé par la carte (appui long > « Départ / Arrivée / Point de RDV d'une balade ») */
+function placeFromParams(p: { label?: string; lat?: string; lng?: string }): Place | null {
+  const latitude = Number(p.lat);
+  const longitude = Number(p.lng);
+  if (!p.lat || !p.lng || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { label: p.label || `Point ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`, latitude, longitude };
+}
+
 export default function NewRideScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
+  const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string }>();
+  const [given] = useState(() => placeFromParams(params));
   const [title, setTitle] = useState('');
-  const [start, setStart] = useState<Place | null>(null);
-  const [end, setEnd] = useState<Place | null>(null);
+  const [start, setStart] = useState<Place | null>(params.role === 'start' ? given : null);
+  const [end, setEnd] = useState<Place | null>(params.role === 'end' ? given : null);
   const [waypoints, setWaypoints] = useState<Place[]>([]);
-  const [meeting, setMeeting] = useState<Place | null>(null);
+  const [meeting, setMeeting] = useState<Place | null>(params.role === 'meeting' ? given : null);
+  const [me, setMe] = useState<LatLng | null>(null);
   const [meetingAt, setMeetingAt] = useState(defaultMeetingAt);
   const [level, setLevel] = useState<RideLevel>('tranquille');
   const [visibility, setVisibility] = useState<RideVisibility>('public');
@@ -73,8 +88,38 @@ export default function NewRideScreen() {
     };
   }, [stopsKey]);
 
+  // Centre la carte sur moi tant qu'aucun point n'est placé
+  useEffect(() => {
+    Location.getLastKnownPositionAsync()
+      .then((p) => p && setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude }))
+      .catch(() => {});
+  }, []);
+
   if (!session) return null;
-  const near = start ?? meeting ?? null;
+  const near = start ?? meeting ?? me ?? null;
+
+  // Appui long sur la carte : placer A, B, le RDV ou une étape à cet endroit
+  const placeAt = (point: LatLng) => {
+    const set = (setter: (p: Place) => void) => async () => {
+      const coords = { ...point, label: `Point ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}` };
+      setter(coords);
+      const place = await reverseGeocode(point);
+      if (place.label !== coords.label) setter(place);
+    };
+    // Une étape ajoutée puis nommée : on la retrouve par ses coordonnées
+    const setStep = (p: Place) =>
+      setWaypoints((ws) => {
+        const i = ws.findIndex((w) => w.latitude === p.latitude && w.longitude === p.longitude);
+        return i >= 0 ? ws.map((w, j) => (j === i ? p : w)) : [...ws, p];
+      });
+    const options: SheetOption[] = [
+      { label: 'Départ (A)', onPress: set(setStart) },
+      { label: 'Arrivée (B)', onPress: set(setEnd) },
+      { label: 'Point de regroupement', onPress: set(setMeeting) },
+    ];
+    if (waypoints.length < MAX_WAYPOINTS) options.push({ label: `Étape ${waypoints.length + 1}`, onPress: set(setStep) });
+    showActionSheet({ title: 'Placer ce point comme…', options });
+  };
 
   const choose = async (label: string, setter: (p: Place) => void, initial?: Place | null) => {
     const place = await pickPlace({ title: label, initial: initial ?? near });
@@ -137,6 +182,11 @@ export default function NewRideScreen() {
 
   const pins = ridePins({ start, end, waypoints, meeting: meeting ?? start });
   const previewPoints = currentRoute?.points ?? pins.filter((p) => p.kind !== 'meeting').map((p) => [p.latitude, p.longitude] as [number, number]);
+  // Cadrage : le tracé, sinon les points placés, sinon ma position
+  const fitPoints = [
+    ...(start && end ? previewPoints : []).map(([latitude, longitude]) => ({ latitude, longitude })),
+    ...pins.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+  ];
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -180,16 +230,18 @@ export default function NewRideScreen() {
             onPress={() => choose("Point d'arrivée", setEnd, end)}
           />
 
+          <View style={styles.preview}>
+            <LeafletMap
+              position={me ? { ...me, accuracy: null } : null}
+              pins={pins}
+              routes={start && end ? [{ id: 'route', points: previewPoints }] : []}
+              fitPoints={fitPoints.length ? fitPoints : me ? [me] : undefined}
+              onMapLongPress={placeAt}
+            />
+          </View>
+          <Text style={styles.mapHint}>Appui long sur la carte pour placer le départ, l’arrivée, le RDV ou une étape.</Text>
           {start && end && (
             <>
-              <View style={styles.preview}>
-                <LeafletMap
-                  position={null}
-                  pins={pins}
-                  routes={[{ id: 'route', points: previewPoints }]}
-                  fitPoints={previewPoints.map(([latitude, longitude]) => ({ latitude, longitude }))}
-                />
-              </View>
               {currentRoute ? (
                 <Text style={styles.routeInfo}>
                   {formatDistance(currentRoute.distanceM)} · environ {formatDuration(currentRoute.durationS)}
@@ -316,7 +368,8 @@ const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   addStep: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   addStepText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
-  preview: { height: 220, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
+  preview: { height: 240, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
+  mapHint: { fontSize: 13, color: Colors.textMuted, marginTop: -6 },
   routeInfo: { fontSize: 15, fontWeight: '700', color: Colors.text },
   routeInfoMuted: { fontSize: 14, color: Colors.textMuted },
   computing: { flexDirection: 'row', alignItems: 'center', gap: 8 },

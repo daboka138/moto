@@ -6,21 +6,26 @@ import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
+import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
 import { NavBanner, NavBottomBar, ReportButton, RoutePreviewCard } from '@/components/nav/nav-ui';
 import { ReportCard, ReportSheet } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
 import { motoLabel, PersonCard } from '@/components/person-card';
+import { RideCard } from '@/components/ride-card';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { useMapLayers } from '@/lib/map-layers';
 import { distanceM, type LatLng } from '@/lib/geo';
+import type { Place } from '@/lib/geocoding';
 import type { LivePositionInput } from '@/lib/live-location';
 import { usePrivacy } from '@/lib/privacy-context';
 import { categoryInfo } from '@/lib/moto';
 import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
 import { createReport, deleteReport, reportInfo, voteReport, type ReportType, type Vote } from '@/lib/reports';
-import type { RideSummary } from '@/lib/rides';
+import { fetchRide, type RideSummary } from '@/lib/rides';
+import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
+import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useLiveRiders } from '@/lib/use-live-riders';
 import { useNavigation } from '@/lib/use-navigation';
@@ -32,7 +37,7 @@ import { useDemoMode } from '@/demo/demo-context';
 import { DemoCounter } from '@/demo/demo-counter';
 import { RiderCard } from '@/demo/rider-card';
 import { useDemoReports } from '@/demo/reports';
-import { demoRides } from '@/demo/rides';
+import { demoRide, demoRides } from '@/demo/rides';
 import { isSpeeding } from '@/demo/simulation';
 import { canSeeDemoRider, DEMO_RIDE_TITLE, demoPrivacyLabel, demoSocial } from '@/demo/social';
 import { useDemoRiders } from '@/demo/use-demo-riders';
@@ -42,8 +47,10 @@ type Status = 'loading' | 'denied' | 'ready';
 const REAL_PREFIX = 'user:';
 const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
-/** Balades affichées sur la carte : publiques (ou auxquelles je participe) dans les 7 jours */
-const RIDES_ON_MAP_DAYS = 7;
+/** Balades affichées sur la carte : publiques, entre amis ou auxquelles je participe, dans les 30 jours */
+const RIDES_ON_MAP_DAYS = 30;
+/** Au-delà de 5,4 km/h, le cap GPS est fiable ; en dessous, la flèche suit la boussole */
+const MOVING_MS = 1.5;
 /** Un signalement du même type à moins de 150 m est confirmé au lieu d'être dupliqué */
 const DUPLICATE_REPORT_M = 150;
 
@@ -63,14 +70,24 @@ export default function MapScreen() {
   const [reportSheet, setReportSheet] = useState(false);
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  // Point posé par appui long, et lieu visé par le prochain signalement (sinon ma position)
+  const [dropped, setDropped] = useState<{ place: Place; resolving: boolean } | null>(null);
+  const [reportAt, setReportAt] = useState<LatLng | null>(null);
+  // Balade touchée sur la carte : son tracé est affiché
+  const [rideRoute, setRideRoute] = useState<{ id: string; points: [number, number][] } | null>(null);
+  const compass = useCompass();
   const ghost = settings?.mode === 'ghost';
   const insets = useSafeAreaInsets();
   const layers = useMapLayers();
 
+  // Flèche : cap GPS en mouvement, boussole à l'arrêt (dernier cap GPS si pas de boussole)
+  const moving = (location?.coords.speed ?? 0) > MOVING_MS;
+  const pointing = moving ? heading : (compass ?? heading);
   const position: MapPosition | null = location && {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     accuracy: location.coords.accuracy,
+    heading: pointing,
   };
   const me: LivePositionInput | null = location && {
     latitude: location.coords.latitude,
@@ -134,8 +151,12 @@ export default function MapScreen() {
   const mapRides = navigating
     ? []
     : [...(rides ?? []), ...demoRideList].filter(
-        (r) => (r.visibility === 'public' || r.joined) && isWithinDays(r.meetingAt, RIDES_ON_MAP_DAYS),
+        (r) =>
+          (r.visibility === 'public' || r.visibility === 'friends' || r.joined) &&
+          r.status !== 'ended' &&
+          isWithinDays(r.meetingAt, RIDES_ON_MAP_DAYS),
       );
+  const selectedRide = layers.showRides ? (mapRides.find((r) => RIDE_PREFIX + r.id === selectedId) ?? null) : null;
   const pins: MapPin[] = [
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
@@ -155,10 +176,15 @@ export default function MapScreen() {
     ...(nav.destination
       ? [{ id: 'destination', kind: 'end' as const, label: '🏁', latitude: nav.destination.latitude, longitude: nav.destination.longitude }]
       : []),
+    ...(dropped
+      ? [{ id: 'dropped', kind: 'dropped' as const, label: '', latitude: dropped.place.latitude, longitude: dropped.place.longitude }]
+      : []),
   ];
   const routes: MapRoute[] = nav.route
     ? [{ id: 'nav', points: nav.route.points.map((p) => [p.latitude, p.longitude] as [number, number]), color: Colors.route }]
-    : [];
+    : selectedRide && rideRoute?.id === selectedRide.id
+      ? [{ id: 'ride', points: rideRoute.points, color: Colors.accent }]
+      : [];
   // Aperçu : la carte cadre tout l'itinéraire (2 coins suffisent)
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 
@@ -167,23 +193,30 @@ export default function MapScreen() {
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
 
   useEffect(() => {
+    let cancelled = false;
+    Location.requestForegroundPermissionsAsync().then(({ status: permission }) => {
+      if (!cancelled) setStatus(permission === 'granted' ? 'ready' : 'denied');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fréquence adaptative : toutes les 0,5 s en navigation (flèche fluide), sinon 1 s / 5 m (batterie)
+  useEffect(() => {
+    if (status !== 'ready') return;
     let subscription: Location.LocationSubscription | undefined;
     let cancelled = false;
 
     (async () => {
-      const { status: permission } = await Location.requestForegroundPermissionsAsync();
-      if (cancelled) return;
-      if (permission !== 'granted') {
-        setStatus('denied');
-        return;
-      }
-      setStatus('ready');
       subscription = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 5 },
+        navigating
+          ? { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 500, distanceInterval: 0 }
+          : { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 5 },
         (loc) => {
           setLocation(loc);
           // Le cap GPS n'est fiable qu'en mouvement (> 5 km/h)
-          if (loc.coords.heading != null && loc.coords.heading >= 0 && (loc.coords.speed ?? 0) > 1.5) {
+          if (loc.coords.heading != null && loc.coords.heading >= 0 && (loc.coords.speed ?? 0) > MOVING_MS) {
             setHeading(loc.coords.heading);
           }
         },
@@ -195,7 +228,7 @@ export default function MapScreen() {
       cancelled = true;
       subscription?.remove();
     };
-  }, []);
+  }, [status, navigating]);
 
   const showToast = (text: string) => {
     setToast(text);
@@ -220,21 +253,85 @@ export default function MapScreen() {
     }
     const ride = mapRides.find((r) => RIDE_PREFIX + r.id === id);
     if (!ride) return;
+    // Premier appui : fiche + tracé sur la carte ; la fiche ouvre la balade
+    setDropped(null);
+    setSelectedId(id);
+    loadRideRoute(ride).catch((e) => console.warn('Tracé de la balade indisponible', e));
+  };
+
+  const loadRideRoute = async (ride: RideSummary) => {
+    if (rideRoute?.id === ride.id) return;
+    const details = ride.isDemo
+      ? demoRide(ride.id, demo, { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: '' })
+      : userId
+        ? await fetchRide(ride.id, userId)
+        : null;
+    if (!details) return;
+    const points =
+      details.route ??
+      [details.start, ...details.waypoints, details.end].map((p) => [p.latitude, p.longitude] as [number, number]);
+    setRideRoute({ id: ride.id, points });
+  };
+
+  const openRide = (ride: RideSummary) => {
     if (ride.isDemo) router.push({ pathname: '/demo-ride/[id]', params: { id: ride.id } });
     else router.push({ pathname: '/ride/[id]', params: { id: ride.id } });
   };
 
-  const report = async (type: ReportType) => {
+  // ---------- Appui long : point posé, comme Google Maps ----------
+  const onLongPress = async (point: LatLng) => {
+    setSelectedId(null);
+    setFollow(false);
+    const coords = `Point ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}`;
+    setDropped({ place: { ...point, label: coords }, resolving: true });
+    const place = await reverseGeocode(point);
+    // Seulement si ce point est toujours celui affiché
+    setDropped((d) =>
+      d && d.place.latitude === point.latitude && d.place.longitude === point.longitude ? { place, resolving: false } : d,
+    );
+  };
+
+  const goToDropped = () => {
+    if (!dropped) return;
+    const { place } = dropped;
+    setDropped(null);
+    nav.choose({ label: place.label, latitude: place.latitude, longitude: place.longitude, source: 'lieu' });
+  };
+
+  const rideFromDropped = (role: RidePlaceRole) => {
+    if (!dropped) return;
+    const { place } = dropped;
+    setDropped(null);
+    router.push({
+      pathname: '/ride/new',
+      params: { role, label: place.label, lat: String(place.latitude), lng: String(place.longitude) },
+    });
+  };
+
+  const reportAtDropped = () => {
+    if (!dropped) return;
+    setReportAt(dropped.place);
+    setDropped(null);
+    setReportSheet(true);
+  };
+
+  const closeReportSheet = () => {
     setReportSheet(false);
-    if (!position || !userId) return;
+    setReportAt(null);
+  };
+
+  const report = async (type: ReportType) => {
+    const at = reportAt ?? position;
+    closeReportSheet();
+    if (!at || !userId) return;
     const label = reportInfo(type).label;
-    const existing = reports.find((r) => r.type === type && distanceM(r, position) < DUPLICATE_REPORT_M);
+    const existing = reports.find((r) => r.type === type && distanceM(r, at) < DUPLICATE_REPORT_M);
     try {
       if (existing) {
         await vote(existing.id, 'still_there', true);
         showToast(`${label} déjà signalé ici : merci d'avoir confirmé`);
       } else {
-        await createReport(userId, type, position);
+        await createReport(userId, type, { latitude: at.latitude, longitude: at.longitude });
         await refreshReports();
         showToast(`Merci ! ${label} signalé`);
       }
@@ -294,13 +391,21 @@ export default function MapScreen() {
     <View style={styles.container}>
       <LeafletMap
         position={position}
-        navigation={navigating ? { heading } : null}
+        navigating={navigating}
         follow={follow && nav.phase === 'idle'}
         onUserPan={() => setFollow(false)}
         markers={markers}
         selectedMarkerId={selectedId}
-        onMarkerPress={setSelectedId}
-        onMapPress={() => setSelectedId(null)}
+        onMarkerPress={(id) => {
+          setDropped(null);
+          setSelectedId(id);
+        }}
+        onMapPress={() => {
+          setSelectedId(null);
+          setDropped(null);
+        }}
+        // Pas d'appui long en navigation : on ne manipule pas la carte en roulant
+        onMapLongPress={navigating ? undefined : onLongPress}
         onMarkersRendered={setRenderedCount}
         pins={pins}
         onPinPress={onPinPress}
@@ -318,6 +423,7 @@ export default function MapScreen() {
               onSelect={(r) => {
                 setFollow(false);
                 setSelectedId(null);
+                setDropped(null);
                 nav.choose(r);
               }}
             />
@@ -403,6 +509,31 @@ export default function MapScreen() {
             <ReportButton onPress={() => setReportSheet(true)} />
           </View>
 
+          {dropped && !navigating && (
+            <View style={styles.card}>
+              <DroppedPinCard
+                place={dropped.place}
+                resolving={dropped.resolving}
+                distanceM={position ? distanceM(position, dropped.place) : null}
+                onGo={goToDropped}
+                onRide={rideFromDropped}
+                onReport={reportAtDropped}
+                onClose={() => setDropped(null)}
+              />
+            </View>
+          )}
+          {selectedRide && (
+            <View style={styles.card}>
+              <RideCard
+                ride={selectedRide}
+                distanceFromMeM={position ? distanceM(position, selectedRide.meeting) : null}
+                onPress={() => openRide(selectedRide)}
+              />
+              <Pressable style={styles.rideClose} onPress={() => setSelectedId(null)} hitSlop={10} accessibilityLabel="Fermer">
+                <Ionicons name="close" size={20} color={Colors.textMuted} />
+              </Pressable>
+            </View>
+          )}
           {selectedReport && (
             <View style={styles.card}>
               <ReportCard
@@ -476,7 +607,7 @@ export default function MapScreen() {
         </View>
       </View>
 
-      <ReportSheet visible={reportSheet} onPick={report} onClose={() => setReportSheet(false)} />
+      <ReportSheet visible={reportSheet} onPick={report} onClose={closeReportSheet} />
     </View>
   );
 }
@@ -646,6 +777,21 @@ const useStyles = makeStyles((Colors) => ({
   bottom: { alignSelf: 'stretch', gap: 12 },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   card: { alignSelf: 'stretch' },
+  // Posé sur le coin de la fiche, au-dessus (le badge de niveau occupe le coin haut droit)
+  rideClose: {
+    position: 'absolute',
+    top: -14,
+    right: -4,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    elevation: 5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+  },
   button: { backgroundColor: Colors.accent, borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12 },
   buttonText: { color: Colors.white, fontSize: 16, fontWeight: '600' },
 }));

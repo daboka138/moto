@@ -418,6 +418,10 @@ enabled = true
 [functions.cleanup-stories]
 verify_jwt = false
 
+# Nettoyage des balades finies depuis plus d'une heure : même principe, appelée par pg_cron
+[functions.cleanup-rides]
+verify_jwt = false
+
 # Suppression de compte : le jeton de l'utilisateur est vérifié dans la fonction (auth.getUser)
 [functions.delete-account]
 verify_jwt = false

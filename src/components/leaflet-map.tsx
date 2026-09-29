@@ -10,6 +10,8 @@ export type MapPosition = {
   latitude: number;
   longitude: number;
   accuracy: number | null;
+  /** Cap en degrés (0 = nord) : GPS en mouvement, boussole à l'arrêt. null = inconnu (rond au lieu de la flèche) */
+  heading?: number | null;
 };
 
 /** Pastille avec photo affichée sur la carte (autres motards). */
@@ -22,12 +24,12 @@ export type MapMarker = {
   tone?: 'default' | 'muted' | 'alert';
 };
 
-/** Repère fixe : départ, arrivée, étape, point de RDV. */
+/** Repère fixe : départ, arrivée, étape, point de RDV, point posé par appui long. */
 export type MapPin = {
   id: string;
   latitude: number;
   longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report';
+  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped';
   label: string;
   /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
   sign?: SignStyle;
@@ -38,14 +40,16 @@ export type MapRoute = { id: string; points: [number, number][]; color?: string 
 
 type Props = {
   position: MapPosition | null;
-  /** Mode navigation : carte orientée dans mon sens de marche, zoom rapproché */
-  navigation?: { heading: number | null } | null;
+  /** Mode navigation : carte orientée dans mon sens de marche, flèche en bas de l'écran, zoom rapproché */
+  navigating?: boolean;
   follow?: boolean;
   onUserPan?: () => void;
   markers?: MapMarker[];
   selectedMarkerId?: string | null;
   onMarkerPress?: (id: string) => void;
   onMapPress?: (point: LatLng) => void;
+  /** Appui long sur la carte (comme Google Maps) */
+  onMapLongPress?: (point: LatLng) => void;
   pins?: MapPin[];
   onPinPress?: (id: string) => void;
   routes?: MapRoute[];
@@ -59,6 +63,7 @@ type WebMessage =
   | { type: 'ready' }
   | { type: 'pan' }
   | { type: 'mapPress'; latitude: number; longitude: number }
+  | { type: 'longPress'; latitude: number; longitude: number }
   | { type: 'marker'; id: string }
   | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
@@ -66,19 +71,15 @@ type WebMessage =
 
 const BASE_URL = 'https://localhost/';
 
-// Tuiles : OSM classique par défaut, CARTO Dark Matter si le style de carte est sombre
-// (réglage séparé du thème de l'app). OK pour le dev, à remplacer par un
-// fournisseur avec contrat avant la prod (usage limité sur ces serveurs publics).
+// Tuiles : CARTO Voyager (propre et lisible, façon Google Maps) par défaut, CARTO Dark Matter
+// si le style de carte est sombre (réglage séparé du thème de l'app). Les tuiles OSM standard
+// affichaient plein de petits points noirs (pylônes, bornes, lieux-dits…) : Voyager ne les dessine pas.
+// Serveurs publics à usage limité : à remplacer par un fournisseur avec contrat si le trafic grossit.
+const CARTO_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 const TILES = {
-  light: {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-  dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
+  light: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTRIBUTION },
+  dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTRIBUTION },
 };
 
 /** Page de la carte : marqueurs aux couleurs du thème, tuiles selon le style de carte. */
@@ -93,8 +94,10 @@ function buildHtml(Colors: Palette, dark: boolean) {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   html, body, #map { margin: 0; height: 100%; background: ${Colors.mapBackground}; }
+  /* Appui long : pas de sélection de texte ni de menu du navigateur */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .person-wrap { background: none; border: none; transition: transform 1s linear; }
-  .zooming .person-wrap { transition: none; }
+  .zooming .person-wrap, .rotating .person-wrap { transition: none; }
   .person {
     width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: ${Colors.white};
     border: 3px solid ${Colors.accent}; box-shadow: 0 2px 6px ${Colors.markerShadow};
@@ -117,13 +120,23 @@ function buildHtml(Colors: Palette, dark: boolean) {
     background: ${Colors.white}; border: 3px solid ${Colors.danger}; color: ${Colors.text}; font-size: 18px;
     min-width: 36px; height: 36px; border-radius: 18px; padding: 0;
   }
+  /* Point posé par appui long : goutte façon Google Maps, pointe sur le lieu */
+  .drop {
+    width: 26px; height: 26px; box-sizing: border-box; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    background: ${Colors.danger}; border: 3px solid ${Colors.white}; box-shadow: 0 2px 6px ${Colors.markerShadow};
+  }
   .sign-wrap { background: none; border: none; }
   .sign svg { width: 46px; height: 46px; display: block; overflow: visible;
     filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
   .leaflet-control-attribution { background: ${Colors.surface}cc !important; color: ${Colors.textMuted}; }
   .leaflet-control-attribution a { color: ${Colors.accent}; }
-  .arrow-wrap { background: none; border: none; }
-  .arrow svg { width: 40px; height: 40px; display: block; filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
+  /* Ma position : flèche pointée dans ma direction, rond si le cap est inconnu */
+  .me-wrap { background: none; border: none; }
+  .me { width: 40px; height: 40px; }
+  .me svg { width: 40px; height: 40px; display: block; filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
+  .me .dot { display: none; }
+  .me.nohead .arrow { display: none; }
+  .me.nohead .dot { display: block; }
 </style>
 </head>
 <body>
@@ -155,76 +168,209 @@ function buildHtml(Colors: Palette, dark: boolean) {
     subdomains: 'abcd',
     attribution: '${tiles.attribution}'
   }).addTo(map);
-  map.on('dragstart', function () { post({ type: 'pan' }); });
-  // Appui sur la carte détecté à la main : le « click » de Leaflet est annulé dès que le doigt
-  // bouge de 3 px (vu comme un glissement), ce qui arrive sur la plupart des appuis au doigt.
-  var tap = null;
+
   var container = map.getContainer();
+  var lastDragAt = 0;
+  map.on('dragstart', function () { lastDragAt = Date.now(); post({ type: 'pan' }); });
+
+  // Appui et appui long détectés à la main : le « click » de Leaflet est annulé dès que le doigt
+  // bouge de 3 px (vu comme un glissement), ce qui arrive sur la plupart des appuis au doigt.
+  var LONG_PRESS_MS = 550;
+  var tap = null, longTimer = null, pointers = 0;
+  function cancelLong() { if (longTimer) { clearTimeout(longTimer); longTimer = null; } }
+  function latLngAt(x, y) {
+    var rect = container.getBoundingClientRect();
+    return map.containerPointToLatLng(L.point(x - rect.left, y - rect.top));
+  }
   container.addEventListener('pointerdown', function (e) {
+    // Premier doigt : repart de zéro (un relâchement perdu ne bloque pas le compteur)
+    pointers = e.isPrimary ? 1 : pointers + 1;
+    cancelLong();
     var onItem = e.target.closest && e.target.closest('.leaflet-marker-icon, .leaflet-control');
-    tap = e.isPrimary && !onItem ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now() } : null;
+    // Deux doigts (zoom) : ni appui ni appui long
+    tap = e.isPrimary && !onItem && pointers === 1 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now() } : null;
+    if (!tap) return;
+    var start = tap;
+    longTimer = setTimeout(function () {
+      longTimer = null;
+      if (tap !== start) return;
+      tap = null; // le relâchement ne compte pas comme un appui
+      var ll = latLngAt(start.x, start.y);
+      post({ type: 'longPress', latitude: ll.lat, longitude: ll.lng });
+    }, LONG_PRESS_MS);
+  }, true);
+  container.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 16) cancelLong();
   }, true);
   container.addEventListener('pointerup', function (e) {
+    pointers = Math.max(0, pointers - 1);
+    cancelLong();
     var t = tap;
     tap = null;
     if (!t || e.pointerId !== t.id) return;
     if (Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y) > 16 || Date.now() - t.t > 700) return;
-    var rect = container.getBoundingClientRect();
-    var ll = map.containerPointToLatLng(L.point(e.clientX - rect.left, e.clientY - rect.top));
+    var ll = latLngAt(e.clientX, e.clientY);
     post({ type: 'mapPress', latitude: ll.lat, longitude: ll.lng });
   }, true);
-  container.addEventListener('pointercancel', function () { tap = null; }, true);
-  // Pas d'animation de déplacement des pastilles pendant un zoom
-  map.on('zoomstart', function () { map.getContainer().classList.add('zooming'); });
+  container.addEventListener('pointercancel', function () { pointers = Math.max(0, pointers - 1); cancelLong(); tap = null; }, true);
+  container.addEventListener('contextmenu', function (e) { e.preventDefault(); }, true);
+
+  // Pas d'animation de déplacement des pastilles pendant un zoom ou une rotation
+  map.on('zoomstart', function () { container.classList.add('zooming'); });
   map.on('zoomend', function () {
-    setTimeout(function () { map.getContainer().classList.remove('zooming'); }, 50);
+    setTimeout(function () { container.classList.remove('zooming'); }, 50);
   });
+  var rotatingTimer = null;
+  function markRotating() {
+    container.classList.add('rotating');
+    clearTimeout(rotatingTimer);
+    rotatingTimer = setTimeout(function () { container.classList.remove('rotating'); }, 300);
+  }
 
-  var dot = null, halo = null, arrow = null, centered = false;
+  // ---------- Ma position ----------
+  // Chaque nouvelle position GPS est rejointe en douceur (interpolation sur la durée entre
+  // deux mesures), le cap et la rotation de la carte sont lissés : plus de sauts.
+  var NAV_ZOOM = 17;
+  /** En navigation, ma flèche est à 72 % de la hauteur de l'écran (on voit plus loin devant) */
+  var NAV_ANCHOR_Y = 0.72;
+  /** Après un glissement en navigation, la carte arrête de me suivre pendant ce temps */
+  var NAV_PAUSE_MS = 8000;
+  /** Au-delà, on saute directement à la nouvelle position (reprise après une coupure GPS) */
+  var TELEPORT_M = 500;
 
-  function arrowIcon() {
+  var me = {
+    marker: null, halo: null, el: null,
+    from: null, to: null, t0: 0, dur: 0, lastFixAt: 0, accuracy: 0,
+    targetHeading: null, heading: null,
+    follow: false, nav: false, centered: false
+  };
+  var frame = null, lastFrameAt = 0;
+
+  function meIcon() {
     var el = document.createElement('div');
-    el.className = 'arrow';
-    el.innerHTML = '<svg viewBox="0 0 40 40"><path d="M20 3 L34 35 L20 27 L6 35 Z" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3" stroke-linejoin="round"/></svg>';
-    return L.divIcon({ className: 'arrow-wrap', html: el, iconSize: [40, 40], iconAnchor: [20, 20] });
+    el.className = 'me nohead';
+    el.innerHTML =
+      '<svg class="arrow" viewBox="0 0 40 40"><path d="M20 3 L34 35 L20 27 L6 35 Z" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3" stroke-linejoin="round"/></svg>' +
+      '<svg class="dot" viewBox="0 0 40 40"><circle cx="20" cy="20" r="9" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3"/></svg>';
+    return L.divIcon({ className: 'me-wrap', html: el, iconSize: [40, 40], iconAnchor: [20, 20] });
+  }
+
+  /** Écart d'angle le plus court, entre -180 et 180 */
+  function angleDelta(from, to) { return ((to - from + 540) % 360) - 180; }
+
+  function interpolated(now) {
+    if (!me.to) return null;
+    if (!me.from || !me.dur) return me.to;
+    var k = Math.min(1, (now - me.t0) / me.dur);
+    return L.latLng(me.from.lat + (me.to.lat - me.from.lat) * k, me.from.lng + (me.to.lng - me.from.lng) * k);
+  }
+
+  function animate() {
+    frame = null;
+    var now = Date.now();
+    var dt = Math.min(100, now - (lastFrameAt || now));
+    lastFrameAt = now;
+    var pos = interpolated(now);
+    if (!pos) return;
+    var busy = me.dur && now - me.t0 < me.dur;
+
+    // Cap lissé (constante de temps 250 ms)
+    if (me.targetHeading !== null) {
+      if (me.heading === null) me.heading = me.targetHeading;
+      else {
+        var dh = angleDelta(me.heading, me.targetHeading);
+        me.heading = (me.heading + dh * (1 - Math.exp(-dt / 250)) + 360) % 360;
+        if (Math.abs(dh) > 0.5) busy = true;
+      }
+    }
+
+    // Carte tournée pour que ma direction soit en haut (navigation), sinon nord en haut
+    if (map.setBearing) {
+      var bearing = mapBearing();
+      var targetBearing = me.nav && me.heading !== null ? (360 - me.heading) % 360 : 0;
+      var db = angleDelta(bearing, targetBearing);
+      if (Math.abs(db) > 0.3) {
+        map.setBearing(bearing + db * (1 - Math.exp(-dt / 350)));
+        markRotating();
+        busy = true;
+      } else if (db !== 0 && Math.abs(db) > 0.01) {
+        map.setBearing(targetBearing);
+      }
+    }
+
+    me.marker.setLatLng(pos);
+    me.halo.setLatLng(pos).setRadius(me.accuracy);
+    if (me.el) {
+      var noHead = me.heading === null;
+      if (me.el.classList.contains('nohead') !== noHead) me.el.classList.toggle('nohead', noHead);
+      if (!noHead) me.el.style.transform = 'rotate(' + (me.heading + mapBearing()) + 'deg)';
+    }
+
+    // Caméra : suit la flèche (au centre, ou en bas de l'écran en navigation)
+    var navPaused = me.nav && now - lastDragAt < NAV_PAUSE_MS;
+    // Pas pendant un zoom ni tant qu'un doigt est posé (pincement)
+    var touching = pointers > 0 || container.classList.contains('zooming');
+    if (((me.nav && !navPaused) || me.follow) && !touching) {
+      var size = map.getSize();
+      var target = L.point(size.x / 2, size.y * (me.nav ? NAV_ANCHOR_Y : 0.5));
+      var offset = map.latLngToContainerPoint(pos).subtract(target);
+      var far = Math.abs(offset.x) + Math.abs(offset.y);
+      if (far >= 1) {
+        // Grand écart (entrée en navigation, recentrage) : rejoint en douceur ; sinon suivi image par image
+        map.panBy(far > 40 ? offset.multiplyBy(1 - Math.exp(-dt / 120)) : offset, { animate: false });
+        if (far > 40) busy = true;
+      }
+    }
+    if (me.nav) busy = true;
+
+    if (busy) frame = requestAnimationFrame(animate);
+  }
+
+  function wake() {
+    if (!frame) { lastFrameAt = Date.now(); frame = requestAnimationFrame(animate); }
   }
 
   window.setPosition = function (p, follow, nav) {
-    var ll = [p.latitude, p.longitude];
-    var radius = p.accuracy || 0;
-    if (!dot) {
-      halo = L.circle(ll, { radius: radius, stroke: false, fillColor: '${Colors.me}', fillOpacity: 0.15, interactive: false }).addTo(map);
-      dot = L.circleMarker(ll, { radius: 8, color: '${Colors.white}', weight: 3, fillColor: '${Colors.me}', fillOpacity: 1, interactive: false }).addTo(map);
-    } else {
-      dot.setLatLng(ll);
-      halo.setLatLng(ll).setRadius(radius);
+    var now = Date.now();
+    var ll = L.latLng(p.latitude, p.longitude);
+    // Un « suivre » envoyé juste après un glissement de l'utilisateur est périmé
+    me.follow = !!follow && now - lastDragAt > 1500;
+    me.accuracy = p.accuracy || 0;
+    me.targetHeading = typeof p.heading === 'number' ? p.heading : null;
+    if (me.targetHeading === null) me.heading = null;
+
+    if (!me.marker) {
+      me.halo = L.circle(ll, { radius: me.accuracy, stroke: false, fillColor: '${Colors.me}', fillOpacity: 0.1, interactive: false }).addTo(map);
+      me.marker = L.marker(ll, { icon: meIcon(), interactive: false, keyboard: false, zIndexOffset: 3000 }).addTo(map);
+      var wrap = me.marker.getElement();
+      me.el = wrap && wrap.firstChild;
     }
 
-    // Navigation : flèche dans mon sens de marche, carte tournée pour que ma direction soit en haut
-    if (nav) {
-      var heading = nav.heading;
-      if (heading !== null && map.setBearing) map.setBearing(-heading);
-      if (!arrow) arrow = L.marker(ll, { icon: arrowIcon(), interactive: false, zIndexOffset: 3000 }).addTo(map);
-      else arrow.setLatLng(ll);
-      var el = arrow.getElement();
-      if (el && el.firstChild) el.firstChild.style.transform = 'rotate(' + ((heading || 0) + mapBearing()) + 'deg)';
-      dot.setStyle({ opacity: 0, fillOpacity: 0 });
-      halo.setStyle({ fillOpacity: 0 });
-      map.setView(ll, 17, { animate: true, duration: 0.8 });
-      centered = true;
-      return;
+    if (!me.to || !ll.equals(me.to)) {
+      var cur = interpolated(now) || ll;
+      var gap = me.lastFixAt ? now - me.lastFixAt : 0;
+      me.from = cur;
+      me.to = ll;
+      me.t0 = now;
+      // Durée = temps entre deux mesures (bornée) : la flèche arrive quand la suivante tombe
+      me.dur = gap && cur.distanceTo(ll) < TELEPORT_M ? Math.max(250, Math.min(1500, gap)) : 0;
+      me.lastFixAt = now;
     }
-    if (arrow) { map.removeLayer(arrow); arrow = null; }
-    dot.setStyle({ opacity: 1, fillOpacity: 1 });
-    halo.setStyle({ fillOpacity: 0.15 });
-    if (mapBearing() !== 0 && map.setBearing) map.setBearing(0);
 
-    if (!centered) {
-      map.setView(ll, 13, { animate: false });
-      centered = true;
-    } else if (follow) {
-      map.panTo(ll, { animate: true, duration: 0.5 });
+    if (nav && !me.nav) map.setZoom(Math.max(map.getZoom(), NAV_ZOOM), { animate: false });
+    me.nav = !!nav;
+
+    if (!me.centered) {
+      map.setView(ll, nav ? NAV_ZOOM : 13, { animate: false });
+      me.centered = true;
     }
+    wake();
+  };
+
+  window.setHeading = function (heading) {
+    me.targetHeading = typeof heading === 'number' ? heading : null;
+    if (me.targetHeading === null) me.heading = null;
+    if (me.marker) wake();
   };
 
   var markers = {};
@@ -285,12 +431,15 @@ function buildHtml(Colors: Palette, dark: boolean) {
           '<text x="23" y="' + y + '" font-size="' + size + '" font-weight="900" font-family="sans-serif" text-anchor="middle" fill="${SIGN_INK}">' +
           p.sign.glyph + '</text></svg>';
         icon = L.divIcon({ className: 'sign-wrap', html: el, iconSize: [46, 46], iconAnchor: [23, 41] });
+      } else if (p.kind === 'dropped') {
+        el.className = 'drop';
+        icon = L.divIcon({ className: 'pin-wrap', html: el, iconSize: [26, 26], iconAnchor: [13, 31] });
       } else {
         el.className = 'pin ' + p.kind;
         el.textContent = p.label;
         icon = L.divIcon({ className: 'pin-wrap', html: el, iconSize: null, iconAnchor: [14, 14] });
       }
-      var marker = L.marker([p.latitude, p.longitude], { icon: icon, zIndexOffset: 500 }).addTo(map);
+      var marker = L.marker([p.latitude, p.longitude], { icon: icon, zIndexOffset: p.kind === 'dropped' ? 2000 : 500 }).addTo(map);
       marker.on('click', function () { post({ type: 'pin', id: p.id }); });
       pins[p.id] = marker;
     });
@@ -300,14 +449,14 @@ function buildHtml(Colors: Palette, dark: boolean) {
   window.setRoutes = function (list) {
     routeLayer.clearLayers();
     list.forEach(function (r) {
-      L.polyline(r.points, { color: '${Colors.white}', weight: 8, opacity: 0.9 }).addTo(routeLayer);
-      L.polyline(r.points, { color: r.color || '${Colors.accent}', weight: 5, opacity: 0.95 }).addTo(routeLayer);
+      L.polyline(r.points, { color: '${Colors.white}', weight: 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
+      L.polyline(r.points, { color: r.color || '${Colors.accent}', weight: 5, opacity: 0.95, interactive: false }).addTo(routeLayer);
     });
   };
 
   window.fitTo = function (points) {
     if (!points.length) return;
-    centered = true;
+    me.centered = true;
     if (points.length === 1) map.setView(points[0], 14, { animate: false });
     else map.fitBounds(points, { padding: [40, 40], maxZoom: 15, animate: false });
   };
@@ -320,7 +469,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
 
 export function LeafletMap({
   position,
-  navigation = null,
+  navigating = false,
   follow = false,
   onUserPan,
   markers = [],
@@ -331,6 +480,7 @@ export function LeafletMap({
   selectedMarkerId = null,
   onMarkerPress,
   onMapPress,
+  onMapLongPress,
   onMarkersRendered,
 }: Props) {
   const webRef = useRef<WebView>(null);
@@ -341,19 +491,31 @@ export function LeafletMap({
   // Incrémenté à chaque chargement de la page : après un rechargement, tout l'état est renvoyé
   const [pageLoads, setPageLoads] = useState(0);
 
+  // Position et cap envoyés séparément : la boussole change souvent, sans nouvelle position GPS
+  const heading = position?.heading ?? null;
+  const positionJson = position
+    ? JSON.stringify({ latitude: position.latitude, longitude: position.longitude, accuracy: position.accuracy, heading })
+    : null;
+
   useEffect(() => {
-    if (!pageLoads || !position) return;
-    webRef.current?.injectJavaScript(
-      `window.setPosition && window.setPosition(${JSON.stringify(position)}, ${follow}, ${JSON.stringify(navigation)}); true;`,
-    );
-  }, [pageLoads, position, follow, navigation]);
+    if (!pageLoads || !positionJson) return;
+    webRef.current?.injectJavaScript(`window.setPosition && window.setPosition(${positionJson}, ${follow}, ${navigating}); true;`);
+    // Le cap est dans positionJson au moment de l'envoi ; ses changements seuls passent par setHeading
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageLoads, position?.latitude, position?.longitude, position?.accuracy, follow, navigating]);
 
   useEffect(() => {
     if (!pageLoads) return;
+    webRef.current?.injectJavaScript(`window.setHeading && window.setHeading(${JSON.stringify(heading)}); true;`);
+  }, [pageLoads, heading]);
+
+  const markersJson = JSON.stringify(markers);
+  useEffect(() => {
+    if (!pageLoads) return;
     webRef.current?.injectJavaScript(
-      `window.setMarkers && window.setMarkers(${JSON.stringify(markers)}, ${JSON.stringify(selectedMarkerId ?? null)}); true;`,
+      `window.setMarkers && window.setMarkers(${markersJson}, ${JSON.stringify(selectedMarkerId ?? null)}); true;`,
     );
-  }, [pageLoads, markers, selectedMarkerId]);
+  }, [pageLoads, markersJson, selectedMarkerId]);
 
   // Les tracés peuvent être gros : on ne les renvoie que s'ils ont changé
   const pinsJson = JSON.stringify(pins);
@@ -385,6 +547,7 @@ export function LeafletMap({
     if (msg.type === 'ready') setPageLoads((n) => n + 1);
     else if (msg.type === 'pan') onUserPan?.();
     else if (msg.type === 'mapPress') onMapPress?.({ latitude: msg.latitude, longitude: msg.longitude });
+    else if (msg.type === 'longPress') onMapLongPress?.({ latitude: msg.latitude, longitude: msg.longitude });
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);
     else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
