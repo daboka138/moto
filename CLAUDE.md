@@ -59,7 +59,7 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 ## Distribution testeurs (EAS)
 - App « PasseRyder » (domaines passeryder.fr et passeryder.com), identifiant Android/iOS `com.passeryder.app`, scheme `passeryder`. Le slug EAS reste `moto` (lié au projectId) et le dossier reste `C:\projets\moto`. Icônes provisoires dans assets/images (moto blanche sur bleu ciel)
 - eas.json : profil `preview` = APK installable (distribution internal, canal `preview`, environnement EAS `preview`), versionCode géré par EAS (appVersionSource remote + autoIncrement)
-- EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update` ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
+- EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update --platform android` (pas de web : `platforms` android/ios dans app.json) ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)
 - Les commandes eas (login, init, build, update) sont interactives : c'est Dimitri qui les lance
 - Google Play (voir PLAY_STORE.md) : éditeur DK Tech Lab (Dimitri Koszowski, EI), email éditeur dktechlabweb@gmail.com (mentions légales, identité) ; support de l'app passeryder@gmail.com (aide, droits RGPD, modération, fiche store). Profil `production` = AAB, canal `production`, environnement EAS `production` ; `eas submit` vers le test interne avec `google-service-account.json` (secret, ignoré par Git). Visuels du store dans `store/`

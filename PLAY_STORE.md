@@ -98,8 +98,9 @@ La version arrive en **brouillon** dans Tests internes : ouvre-la dans la Play C
 
 Mise à jour JavaScript seule (sans nouvelle version Play Store) :
 ```powershell
-eas update --channel production --environment production --message "Ce qui change"
+eas update --channel production --environment production --platform android --message "Ce qui change"
 ```
+`--platform android` : pas d'export web (l'app ne vise que android/ios, voir `platforms` dans `app.json`).
 Changement natif (module natif, permissions, icône, nom, SDK) : augmenter `version` dans `app.json` puis nouveau build.
 
 ### Passage test interne → fermé → production

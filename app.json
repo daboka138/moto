@@ -4,6 +4,7 @@
     "slug": "moto",
     "version": "1.0.0",
     "orientation": "portrait",
+    "platforms": ["android", "ios"],
     "icon": "./assets/images/icon.png",
     "scheme": "passeryder",
     "userInterfaceStyle": "automatic",

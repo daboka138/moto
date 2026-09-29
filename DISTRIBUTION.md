@@ -70,8 +70,10 @@ Un nouvel APK s'installe par-dessus l'ancien (mêmes identifiant et signature) :
 
 Pour toute modification de **code JavaScript / TypeScript, textes, styles, images** :
 ```powershell
-eas update --channel preview --environment preview --message "Ce qui change"
+eas update --channel preview --environment preview --platform android --message "Ce qui change"
 ```
+- `--platform android` : l'app ne vise pas le web (`"platforms": ["android", "ios"]` dans `app.json`) ;
+  sans ce réglage, l'export web plantait (`localStorage is not defined` au rendu statique).
 - Durée : 1 à 2 min.
 - Les testeurs la reçoivent **au prochain lancement** de l'app (téléchargée au lancement, appliquée au lancement suivant),
   ou **tout de suite** avec Paramètres > À propos > **Rechercher une mise à jour**.
@@ -108,7 +110,7 @@ Procédure :
 | Qui suis-je ? | `eas whoami` |
 | Nouvel APK | `eas build -p android --profile preview` |
 | Liste des builds | `eas build:list --platform android` |
-| Mise à jour à distance | `eas update --channel preview --environment preview --message "..."` |
+| Mise à jour à distance | `eas update --channel preview --environment preview --platform android --message "..."` |
 | Liste des mises à jour | `eas update:list --branch preview` |
 | Variables d'environnement | `eas env:list --environment preview` |
 
