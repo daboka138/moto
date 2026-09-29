@@ -31,7 +31,7 @@ import { useLiveRiders } from '@/lib/use-live-riders';
 import { useNavigation } from '@/lib/use-navigation';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
-import { speak } from '@/lib/voice';
+import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 // DEMO : faux motards simulés (voir src/demo)
 import { useDemoMode } from '@/demo/demo-context';
 import { DemoCounter } from '@/demo/demo-counter';
@@ -64,7 +64,12 @@ export default function MapScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
+  // La carte suit ma position (et mon cap en navigation) ; coupé dès que je la déplace ou la tourne
   const [follow, setFollow] = useState(true);
+  // Orientation de la carte (0 = nord en haut) : boussole affichée hors navigation si ≠ 0
+  const [bearing, setBearing] = useState(0);
+  const [northUpKey, setNorthUpKey] = useState(0);
+  const voice = useVoiceSettings();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [togglingGhost, setTogglingGhost] = useState(false);
   const [reportSheet, setReportSheet] = useState(false);
@@ -118,8 +123,12 @@ export default function MapScreen() {
   const demo = useDemoMode();
   const demoReports = useDemoReports(demo.enabled, position, profile?.username ?? 'moi');
   const reports = [...realReports, ...demoReports.reports];
-  const danger = dangerAhead(reports, position, heading, kmh, navigating ? nav.route : null, nav.progress?.alongM ?? null);
-  useDangerAnnouncements(danger);
+  const route = navigating ? nav.route : null;
+  const alongM = nav.progress?.alongM ?? null;
+  const danger = dangerAhead(reports, position, heading, kmh, route, alongM);
+  // Annonce vocale : seulement les types de danger choisis dans Paramètres > Voix et alertes
+  const spokenReports = reports.filter((r) => !voice.mutedDangerTypes.includes(r.type));
+  useDangerAnnouncements(dangerAhead(spokenReports, position, heading, kmh, route, alongM));
 
   // ---------- Motards réels : Supabase ne renvoie que ceux que j'ai le droit de voir ----------
   const liveRiders = useLiveRiders(userId, me, settings?.mode ?? null);
@@ -392,8 +401,10 @@ export default function MapScreen() {
       <LeafletMap
         position={position}
         navigating={navigating}
-        follow={follow && nav.phase === 'idle'}
+        follow={follow && nav.phase !== 'preview'}
         onUserPan={() => setFollow(false)}
+        onBearingChange={setBearing}
+        northUpKey={northUpKey}
         markers={markers}
         selectedMarkerId={selectedId}
         onMarkerPress={(id) => {
@@ -446,6 +457,19 @@ export default function MapScreen() {
                   <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
                 )}
               </Pressable>
+              {/* Boussole : la carte a été tournée au doigt ; un appui remet le nord en haut */}
+              {!navigating && Math.abs(((bearing + 540) % 360) - 180) >= 2 && (
+                <Pressable
+                  style={styles.compass}
+                  onPress={() => setNorthUpKey((k) => k + 1)}
+                  hitSlop={6}
+                  accessibilityLabel="Remettre le nord en haut">
+                  <View style={{ transform: [{ rotate: `${bearing}deg` }], alignItems: 'center' }}>
+                    <MaterialCommunityIcons name="navigation" size={26} color={Colors.danger} />
+                    <Text style={styles.compassN}>N</Text>
+                  </View>
+                </Pressable>
+              )}
             </View>
             <View style={styles.right} pointerEvents="box-none">
               {demo.enabled && !navigating && (
@@ -466,6 +490,16 @@ export default function MapScreen() {
                 label={layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements'}
                 onPress={() => layers.setShowReports(!layers.showReports)}
               />
+              {/* Muet rapide : coupe toutes les annonces vocales (mémorisé) */}
+              {navigating && (
+                <Pressable
+                  style={[styles.layerButton, voice.muted && styles.muteOn]}
+                  onPress={() => updateVoiceSettings({ muted: !voice.muted })}
+                  hitSlop={6}
+                  accessibilityLabel={voice.muted ? 'Réactiver la voix' : 'Couper la voix'}>
+                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={26} color={voice.muted ? Colors.white : Colors.accent} />
+                </Pressable>
+              )}
               {!navigating && (
                 <LayerButton
                   active={layers.showRides}
@@ -499,8 +533,9 @@ export default function MapScreen() {
 
         <View style={styles.bottom} pointerEvents="box-none">
           <View style={styles.bottomRow} pointerEvents="box-none">
-            {!follow && nav.phase === 'idle' ? (
-              <Pressable style={styles.button} onPress={() => setFollow(true)}>
+            {!follow && nav.phase !== 'preview' ? (
+              <Pressable style={[styles.button, styles.recenter]} onPress={() => setFollow(true)}>
+                <Ionicons name="navigate" size={20} color={Colors.white} />
                 <Text style={styles.buttonText}>Recentrer</Text>
               </Pressable>
             ) : (
@@ -583,6 +618,7 @@ export default function MapScreen() {
                 onChangeOptions={nav.updateOptions}
                 onStart={() => {
                   setSelectedId(null);
+                  setFollow(true);
                   nav.start();
                 }}
                 onCancel={() => {
@@ -598,7 +634,7 @@ export default function MapScreen() {
                 progress={nav.progress}
                 onStop={() => {
                   nav.stop();
-                  speak('Navigation arrêtée', true);
+                  speak('Navigation arrêtée', true, 'guidance');
                   setFollow(true);
                 }}
               />
@@ -745,6 +781,22 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   ghostButtonOn: { backgroundColor: Colors.ghost },
+  compass: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  compassN: { fontSize: 10, fontWeight: '900', color: Colors.text, marginTop: -4 },
+  muteOn: { backgroundColor: Colors.danger, borderColor: Colors.danger },
+  recenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ghostBanner: {
     alignSelf: 'center',
     flexDirection: 'row',

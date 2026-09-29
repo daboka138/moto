@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
+import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
 import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constants/theme';
 import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
@@ -15,6 +16,8 @@ import { CONTACT_EMAIL, LEGAL_NOTICE_URL, PRIVACY_POLICY_URL, TERMS_URL } from '
 import { useMapLayers, type MapStyle } from '@/lib/map-layers';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
+import { REPORT_TYPES } from '@/lib/reports';
+import { testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
 
 type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -80,12 +83,14 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <SwitchRow
           label="Signalements routiers"
-          description="Les alertes vocales de danger restent actives même masqués."
+          description="Les alertes vocales de danger restent actives même masqués (réglages dans Voix et alertes)."
           value={layers.showReports}
           onChange={layers.setShowReports}
         />
         <SwitchRow label="Points de RDV des balades" value={layers.showRides} onChange={layers.setShowRides} />
       </View>
+
+      <VoiceSection />
 
       <Text style={styles.section}>Confidentialité</Text>
       <LinkGroup>
@@ -137,6 +142,85 @@ export default function SettingsScreen() {
   );
 }
 
+/** Voix et alertes : guidage vocal, alertes de danger (par type), débit, volume, test. */
+function VoiceSection() {
+  const Colors = useColors();
+  const styles = useStyles();
+  const voice = useVoiceSettings();
+  const toggleType = (type: (typeof REPORT_TYPES)[number]['value']) =>
+    updateVoiceSettings({
+      mutedDangerTypes: voice.mutedDangerTypes.includes(type)
+        ? voice.mutedDangerTypes.filter((t) => t !== type)
+        : [...voice.mutedDangerTypes, type],
+    });
+  return (
+    <>
+      <Text style={styles.section}>Voix et alertes</Text>
+      <View style={styles.card}>
+        {voice.muted && (
+          <SwitchRow
+            label="Voix coupée"
+            description="Coupée avec le bouton muet de la navigation : aucune annonce n’est lue."
+            value={voice.muted}
+            onChange={(v) => updateVoiceSettings({ muted: v })}
+          />
+        )}
+        <SwitchRow
+          label="Guidage vocal GPS"
+          description="Instructions de direction pendant la navigation."
+          value={voice.guidance}
+          onChange={(v) => updateVoiceSettings({ guidance: v })}
+        />
+        <SwitchRow
+          label="Alertes vocales des dangers"
+          description="Annonce vers 600 m puis rappel à 200 m quand un danger signalé est sur ta route."
+          value={voice.dangers}
+          onChange={(v) => updateVoiceSettings({ dangers: v })}
+        />
+        {voice.dangers && (
+          <View style={styles.voiceBlock}>
+            <Text style={styles.optionLabel}>Dangers annoncés</Text>
+            <View style={styles.chips}>
+              {REPORT_TYPES.map((t) => (
+                <Chip
+                  key={t.value}
+                  label={`${t.emoji} ${t.label}`}
+                  selected={!voice.mutedDangerTypes.includes(t.value)}
+                  onPress={() => toggleType(t.value)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+        <View style={styles.voiceBlock}>
+          <Text style={styles.optionLabel}>Débit de la voix</Text>
+          <View style={styles.chips}>
+            {VOICE_RATES.map((r) => (
+              <Chip key={r.value} label={r.label} selected={voice.rate === r.value} onPress={() => updateVoiceSettings({ rate: r.value })} />
+            ))}
+          </View>
+          <Text style={styles.optionLabel}>Volume de la voix</Text>
+          <View style={styles.chips}>
+            {VOICE_VOLUMES.map((v) => (
+              <Chip
+                key={v.value}
+                label={v.label}
+                selected={voice.volume === v.value}
+                onPress={() => updateVoiceSettings({ volume: v.value })}
+              />
+            ))}
+          </View>
+          <Text style={styles.optionDescription}>Le volume dépend aussi du volume média du téléphone.</Text>
+        </View>
+        <Pressable style={({ pressed }) => [styles.testVoice, pressed && { opacity: 0.7 }]} onPress={testVoice}>
+          <Ionicons name="volume-high" size={20} color={Colors.accent} />
+          <Text style={styles.testVoiceText}>Tester la voix</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
 function SwitchRow({ label, description, value, onChange }: {
   label: string;
   description?: string;
@@ -180,6 +264,10 @@ const useStyles = makeStyles((Colors) => ({
   optionLabel: { fontSize: 16, fontWeight: '700', color: Colors.text },
   optionDescription: { fontSize: 13, color: Colors.textMuted },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  voiceBlock: { paddingHorizontal: 12, paddingBottom: 8, gap: 10 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  testVoice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
+  testVoiceText: { fontSize: 16, fontWeight: '700', color: Colors.accent },
 }));
 
 function RadioOptions<T extends string>({ options, value, onChange }: {

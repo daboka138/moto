@@ -42,8 +42,14 @@ type Props = {
   position: MapPosition | null;
   /** Mode navigation : carte orientée dans mon sens de marche, flèche en bas de l'écran, zoom rapproché */
   navigating?: boolean;
+  /** La carte suit ma position (et, en navigation, mon cap). Coupé par un glissement ou une rotation au doigt */
   follow?: boolean;
+  /** L'utilisateur a déplacé ou tourné la carte */
   onUserPan?: () => void;
+  /** Orientation de la carte en degrés (0 = nord en haut), envoyée quand elle change */
+  onBearingChange?: (bearing: number) => void;
+  /** Incrémenter pour remettre le nord en haut (bouton boussole) */
+  northUpKey?: number;
   markers?: MapMarker[];
   selectedMarkerId?: string | null;
   onMarkerPress?: (id: string) => void;
@@ -62,6 +68,7 @@ type Props = {
 type WebMessage =
   | { type: 'ready' }
   | { type: 'pan' }
+  | { type: 'bearing'; value: number }
   | { type: 'mapPress'; latitude: number; longitude: number }
   | { type: 'longPress'; latitude: number; longitude: number }
   | { type: 'marker'; id: string }
@@ -160,11 +167,13 @@ function buildHtml(Colors: Palette, dark: boolean) {
     zoomControl: false,
     rotate: true,
     rotateControl: false,
-    touchRotate: false,
+    touchRotate: true,
     shiftKeyRotate: false,
     bearing: 0
   }).setView([46.6, 2.4], 6);
   function mapBearing() { return map.getBearing ? map.getBearing() : 0; }
+  /** Écart d'angle le plus court, entre -180 et 180 */
+  function angleDelta(from, to) { return ((to - from + 540) % 360) - 180; }
   // Fond MapTiler, avec repli sur OpenStreetMap si les tuiles sont refusées
   var fallenBack = false, primary = null;
   function useFallbackTiles(reason) {
@@ -190,7 +199,58 @@ function buildHtml(Colors: Palette, dark: boolean) {
 
   var container = map.getContainer();
   var lastDragAt = 0;
-  map.on('dragstart', function () { lastDragAt = Date.now(); post({ type: 'pan' }); });
+  // Glisser ou tourner la carte au doigt coupe le suivi tout de suite (l'app affiche « Recentrer »)
+  function userMoved() {
+    lastDragAt = Date.now();
+    me.follow = false;
+    resetNorth = false;
+    post({ type: 'pan' });
+  }
+  map.on('dragstart', userMoved);
+
+  // Rotation à deux doigts (leaflet-rotate) avec un seuil de 15°, comme Google Maps :
+  // un simple pincement pour zoomer ne fait pas tourner la carte.
+  var ROTATE_THRESHOLD_DEG = 15;
+  var gesture = null;
+  var rawSetBearing = map.setBearing;
+  if (rawSetBearing && map.touchGestures) {
+    var tg = map.touchGestures;
+    var rawStart = tg._onTouchStart, rawMove = tg._onTouchMove;
+    tg.disable();
+    tg._onTouchStart = function (e) {
+      gesture = { start: mapBearing(), offset: null, moving: false };
+      rawStart.call(this, e);
+    };
+    tg._onTouchMove = function (e) {
+      if (gesture) gesture.moving = true;
+      rawMove.call(this, e);
+      if (gesture) gesture.moving = false;
+    };
+    tg.enable();
+    map.setBearing = function (theta) {
+      if (!gesture || !gesture.moving) return rawSetBearing.call(map, theta);
+      if (gesture.offset === null) {
+        var turned = angleDelta(gesture.start, theta);
+        if (Math.abs(turned) < ROTATE_THRESHOLD_DEG) return;
+        gesture.offset = turned;
+        userMoved();
+      }
+      rawSetBearing.call(map, theta - gesture.offset);
+    };
+  }
+
+  // Orientation envoyée à l'app (boussole) : au plus toutes les 200 ms, et seulement si elle a
+  // bougé de 4° ou plus (ou vient de revenir au nord) pour ne pas redessiner l'écran en continu
+  var sentBearing = 0, bearingTimer = null;
+  map.on('rotate', function () {
+    if (bearingTimer) return;
+    bearingTimer = setTimeout(function () {
+      bearingTimer = null;
+      var b = Math.round(mapBearing()) % 360;
+      if (b === sentBearing) return;
+      if (b === 0 || Math.abs(angleDelta(sentBearing, b)) >= 4) { sentBearing = b; post({ type: 'bearing', value: b }); }
+    }, 200);
+  });
 
   // Appui et appui long détectés à la main : le « click » de Leaflet est annulé dès que le doigt
   // bouge de 3 px (vu comme un glissement), ce qui arrive sur la plupart des appuis au doigt.
@@ -252,8 +312,6 @@ function buildHtml(Colors: Palette, dark: boolean) {
   var NAV_ZOOM = 17;
   /** En navigation, ma flèche est à 72 % de la hauteur de l'écran (on voit plus loin devant) */
   var NAV_ANCHOR_Y = 0.72;
-  /** Après un glissement en navigation, la carte arrête de me suivre pendant ce temps */
-  var NAV_PAUSE_MS = 8000;
   /** Au-delà, on saute directement à la nouvelle position (reprise après une coupure GPS) */
   var TELEPORT_M = 500;
 
@@ -264,6 +322,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
     follow: false, nav: false, centered: false
   };
   var frame = null, lastFrameAt = 0;
+  /** Bouton boussole ou fin de navigation : la carte revient nord en haut */
+  var resetNorth = false;
 
   function meIcon() {
     var el = document.createElement('div');
@@ -273,9 +333,6 @@ function buildHtml(Colors: Palette, dark: boolean) {
       '<svg class="dot" viewBox="0 0 40 40"><circle cx="20" cy="20" r="9" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3"/></svg>';
     return L.divIcon({ className: 'me-wrap', html: el, iconSize: [40, 40], iconAnchor: [20, 20] });
   }
-
-  /** Écart d'angle le plus court, entre -180 et 180 */
-  function angleDelta(from, to) { return ((to - from + 540) % 360) - 180; }
 
   function interpolated(now) {
     if (!me.to) return null;
@@ -290,8 +347,9 @@ function buildHtml(Colors: Palette, dark: boolean) {
     var dt = Math.min(100, now - (lastFrameAt || now));
     lastFrameAt = now;
     var pos = interpolated(now);
-    if (!pos) return;
-    var busy = me.dur && now - me.t0 < me.dur;
+    var busy = !!(pos && me.dur && now - me.t0 < me.dur);
+    // Pas pendant un zoom ni tant qu'un doigt est posé (pincement, rotation)
+    var touching = pointers > 0 || container.classList.contains('zooming');
 
     // Cap lissé (constante de temps 250 ms)
     if (me.targetHeading !== null) {
@@ -303,19 +361,24 @@ function buildHtml(Colors: Palette, dark: boolean) {
       }
     }
 
-    // Carte tournée pour que ma direction soit en haut (navigation), sinon nord en haut
-    if (map.setBearing) {
+    // Navigation suivie : ma direction en haut. Nord en haut sur demande. Sinon, l'orientation
+    // choisie au doigt est gardée.
+    var targetBearing = null;
+    if (me.nav && me.follow && me.heading !== null) targetBearing = (360 - me.heading) % 360;
+    else if (resetNorth) targetBearing = 0;
+    if (map.setBearing && targetBearing !== null && !touching) {
       var bearing = mapBearing();
-      var targetBearing = me.nav && me.heading !== null ? (360 - me.heading) % 360 : 0;
       var db = angleDelta(bearing, targetBearing);
       if (Math.abs(db) > 0.3) {
         map.setBearing(bearing + db * (1 - Math.exp(-dt / 350)));
         markRotating();
         busy = true;
-      } else if (db !== 0 && Math.abs(db) > 0.01) {
-        map.setBearing(targetBearing);
+      } else {
+        if (Math.abs(db) > 0.01) map.setBearing(targetBearing);
+        if (targetBearing === 0) resetNorth = false;
       }
     }
+    if (!pos) return busy ? (frame = requestAnimationFrame(animate)) : undefined;
 
     me.marker.setLatLng(pos);
     me.halo.setLatLng(pos).setRadius(me.accuracy);
@@ -326,10 +389,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
     }
 
     // Caméra : suit la flèche (au centre, ou en bas de l'écran en navigation)
-    var navPaused = me.nav && now - lastDragAt < NAV_PAUSE_MS;
-    // Pas pendant un zoom ni tant qu'un doigt est posé (pincement)
-    var touching = pointers > 0 || container.classList.contains('zooming');
-    if (((me.nav && !navPaused) || me.follow) && !touching) {
+    if (me.follow && !touching) {
       var size = map.getSize();
       var target = L.point(size.x / 2, size.y * (me.nav ? NAV_ANCHOR_Y : 0.5));
       var offset = map.latLngToContainerPoint(pos).subtract(target);
@@ -340,7 +400,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
         if (far > 40) busy = true;
       }
     }
-    if (me.nav) busy = true;
+    if (me.nav && me.follow) busy = true;
 
     if (busy) frame = requestAnimationFrame(animate);
   }
@@ -353,7 +413,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
     var now = Date.now();
     var ll = L.latLng(p.latitude, p.longitude);
     // Un « suivre » envoyé juste après un glissement de l'utilisateur est périmé
-    me.follow = !!follow && now - lastDragAt > 1500;
+    me.follow = !!follow && now - lastDragAt > 600;
     me.accuracy = p.accuracy || 0;
     me.targetHeading = typeof p.heading === 'number' ? p.heading : null;
     if (me.targetHeading === null) me.heading = null;
@@ -377,12 +437,19 @@ function buildHtml(Colors: Palette, dark: boolean) {
     }
 
     if (nav && !me.nav) map.setZoom(Math.max(map.getZoom(), NAV_ZOOM), { animate: false });
+    // Fin de navigation : retour nord en haut
+    if (!nav && me.nav) resetNorth = true;
     me.nav = !!nav;
 
     if (!me.centered) {
       map.setView(ll, nav ? NAV_ZOOM : 13, { animate: false });
       me.centered = true;
     }
+    wake();
+  };
+
+  window.northUp = function () {
+    resetNorth = true;
     wake();
   };
 
@@ -491,6 +558,8 @@ export function LeafletMap({
   navigating = false,
   follow = false,
   onUserPan,
+  onBearingChange,
+  northUpKey = 0,
   markers = [],
   pins = [],
   onPinPress,
@@ -528,6 +597,11 @@ export function LeafletMap({
     webRef.current?.injectJavaScript(`window.setHeading && window.setHeading(${JSON.stringify(heading)}); true;`);
   }, [pageLoads, heading]);
 
+  useEffect(() => {
+    if (!pageLoads || !northUpKey) return;
+    webRef.current?.injectJavaScript(`window.northUp && window.northUp(); true;`);
+  }, [pageLoads, northUpKey]);
+
   const markersJson = JSON.stringify(markers);
   useEffect(() => {
     if (!pageLoads) return;
@@ -563,8 +637,11 @@ export function LeafletMap({
     } catch {
       return;
     }
-    if (msg.type === 'ready') setPageLoads((n) => n + 1);
-    else if (msg.type === 'pan') onUserPan?.();
+    if (msg.type === 'ready') {
+      setPageLoads((n) => n + 1);
+      onBearingChange?.(0);
+    } else if (msg.type === 'pan') onUserPan?.();
+    else if (msg.type === 'bearing') onBearingChange?.(msg.value);
     else if (msg.type === 'mapPress') onMapPress?.({ latitude: msg.latitude, longitude: msg.longitude });
     else if (msg.type === 'longPress') onMapLongPress?.({ latitude: msg.latitude, longitude: msg.longitude });
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);

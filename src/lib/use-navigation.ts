@@ -120,7 +120,7 @@ export function useNavigation(me: LatLng | null, speedKmh: number, category: Mot
     offRouteCount.current = 0;
     setPhase('navigating');
     const first = nextStep(route, 0);
-    speak(first ? `C'est parti. ${stepSentence(first.step, first.distanceM)}` : "C'est parti", true);
+    speak(first ? `C'est parti. ${stepSentence(first.step, first.distanceM)}` : "C'est parti", true, 'guidance');
   };
 
   const stop = () => {
@@ -141,7 +141,7 @@ export function useNavigation(me: LatLng | null, speedKmh: number, category: Mot
 
     // Arrivée (arrêt différé : pas de changement d'état pendant l'effet)
     if (destination && (distanceM(me, destination) < ARRIVAL_M || remainingM < ARRIVAL_M / 2)) {
-      speak('Vous êtes arrivé à destination', true);
+      speak('Vous êtes arrivé à destination', true, 'guidance');
       setTimeout(() => stopRef.current(), 0);
       return;
     }
@@ -156,14 +156,14 @@ export function useNavigation(me: LatLng | null, speedKmh: number, category: Mot
     ) {
       rerouting.current = true;
       lastReroute.current = Date.now();
-      speak("Recalcul de l'itinéraire", true);
+      speak("Recalcul de l'itinéraire", true, 'guidance');
       fetchNavRoute(me, destination, options)
         .then((r) => {
           setRoute(r);
           spoken.current = new Set();
           offRouteCount.current = 0;
         })
-        .catch(() => speak('Recalcul impossible pour le moment'))
+        .catch(() => speak('Recalcul impossible pour le moment', false, 'guidance'))
         .finally(() => {
           rerouting.current = false;
         });
@@ -175,13 +175,13 @@ export function useNavigation(me: LatLng | null, speedKmh: number, category: Mot
       const key = (level: string) => `${route.engine}:${next.index}:${level}`;
       if (next.distanceM <= t.near && !spoken.current.has(key('near'))) {
         spoken.current.add(key('near')).add(key('mid')).add(key('far'));
-        speak(stepSentence(next.step), true);
+        speak(stepSentence(next.step), true, 'guidance');
       } else if (next.distanceM <= t.mid && next.distanceM > t.near && !spoken.current.has(key('mid'))) {
         spoken.current.add(key('mid')).add(key('far'));
-        speak(stepSentence(next.step, next.distanceM));
+        speak(stepSentence(next.step, next.distanceM), false, 'guidance');
       } else if (next.distanceM <= t.far && next.distanceM > t.mid * 1.5 && !spoken.current.has(key('far'))) {
         spoken.current.add(key('far'));
-        speak(stepSentence(next.step, next.distanceM));
+        speak(stepSentence(next.step, next.distanceM), false, 'guidance');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
