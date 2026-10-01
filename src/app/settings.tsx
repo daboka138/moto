@@ -192,6 +192,18 @@ function VoiceSection() {
             </View>
           </View>
         )}
+        <SwitchRow
+          label="Limitation de vitesse"
+          description="Panneau de la limitation de la route à côté du compteur (données OpenStreetMap, pas toujours connues)."
+          value={voice.speedLimit}
+          onChange={(v) => updateVoiceSettings({ speedLimit: v })}
+        />
+        <SwitchRow
+          label="Alerte de dépassement"
+          description="Compteur en rouge et petit bip quand tu dépasses la limitation."
+          value={voice.speedAlert}
+          onChange={(v) => updateVoiceSettings({ speedAlert: v })}
+        />
         <View style={styles.voiceBlock}>
           <Text style={styles.optionLabel}>Débit de la voix</Text>
           <View style={styles.chips}>

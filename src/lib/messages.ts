@@ -30,6 +30,8 @@ export type Message = {
   body: string | null;
   imagePath: string | null;
   createdAt: string;
+  /** Fiche « trajet partagé en direct » (lib/trip-share.ts) */
+  tripShareId?: string | null;
 };
 
 export type Member = { id: string; username: string; avatarUrl: string; lastReadAt: string };
@@ -80,6 +82,7 @@ export function toMessage(r: {
   body: string | null;
   image_path: string | null;
   created_at: string;
+  trip_share_id?: string | null;
 }): Message {
   return {
     id: r.id,
@@ -88,13 +91,14 @@ export function toMessage(r: {
     body: r.body,
     imagePath: r.image_path,
     createdAt: r.created_at,
+    tripShareId: r.trip_share_id ?? null,
   };
 }
 
 export async function fetchMessages(conversationId: string, limit = 100): Promise<Message[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('id, conversation_id, sender_id, body, image_path, created_at')
+    .select('id, conversation_id, sender_id, body, image_path, created_at, trip_share_id')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(limit);

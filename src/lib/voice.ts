@@ -22,6 +22,10 @@ export type VoiceSettings = {
   volume: VoiceVolume;
   /** Bouton muet rapide de l'écran de navigation : coupe toutes les annonces */
   muted: boolean;
+  /** Limitation de vitesse de la route affichée à côté du compteur */
+  speedLimit: boolean;
+  /** Dépassement de la limitation : compteur en rouge + bip */
+  speedAlert: boolean;
 };
 
 export const VOICE_RATES: { value: VoiceRate; label: string; rate: number }[] = [
@@ -44,6 +48,8 @@ const DEFAULTS: VoiceSettings = {
   rate: 'normal',
   volume: 'high',
   muted: false,
+  speedLimit: true,
+  speedAlert: true,
 };
 
 function read(): VoiceSettings {

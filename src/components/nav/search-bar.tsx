@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { makeStyles, useColors } from '@/constants/theme';
@@ -18,13 +18,15 @@ type Props = {
   near: LatLng | null;
   onSelect: (result: SearchResult) => void;
   placeholder?: string;
+  /** Affiché sous la barre quand aucune recherche n'est ouverte (raccourcis favoris…) */
+  below?: ReactNode;
 };
 
 /**
  * Recherche de destination : adresses (API Adresse) en direct, lieux (Nominatim) sur demande.
  * Utilisée par l'onglet Carte et par l'écran « Choisir un lieu » (balades).
  */
-export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?' }: Props) {
+export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const { locked } = useDrivingLock();
@@ -152,6 +154,7 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?' }: Pro
           )}
         </ScrollView>
       )}
+      {!open && below}
     </View>
   );
 }

@@ -3,12 +3,13 @@ import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
-import { LinkGroup, LinkRow } from '@/components/link-row';
+import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
 import { pickImage } from '@/lib/pick-image';
 import { useSession } from '@/lib/session';
+import { useTrips } from '@/lib/trips';
 import { useFriends } from '@/lib/use-friends';
 import { useProfileWall } from '@/lib/use-profile-wall';
 import { deleteWallPhoto, setCoverPhoto, type WallPhoto } from '@/lib/wall';
@@ -19,6 +20,7 @@ export default function ProfileScreen() {
   const userId = session?.user.id;
   const { state: friends } = useFriends();
   const { photos, stats, refresh } = useProfileWall(userId);
+  const trips = useTrips();
 
   // Couverture sombre : barre d'état claire tant que l'onglet est affiché
   useFocusEffect(
@@ -86,6 +88,8 @@ export default function ProfileScreen() {
               badge={pending > 0 ? `${pending} demande${pending > 1 ? 's' : ''}` : undefined}
               onPress={() => router.push('/friends')}
             />
+            <LinkSeparator />
+            <LinkRow icon="speedometer" label="Mes trajets" value={`${trips.length}`} onPress={() => router.push('/trips')} />
           </LinkGroup>
         </>
       }

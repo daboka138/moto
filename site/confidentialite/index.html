@@ -24,7 +24,7 @@
   <main class="wrap">
     <article>
       <h1>Politique de confidentialité</h1>
-      <p class="meta">Application PasseRyder — dernière mise à jour : 27 septembre 2026</p>
+      <p class="meta">Application PasseRyder — dernière mise à jour : 1er octobre 2026</p>
 
       <p>
         Cette politique explique quelles données l'application mobile <strong>PasseRyder</strong> collecte,
@@ -70,6 +70,10 @@
           est enregistrée. Les autres voient une distance approximative, jamais ta position.</li>
         <li>Les balades que tu crées (tracé, point et heure de rendez-vous) et les signalements routiers que tu fais
           (type de danger et emplacement) sont visibles par les autres membres.</li>
+        <li><strong>Partage de trajet en direct</strong> (seulement si tu le lances, ami par ami) : ta destination, ton heure
+          d'arrivée estimée, la distance restante et ta position sont envoyées pendant la navigation, visibles uniquement
+          dans votre conversation privée. À l'arrivée, à l'arrêt de la navigation ou après 30 minutes sans mise à jour,
+          le partage s'arrête et ta position est effacée ; la fiche est supprimée 24 heures plus tard.</li>
       </ul>
 
       <h3>Photos, vidéos et micro</h3>
@@ -100,7 +104,9 @@
 
       <h3>Données qui restent sur ton téléphone</h3>
       <ul>
-        <li>Ta session de connexion, tes réglages (thème, style de carte) et l'historique de tes recherches de destination.
+        <li>Ta session de connexion, tes réglages (thème, style de carte, voix), l'historique de tes recherches de destination,
+          tes lieux favoris (Maison, Travail…), la navigation en cours (pour la reprendre si l'application redémarre) et
+          l'historique « Mes trajets » (destination, date, distance, durée, vitesses moyenne et maximale).
           Ils ne sont pas envoyés sur nos serveurs.</li>
       </ul>
 
@@ -134,7 +140,11 @@
       <ul>
         <li><strong>Supabase</strong> (UE) : hébergement du compte et des données.</li>
         <li><strong>Fonds de carte</strong> : MapTiler (Suisse), et OpenStreetMap en secours (zone de carte affichée).</li>
-        <li><strong>Calcul d'itinéraire</strong> : OSRM et Valhalla (serveurs OpenStreetMap, UE) — points de départ et d'arrivée.</li>
+        <li><strong>Calcul d'itinéraire</strong> : OSRM et Valhalla (serveurs OpenStreetMap, UE) — points de départ, d'étape et d'arrivée.</li>
+        <li><strong>Limitation de vitesse</strong> : Valhalla (serveur OpenStreetMap, UE) — tes dernières positions (quelques points, quand tu roules),
+          pour trouver la route où tu es. Désactivable dans Paramètres › Voix et alertes.</li>
+        <li><strong>Stations, cafés et restaurants sur ton trajet</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de l'itinéraire devant toi,
+          seulement quand tu fais cette recherche.</li>
         <li><strong>Recherche d'adresse</strong> : Géoplateforme de l'IGN (France), Nominatim et Photon (OpenStreetMap, UE) — texte recherché ou point sur la carte.</li>
         <li><strong>Expo (EAS Update)</strong>, société 650 Industries (États-Unis) : téléchargement des mises à jour de l'application
           (adresse IP, version de l'application et du système). Ce transfert est encadré par les clauses contractuelles types de la Commission européenne.</li>
@@ -148,6 +158,7 @@
         <li>Position en direct : seule la dernière est gardée, jusqu'à la suivante ou jusqu'à la suppression du compte.</li>
         <li>Balades : supprimées automatiquement 1 heure après leur fin, avec leur conversation de groupe (messages et photos).</li>
         <li>Signalements routiers : ils ne sont plus affichés après 1 heure à 7 jours selon le type de danger, et sont effacés avec ton compte.</li>
+        <li>Partage de trajet en direct : position effacée dès la fin du partage (au plus tard 30 minutes sans mise à jour), fiche supprimée 24 heures après.</li>
         <li>Tout le reste : tant que ton compte existe. Tu peux supprimer à tout moment une photo, une moto, une balade que tu as créée, etc.</li>
         <li>À la suppression du compte, tout est effacé immédiatement (voir ci-dessous). Seuls les signalements
           faits par d'autres membres à ton sujet peuvent être gardés pour la modération ; ils ne contiennent que ton identifiant technique, plus rattaché à aucune donnée.</li>

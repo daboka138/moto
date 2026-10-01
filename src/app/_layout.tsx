@@ -117,6 +117,7 @@ function RootNavigator() {
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
         <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
+        <Stack.Screen name="trips" options={{ headerShown: true, title: 'Mes trajets' }} />
         <Stack.Screen name="riders" options={{ headerShown: true, title: 'Trouver des motards' }} />
         <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
         <Stack.Screen name="delete-account" options={{ headerShown: true, title: 'Supprimer mon compte' }} />

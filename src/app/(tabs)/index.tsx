@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -7,24 +8,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
-import { NavBanner, NavBottomBar, ReportButton, RoutePreviewCard } from '@/components/nav/nav-ui';
+import { showActionSheet } from '@/components/action-sheet';
+import { NavBanner, NavSheet, ReportButton, RoutePreviewSheet, Speedometer } from '@/components/nav/nav-ui';
+import { QuickPlaces } from '@/components/nav/quick-places';
 import { ReportCard, ReportSheet } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
+import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
+import { StopPicker } from '@/components/nav/stop-picker';
+import { TripSummaryModal } from '@/components/trip-summary';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { useMapLayers } from '@/lib/map-layers';
+import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import type { LivePositionInput } from '@/lib/live-location';
 import { usePrivacy } from '@/lib/privacy-context';
 import { categoryInfo } from '@/lib/moto';
 import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
+import type { PoiKind } from '@/lib/pois';
 import { createReport, deleteReport, reportInfo, voteReport, type ReportType, type Vote } from '@/lib/reports';
 import { fetchRide, type RideSummary } from '@/lib/rides';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
+import { useSpeedLimit } from '@/lib/speed-limit';
 import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useLiveRiders } from '@/lib/use-live-riders';
@@ -53,6 +62,11 @@ const RIDES_ON_MAP_DAYS = 30;
 const MOVING_MS = 1.5;
 /** Un signalement du même type à moins de 150 m est confirmé au lieu d'être dupliqué */
 const DUPLICATE_REPORT_M = 150;
+/** Tolérance avant l'alerte de vitesse (le compteur GPS est précis à quelques km/h) */
+const SPEED_MARGIN_KMH = 3;
+/** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
+const SPEED_BEEP_REPEAT_MS = 20_000;
+const KEEP_AWAKE_TAG = 'navigation';
 
 export default function MapScreen() {
   const Colors = useColors();
@@ -107,8 +121,34 @@ export default function MapScreen() {
   // ---------- Navigation ----------
   const myCategory = mainCategory(profile);
   const myMoto = mainMotorcycle(profile);
-  const nav = useNavigation(position, kmh, myCategory);
+  const nav = useNavigation(position, kmh, myCategory, userId);
   const navigating = nav.phase === 'navigating';
+  const [stopPicker, setStopPicker] = useState<{ kind: PoiKind | null } | null>(null);
+  const [shareSheet, setShareSheet] = useState(false);
+
+  // Écran toujours allumé pendant la navigation
+  useEffect(() => {
+    if (!navigating) return;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch((e) => console.warn('Écran allumé impossible', e));
+    return () => {
+      deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
+    };
+  }, [navigating]);
+
+  // Limitation de vitesse de la route (OSM) ; dépassement : compteur rouge + bip
+  const speedLimit = useSpeedLimit(position, kmh, voice.speedLimit || voice.speedAlert);
+  const overLimit = voice.speedAlert && speedLimit !== null && kmh > speedLimit + SPEED_MARGIN_KMH;
+  const [beepKey, setBeepKey] = useState(0);
+  useEffect(() => {
+    if (!overLimit) return;
+    const beep = () => setBeepKey((k) => k + 1);
+    const first = setTimeout(beep, 0);
+    const timer = setInterval(beep, SPEED_BEEP_REPEAT_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [overLimit]);
 
   // Sécurité : pas de saisie de texte en navigation au-dessus de 10 km/h
   const { setLocked } = useDrivingLock();
@@ -185,15 +225,30 @@ export default function MapScreen() {
     ...(nav.destination
       ? [{ id: 'destination', kind: 'end' as const, label: '🏁', latitude: nav.destination.latitude, longitude: nav.destination.longitude }]
       : []),
+    ...nav.stops.map((s, i) => ({
+      id: `stop:${i}`,
+      kind: 'step' as const,
+      label: String(i + 1),
+      latitude: s.latitude,
+      longitude: s.longitude,
+    })),
     ...(dropped
       ? [{ id: 'dropped', kind: 'dropped' as const, label: '', latitude: dropped.place.latitude, longitude: dropped.place.longitude }]
       : []),
   ];
+  const toLine = (points: LatLng[]) => points.map((p) => [p.latitude, p.longitude] as [number, number]);
+  // Aperçu : les autres itinéraires proposés en gris, sous celui choisi
+  const alternatives: MapRoute[] =
+    nav.phase === 'preview'
+      ? nav.choices
+          .filter((c) => c.route && !c.sameAs && c.route !== nav.route)
+          .map((c) => ({ id: `alt:${c.variant}`, points: toLine(c.route!.points), color: Colors.textFaint, muted: true }))
+      : [];
   const routes: MapRoute[] = nav.route
-    ? [{ id: 'nav', points: nav.route.points.map((p) => [p.latitude, p.longitude] as [number, number]), color: Colors.route }]
+    ? [...alternatives, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
     : selectedRide && rideRoute?.id === selectedRide.id
       ? [{ id: 'ride', points: rideRoute.points, color: Colors.accent }]
-      : [];
+      : alternatives;
   // Aperçu : la carte cadre tout l'itinéraire (2 coins suffisent)
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 
@@ -362,6 +417,36 @@ export default function MapScreen() {
     if (!silent) showToast(value === 'gone' ? 'Merci, signalement retiré si confirmé par d’autres' : 'Merci pour la confirmation');
   };
 
+  const stopNavigation = () => {
+    nav.stop();
+    speak('Navigation arrêtée', true, 'guidance');
+    setFollow(true);
+  };
+
+  // Étoile de l'aperçu : Maison, Travail ou favori perso
+  const favoriteMenu = () => {
+    const dest = nav.destination;
+    if (!dest) return;
+    const fav = findFavorite(dest);
+    showActionSheet({
+      title: dest.label,
+      options: fav
+        ? [{ label: 'Retirer des favoris', destructive: true, onPress: () => removeFavorite(fav.id) }]
+        : [
+            { label: '🏠 Définir comme Maison', onPress: () => setFavorite(dest, 'home') },
+            { label: '💼 Définir comme Travail', onPress: () => setFavorite(dest, 'work') },
+            { label: '⭐ Ajouter aux favoris', onPress: () => setFavorite(dest, 'custom') },
+          ],
+    });
+  };
+
+  const chooseDestination = (r: Parameters<typeof nav.choose>[0]) => {
+    setFollow(false);
+    setSelectedId(null);
+    setDropped(null);
+    nav.choose(r);
+  };
+
   const removeMine = async (id: string) => {
     const target = reports.find((r) => r.id === id);
     if (!target) return;
@@ -418,6 +503,9 @@ export default function MapScreen() {
         // Pas d'appui long en navigation : on ne manipule pas la carte en roulant
         onMapLongPress={navigating ? undefined : onLongPress}
         onMarkersRendered={setRenderedCount}
+        beepKey={beepKey}
+        // Son bloqué par la page : alerte vocale à la place du bip
+        onBeepFailed={() => speak('Vitesse', true, 'info')}
         pins={pins}
         onPinPress={onPinPress}
         routes={routes}
@@ -427,25 +515,18 @@ export default function MapScreen() {
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <View style={styles.header} pointerEvents="box-none">
           {navigating ? (
-            <NavBanner progress={nav.progress} danger={danger} />
+            <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
           ) : (
             <SearchBar
               near={position}
-              onSelect={(r) => {
-                setFollow(false);
-                setSelectedId(null);
-                setDropped(null);
-                nav.choose(r);
-              }}
+              onSelect={chooseDestination}
+              below={nav.phase === 'idle' ? <QuickPlaces near={position} onSelect={chooseDestination} /> : null}
             />
           )}
 
           <View style={styles.top} pointerEvents="box-none">
             <View style={styles.left} pointerEvents="box-none">
-              <View style={styles.speed}>
-                <Text style={styles.speedValue}>{kmh}</Text>
-                <Text style={styles.speedUnit}>km/h</Text>
-              </View>
+              <Speedometer kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />
               <Pressable
                 style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
                 onPress={onGhostPress}
@@ -493,11 +574,11 @@ export default function MapScreen() {
               {/* Muet rapide : coupe toutes les annonces vocales (mémorisé) */}
               {navigating && (
                 <Pressable
-                  style={[styles.layerButton, voice.muted && styles.muteOn]}
+                  style={[styles.layerButton, styles.navButton, voice.muted && styles.muteOn]}
                   onPress={() => updateVoiceSettings({ muted: !voice.muted })}
                   hitSlop={6}
                   accessibilityLabel={voice.muted ? 'Réactiver la voix' : 'Couper la voix'}>
-                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={26} color={voice.muted ? Colors.white : Colors.accent} />
+                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={32} color={voice.muted ? Colors.white : Colors.accent} />
                 </Pressable>
               )}
               {!navigating && (
@@ -531,12 +612,13 @@ export default function MapScreen() {
           )}
         </View>
 
+        {/* Ancré en bas : si le contenu est haut, il déborde vers le haut, jamais sous l'écran */}
         <View style={styles.bottom} pointerEvents="box-none">
           <View style={styles.bottomRow} pointerEvents="box-none">
             {!follow && nav.phase !== 'preview' ? (
-              <Pressable style={[styles.button, styles.recenter]} onPress={() => setFollow(true)}>
-                <Ionicons name="navigate" size={20} color={Colors.white} />
-                <Text style={styles.buttonText}>Recentrer</Text>
+              <Pressable style={[styles.button, styles.recenter, navigating && styles.recenterNav]} onPress={() => setFollow(true)}>
+                <Ionicons name="navigate" size={navigating ? 26 : 20} color={Colors.white} />
+                <Text style={[styles.buttonText, navigating && styles.recenterNavText]}>Recentrer</Text>
               </Pressable>
             ) : (
               <View />
@@ -608,16 +690,22 @@ export default function MapScreen() {
 
           {nav.phase === 'preview' && nav.destination && (
             <View style={styles.card}>
-              <RoutePreviewCard
+              <RoutePreviewSheet
                 destination={nav.destination}
-                route={nav.route}
-                loading={nav.loading}
-                error={nav.error}
+                choices={nav.choices}
+                variant={nav.variant}
+                stops={nav.stops}
                 options={nav.options}
                 moto={myMoto ? `${myMoto.model}${myCategory ? ` (${categoryInfo(myCategory).short})` : ''}` : null}
+                favorite={!!findFavorite(nav.destination)}
+                onSelectVariant={nav.selectVariant}
                 onChangeOptions={nav.updateOptions}
+                onAddStop={() => setStopPicker({ kind: null })}
+                onRemoveStop={nav.removeStop}
+                onFavorite={favoriteMenu}
                 onStart={() => {
                   setSelectedId(null);
+                  setDropped(null);
                   setFollow(true);
                   nav.start();
                 }}
@@ -630,19 +718,47 @@ export default function MapScreen() {
           )}
           {navigating && (
             <View style={styles.card}>
-              <NavBottomBar
+              <NavSheet
                 progress={nav.progress}
-                onStop={() => {
-                  nav.stop();
-                  speak('Navigation arrêtée', true, 'guidance');
-                  setFollow(true);
-                }}
+                stops={nav.stops}
+                sharedWith={nav.shares.map((x) => x.username)}
+                onStop={stopNavigation}
+                onFuel={() => setStopPicker({ kind: 'fuel' })}
+                onAddStop={() => setStopPicker({ kind: null })}
+                onShare={() => setShareSheet(true)}
+                onRemoveStop={nav.removeStop}
               />
             </View>
           )}
         </View>
       </View>
 
+      {stopPicker && (
+        <StopPicker
+          initialKind={stopPicker.kind}
+          route={nav.route}
+          fromM={nav.progress?.alongM ?? 0}
+          near={position}
+          onPick={nav.addStop}
+          onClose={() => setStopPicker(null)}
+        />
+      )}
+      {shareSheet && (
+        <ShareTripSheet
+          visible
+          sharedWith={nav.shares.map((x) => x.friendId)}
+          onShare={(friend) => nav.share(friend)}
+          onClose={() => setShareSheet(false)}
+        />
+      )}
+      <TripSummaryModal
+        trip={nav.summary}
+        onClose={nav.clearSummary}
+        onOpenHistory={() => {
+          nav.clearSummary();
+          router.push('/trips');
+        }}
+      />
       <ReportSheet visible={reportSheet} onPick={report} onClose={closeReportSheet} />
     </View>
   );
@@ -748,6 +864,8 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   layerButtonOn: { backgroundColor: Colors.accent },
+  // En navigation : boutons plus gros, utilisables avec des gants
+  navButton: { width: 64, height: 64, borderRadius: 32 },
   layerStrike: {
     position: 'absolute',
     width: 34,
@@ -756,15 +874,6 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.textMuted,
     transform: [{ rotate: '-45deg' }],
   },
-  speed: {
-    alignItems: 'center',
-    backgroundColor: Colors.overlay,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  speedValue: { color: Colors.white, fontSize: 36, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  speedUnit: { color: Colors.textFaint, fontSize: 12 },
   ghostButton: {
     width: 52,
     height: 52,
@@ -797,6 +906,8 @@ const useStyles = makeStyles((Colors) => ({
   compassN: { fontSize: 10, fontWeight: '900', color: Colors.text, marginTop: -4 },
   muteOn: { backgroundColor: Colors.danger, borderColor: Colors.danger },
   recenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  recenterNav: { minHeight: 64, paddingHorizontal: 24, borderRadius: 32 },
+  recenterNavText: { fontSize: 18, fontWeight: '800' },
   ghostBanner: {
     alignSelf: 'center',
     flexDirection: 'row',
@@ -826,7 +937,7 @@ const useStyles = makeStyles((Colors) => ({
     paddingVertical: 10,
   },
   toastText: { color: Colors.white, fontWeight: '700', fontSize: 14, textAlign: 'center' },
-  bottom: { alignSelf: 'stretch', gap: 12 },
+  bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 12 },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   card: { alignSelf: 'stretch' },
   // Posé sur le coin de la fiche, au-dessus (le badge de niveau occupe le coin haut droit)

@@ -35,8 +35,8 @@ export type MapPin = {
   sign?: SignStyle;
 };
 
-/** Tracé : [[lat, lng], ...] */
-export type MapRoute = { id: string; points: [number, number][]; color?: string };
+/** Tracé : [[lat, lng], ...]. muted : itinéraire alternatif, plus fin et dessous */
+export type MapRoute = { id: string; points: [number, number][]; color?: string; muted?: boolean };
 
 type Props = {
   position: MapPosition | null;
@@ -63,6 +63,10 @@ type Props = {
   fitPoints?: LatLng[];
   /** Nombre de pastilles réellement affichées dans la page (diagnostic) */
   onMarkersRendered?: (count: number) => void;
+  /** Incrémenter pour jouer un petit bip (dépassement de vitesse) */
+  beepKey?: number;
+  /** Le bip n'a pas pu être joué (son bloqué par la page) */
+  onBeepFailed?: () => void;
 };
 
 type WebMessage =
@@ -74,6 +78,7 @@ type WebMessage =
   | { type: 'marker'; id: string }
   | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
+  | { type: 'beep'; ok: boolean }
   | { type: 'error'; message: string };
 
 const BASE_URL = 'https://localhost/';
@@ -534,10 +539,46 @@ function buildHtml(Colors: Palette, dark: boolean) {
   var routeLayer = L.layerGroup().addTo(map);
   window.setRoutes = function (list) {
     routeLayer.clearLayers();
-    list.forEach(function (r) {
-      L.polyline(r.points, { color: '${Colors.white}', weight: 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
-      L.polyline(r.points, { color: r.color || '${Colors.accent}', weight: 5, opacity: 0.95, interactive: false }).addTo(routeLayer);
+    // Alternatives d'abord : l'itinéraire choisi est dessiné par-dessus
+    list.filter(function (r) { return r.muted; }).concat(list.filter(function (r) { return !r.muted; })).forEach(function (r) {
+      L.polyline(r.points, { color: '${Colors.white}', weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
+      L.polyline(r.points, { color: r.color || '${Colors.accent}', weight: r.muted ? 4 : 5, opacity: r.muted ? 0.8 : 0.95, interactive: false }).addTo(routeLayer);
     });
+  };
+
+  // Petit bip (deux tonalités courtes), joué par la page : pas de module son natif
+  var audioCtx = null;
+  window.beep = function () {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return post({ type: 'beep', ok: false });
+      if (!audioCtx) audioCtx = new AC();
+      var done = false;
+      var play = function () {
+        if (done) return;
+        done = true;
+        var t = audioCtx.currentTime;
+        [0, 0.2].forEach(function (d) {
+          var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = 'sine';
+          o.frequency.value = 1320;
+          g.gain.setValueAtTime(0.0001, t + d);
+          g.gain.exponentialRampToValueAtTime(0.7, t + d + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.15);
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start(t + d);
+          o.stop(t + d + 0.17);
+        });
+        post({ type: 'beep', ok: true });
+      };
+      if (audioCtx.state === 'running') return play();
+      audioCtx.resume().then(play, function () {});
+      // Son refusé (pas encore de toucher sur la page) : l'app prend le relais
+      setTimeout(function () { if (!done) { done = true; post({ type: 'beep', ok: false }); } }, 600);
+    } catch (e) {
+      post({ type: 'beep', ok: false });
+    }
   };
 
   window.fitTo = function (points) {
@@ -570,6 +611,8 @@ export function LeafletMap({
   onMapPress,
   onMapLongPress,
   onMarkersRendered,
+  beepKey = 0,
+  onBeepFailed,
 }: Props) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -630,6 +673,11 @@ export function LeafletMap({
     webRef.current?.injectJavaScript(`window.fitTo && window.fitTo(${fitJson}); true;`);
   }, [pageLoads, fitJson]);
 
+  useEffect(() => {
+    if (!pageLoads || !beepKey) return;
+    webRef.current?.injectJavaScript(`window.beep && window.beep(); true;`);
+  }, [pageLoads, beepKey]);
+
   const onMessage = (event: WebViewMessageEvent) => {
     let msg: WebMessage;
     try {
@@ -647,6 +695,7 @@ export function LeafletMap({
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);
     else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
+    else if (msg.type === 'beep' && !msg.ok) onBeepFailed?.();
     else if (msg.type === 'error') console.warn('[carte]', msg.message);
   };
 
@@ -657,6 +706,8 @@ export function LeafletMap({
       originWhitelist={['*']}
       source={{ html, baseUrl: BASE_URL }}
       onMessage={onMessage}
+      // Le bip de dépassement de vitesse doit pouvoir sonner sans toucher la carte
+      mediaPlaybackRequiresUserAction={false}
       // Les liens (attribution OSM) s'ouvrent dans le navigateur, pas dans la carte
       onShouldStartLoadWithRequest={(req) => {
         if (req.url === BASE_URL || req.url.startsWith('about:')) return true;

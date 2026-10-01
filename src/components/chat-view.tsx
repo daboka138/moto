@@ -6,6 +6,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhotoViewer } from '@/components/photo-viewer';
+import { TripShareCard } from '@/components/trip-share-card';
 import { makeStyles, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { messageTime, type Message } from '@/lib/messages';
@@ -96,7 +97,11 @@ export function ChatView(p: Props) {
                   <ActivityIndicator color={Colors.textMuted} />
                 </View>
               ))}
-            {!!item.body && <Text style={[styles.body, mine && styles.bodyMine]}>{item.body}</Text>}
+            {item.tripShareId ? (
+              <TripShareCard id={item.tripShareId} mine={mine} fallback={item.body} />
+            ) : (
+              !!item.body && <Text style={[styles.body, mine && styles.bodyMine]}>{item.body}</Text>
+            )}
             <Text style={[styles.time, mine && styles.timeMine]}>{messageTime(item.createdAt)}</Text>
           </Pressable>
           {item.id === lastMine?.id && !!seenLabel && <Text style={styles.seen}>{seenLabel}</Text>}

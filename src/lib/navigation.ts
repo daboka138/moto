@@ -66,19 +66,59 @@ export function needsValhalla(o: RouteOptions) {
 }
 
 /**
- * Itinéraire de from à to. Lève une erreur si aucun calcul n'est possible.
- * 50 cm³ : jamais de repli sur OSRM (il passerait par l'autoroute, interdite).
+ * Itinéraire passant par les points (départ, étapes, arrivée). Lève une erreur si aucun calcul
+ * n'est possible. 50 cm³ : jamais de repli sur OSRM (il passerait par l'autoroute, interdite).
  */
-export async function fetchNavRoute(from: LatLng, to: LatLng, options: RouteOptions): Promise<NavRoute> {
+export async function fetchNavRoute(stops: LatLng[], options: RouteOptions): Promise<NavRoute> {
   if (needsValhalla(options)) {
     try {
-      return await fetchValhalla([from, to], options);
+      return await fetchValhalla(stops, options);
     } catch (e) {
       if (options.scooter50) throw new Error('Itinéraire 50 cm³ indisponible pour le moment (serveur injoignable)');
       console.warn('Valhalla indisponible, itinéraire standard', e);
     }
   }
-  return fetchOsrm(from, to);
+  return fetchOsrm(stops);
+}
+
+// ---------- Choix d'itinéraire ----------
+
+/** Variantes proposées avant de partir : rapide / sans autoroute / petites routes sinueuses */
+export type RouteVariant = 'fast' | 'noHighway' | 'fun';
+
+export const ROUTE_VARIANTS: { value: RouteVariant; label: string; description: string }[] = [
+  { value: 'fast', label: 'Rapide', description: 'Le plus court en temps' },
+  { value: 'noHighway', label: 'Sans autoroute', description: 'Nationales et départementales' },
+  { value: 'fun', label: 'Petites routes', description: 'Routes sinueuses, grands axes évités' },
+];
+
+export const variantInfo = (v: RouteVariant) => ROUTE_VARIANTS.find((x) => x.value === v)!;
+
+/** Variantes utiles pour ces options (en 50 cm³, « rapide » évite déjà l'autoroute) */
+export function variantsFor(o: RouteOptions): RouteVariant[] {
+  return o.scooter50 ? ['fast', 'fun'] : ['fast', 'noHighway', 'fun'];
+}
+
+/** Variante cochée par défaut, d'après les options préremplies de la moto */
+export function defaultVariant(o: RouteOptions): RouteVariant {
+  if (o.style === 'fun') return 'fun';
+  if (o.avoidHighways && !o.scooter50) return 'noHighway';
+  return 'fast';
+}
+
+/** Options de calcul d'une variante (péages, non-goudronné et 50 cm³ conservés) */
+export function variantOptions(o: RouteOptions, v: RouteVariant): RouteOptions {
+  return {
+    ...o,
+    avoidHighways: o.scooter50 || v === 'noHighway',
+    style: v === 'fun' ? 'fun' : 'fast',
+  };
+}
+
+/** Deux itinéraires quasi identiques (même distance et même durée à 1 % près) */
+export function sameRoute(a: NavRoute, b: NavRoute) {
+  const close = (x: number, y: number) => Math.abs(x - y) <= Math.max(x, y) * 0.01;
+  return close(a.distanceM, b.distanceM) && close(a.durationS, b.durationS);
 }
 
 /** Paramètres Valhalla correspondant aux options */
@@ -89,7 +129,8 @@ export function valhallaCosting(o: RouteOptions): { costing: string; options: Re
   };
   if (o.scooter50) {
     // Cyclomoteur : 45 km/h, le profil exclut de lui-même autoroutes et voies rapides
-    return { costing: 'motor_scooter', options: { top_speed: 45, use_primary: 0.5, ...exclusions } };
+    const fun = o.style === 'fun' ? { use_primary: 0, use_hills: 1 } : { use_primary: 0.5 };
+    return { costing: 'motor_scooter', options: { top_speed: 45, ...fun, ...exclusions } };
   }
   if (o.style === 'fun') {
     // Route plaisir : petites routes (on évite les grands axes), relief bienvenu
@@ -117,8 +158,8 @@ type OsrmStep = {
   maneuver: { type: string; modifier?: string; exit?: number; location: [number, number] };
 };
 
-async function fetchOsrm(from: LatLng, to: LatLng): Promise<NavRoute> {
-  const coords = `${from.longitude},${from.latitude};${to.longitude},${to.latitude}`;
+async function fetchOsrm(stops: LatLng[]): Promise<NavRoute> {
+  const coords = stops.map((p) => `${p.longitude},${p.latitude}`).join(';');
   const { ok, json } = await fetchJson(
     `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`,
   );
@@ -128,7 +169,14 @@ async function fetchOsrm(from: LatLng, to: LatLng): Promise<NavRoute> {
   const cumulative = cumulate(points);
   const steps: NavStep[] = [];
   let searchFrom = 0;
-  for (const s of route.legs[0].steps as OsrmStep[]) {
+  const legs = route.legs as { steps: OsrmStep[] }[];
+  // Arrivée à une étape intermédiaire, puis nouveau départ : rien à annoncer
+  const all = legs.flatMap((leg, li) =>
+    leg.steps.filter(
+      (s) => !(li < legs.length - 1 && s.maneuver.type === 'arrive') && !(li > 0 && s.maneuver.type === 'depart'),
+    ),
+  );
+  for (const s of all) {
     const location = { latitude: s.maneuver.location[1], longitude: s.maneuver.location[0] };
     // Index du point du tracé le plus proche de la manœuvre (en avançant, pour rester dans l'ordre)
     const index = nearestIndex(points, location, searchFrom);
