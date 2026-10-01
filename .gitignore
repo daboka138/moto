@@ -48,3 +48,8 @@ example
 
 # Clé du compte de service Google Play (eas submit) : secret, jamais commitée
 google-service-account.json
+
+# Firebase (notifications push) : fichiers fournis à EAS, jamais dans Git
+google-services.json
+*firebase-adminsdk*.json
+fcm-service-account*.json

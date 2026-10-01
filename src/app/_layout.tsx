@@ -6,6 +6,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 
 import { ActionSheetHost } from '@/components/action-sheet';
 import { MessageToast } from '@/components/message-toast';
+import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
 import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
@@ -34,6 +35,7 @@ export default function RootLayout() {
                       <DemoMessagesProvider /* DEMO */>
                         <RootNavigator />
                         <MessageToast />
+                        <PushRegistrar />
                         <ActionSheetHost />
                       </DemoMessagesProvider>
                     </MessagesProvider>
@@ -118,6 +120,9 @@ function RootNavigator() {
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
         <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
         <Stack.Screen name="trips" options={{ headerShown: true, title: 'Mes trajets' }} />
+        <Stack.Screen name="emergency-contacts" options={{ headerShown: true, title: 'Contacts d’urgence' }} />
+        <Stack.Screen name="homecoming" options={{ headerShown: true, title: 'Je rentre' }} />
+        <Stack.Screen name="sos/[id]" options={{ headerShown: true, title: 'Alerte SOS' }} />
         <Stack.Screen name="riders" options={{ headerShown: true, title: 'Trouver des motards' }} />
         <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
         <Stack.Screen name="delete-account" options={{ headerShown: true, title: 'Supprimer mon compte' }} />

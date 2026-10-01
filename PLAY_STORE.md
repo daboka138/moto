@@ -239,7 +239,11 @@ La classification (PEGI…) est calculée automatiquement à partir des réponse
 | Fichiers audio › **Autres fichiers audio** (son des vidéos de stories) | Non | Facultatif | Fonctionnement de l'application |
 | Messages › **Autres messages dans l'application** | Non | Facultatif | Fonctionnement de l'application |
 | Activité dans les applications › **Autre contenu généré par l'utilisateur** (balades, signalements routiers, stories, amis) | Non | Facultatif | Fonctionnement de l'application |
-| Identifiants de l'appareil ou autres › **ID d'appareil ou autres ID** (identifiant d'installation envoyé par le service de mises à jour Expo) | Non | Obligatoire | Fonctionnement de l'application |
+| Identifiants de l'appareil ou autres › **ID d'appareil ou autres ID** (identifiant d'installation envoyé par le service de mises à jour Expo, jeton de notification push Expo / Firebase) | Non | Obligatoire | Fonctionnement de l'application |
+
+Depuis la version 1.1.0 (sécurité et notifications), vérifier aussi :
+- Position › Position exacte : inchangé (finalité Fonctionnement de l'application). La position d'un SOS va aux contacts d'urgence, qui sont des utilisateurs de l'app : ce n'est pas un « partage avec un tiers » au sens Play.
+- Pas de nouveau type à cocher : les numéros de téléphone des contacts d'urgence restent sur le téléphone, l'accéléromètre est analysé sur place.
 
 **Ne pas cocher** : Informations financières, Santé et remise en forme, Contacts, Agenda, Historique de navigation web,
 Informations et performances de l'application (pas d'outil de plantage/analyse), Historique des recherches dans l'app
@@ -248,6 +252,11 @@ Informations et performances de l'application (pas d'outil de plantage/analyse),
 ### 4.7 Autorisations sensibles
 L'app n'utilise **pas** la localisation en arrière-plan ni `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` (le sélecteur de photos système suffit) :
 aucune déclaration spéciale n'est normalement demandée. Si la Play Console en réclame une après l'import du `.aab`, suivre son message.
+
+Version 1.1.0 : `POST_NOTIFICATIONS` (demandée au lancement, Android 13+), `VIBRATE`, `RECEIVE_BOOT_COMPLETED`,
+`WAKE_LOCK` : permissions normales, aucune déclaration. **Pas** de `SEND_SMS` (le SOS ouvre un SMS prérempli, envoyé par
+l'utilisateur), **pas** de `ACTIVITY_RECOGNITION` (bloquée dans app.json), **pas** de localisation en arrière-plan ni de
+service de premier plan : SOS, chute et « Je rentre » fonctionnent app ouverte, le serveur prend le relais pour « Je rentre ».
 
 ### 4.8 Tests internes
 Tester et publier › Tests internes › **Testeurs** : créer une liste d'emails (comptes Google des testeurs), copier le **lien d'inscription**

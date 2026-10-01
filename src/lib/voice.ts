@@ -115,3 +115,8 @@ export function speak(text: string, urgent = false, kind: SpeechKind = 'info') {
 export function testVoice() {
   say('Attention, gravillons signalés dans 500 mètres. Dans 200 mètres, tournez à droite.', true);
 }
+
+/** Alerte de sécurité (chute détectée…) : lue même en muet, au débit et au volume choisis. */
+export function speakAlarm(text: string) {
+  say(text, true);
+}

@@ -47,7 +47,10 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - CGU (fait) : terms_acceptances (user_id, version, accepted_at, historique). Inscription : case obligatoire, version envoyée dans les métadonnées → trigger sur auth.users. Membre sans la version en vigueur → écran terms.tsx (RPC accept_terms). Modifier les CGU = changer la date sur site/conditions ET `TERMS_VERSION` (lib/terms.ts) : tout le monde réaccepte
 - circles / circle_members : groupes façon Life360
 - trips / trip_points : trajets enregistrés côté serveur (plus tard ; pour l'instant « Mes trajets » reste sur le téléphone)
-- sos_events : alertes SOS
+- Sécurité (fait, v1.1.0) : emergency_contacts (amis uniquement, 10 max ; numéros de téléphone SUR LE TÉLÉPHONE, lib/emergency.ts, SMS prérempli via expo-sms, jamais SEND_SMS). sos_events (manual / fall / homecoming, 30 j) via RPC trigger_sos / resolve_sos → raise_sos : message dans la conversation privée + push. Bouton SOS = appui long 2 s (safety/sos-button.tsx), écran SafetyOverlay (compte à rebours 30 s, 112). Détection de chute (lib/fall-detection.ts, expo-sensors, réglages locaux moto.safety) pendant navigation ou balade en cours, app ouverte uniquement. homecomings (« Je rentre ») : pg_cron check_homecomings chaque minute (rappel 10 min avant, puis SOS avec la dernière position)
+- Notifications push (fait) : push_tokens (RPC register/unregister_push_token), notification_prefs (messages / rides / friends / dangers ; SOS toujours), envoi par Postgres : send_push() → pg_net → API Expo Push (canaux Android = catégories). Triggers : messages, friendships, invitations de balade, road_reports (< 3 km, position < 15 min), rappel balade 1 h avant (pg_cron + push_log anti-doublon). App ouverte : bannières messages/dangers masquées (affichage in-app). Tap → data.url (PushRegistrar)
+- Pas de localisation en arrière-plan ni de service de premier plan : ne pas en ajouter sans déclaration Play Console (vidéo) et vraie nécessité
+- google-services.json : variable EAS de type fichier GOOGLE_SERVICES_JSON (app.config.js), ignoré par Git ; clé FCM V1 (compte de service) dans les identifiants EAS
 
 ## Thème et couleurs
 - TOUTES les couleurs sont dans `src/constants/theme.tsx` (palettes claire + sombre, panneaux de signalement). Jamais de couleur en dur ailleurs

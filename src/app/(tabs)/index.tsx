@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,11 +18,15 @@ import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
+import { SafetyOverlay } from '@/components/safety/safety-overlay';
+import { SosButton } from '@/components/safety/sos-button';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { useMapLayers } from '@/lib/map-layers';
+import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
+import { finishHomecoming, sendHomecomingPosition, useHomecoming } from '@/lib/homecoming';
 import type { Place } from '@/lib/geocoding';
 import type { LivePositionInput } from '@/lib/live-location';
 import { usePrivacy } from '@/lib/privacy-context';
@@ -67,6 +71,9 @@ const SPEED_MARGIN_KMH = 3;
 /** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
 const SPEED_BEEP_REPEAT_MS = 20_000;
 const KEEP_AWAKE_TAG = 'navigation';
+/** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
+const HOMECOMING_POSITION_MS = 60_000;
+const HOMECOMING_ARRIVED_M = 150;
 
 export default function MapScreen() {
   const Colors = useColors();
@@ -134,6 +141,37 @@ export default function MapScreen() {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     };
   }, [navigating]);
+
+  const showToast = (text: string) => {
+    setToast(text);
+    setTimeout(() => setToast((t) => (t === text ? null : t)), 3000);
+  };
+
+  // ---------- Sécurité : SOS, détection de chute, « Je rentre » ----------
+  const [sosKind, setSosKind] = useState<'manual' | null>(null);
+  // Détection de chute pendant une navigation ou une balade en cours à laquelle je participe
+  const inLiveRide = (rides ?? []).some((r) => r.status === 'live' && r.joined);
+  const fall = useFallDetection(navigating || inLiveRide, kmh);
+  const alertKind = sosKind ?? (fall.detected ? 'fall' : null);
+  const homecoming = useHomecoming();
+  const homecomingSent = useRef(0);
+  useEffect(() => {
+    if (!homecoming || !position) return;
+    if (distanceM(position, homecoming) < HOMECOMING_ARRIVED_M) {
+      finishHomecoming('arrived')
+        .then(() => {
+          speak('Bien arrivé. Tes contacts ne seront pas alertés.', true, 'info');
+          showToast('« Je rentre » terminé : bien arrivé !');
+        })
+        .catch((e) => console.warn('Fin de « Je rentre » impossible', e));
+      return;
+    }
+    const now = Date.now();
+    if (now - homecomingSent.current < HOMECOMING_POSITION_MS) return;
+    homecomingSent.current = now;
+    sendHomecomingPosition(position).catch((e) => console.warn('Position « Je rentre » non envoyée', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homecoming, position?.latitude, position?.longitude]);
 
   // Limitation de vitesse de la route (OSM) ; dépassement : compteur rouge + bip
   const speedLimit = useSpeedLimit(position, kmh, voice.speedLimit || voice.speedAlert);
@@ -293,11 +331,6 @@ export default function MapScreen() {
       subscription?.remove();
     };
   }, [status, navigating]);
-
-  const showToast = (text: string) => {
-    setToast(text);
-    setTimeout(() => setToast((t) => (t === text ? null : t)), 3000);
-  };
 
   const onGhostPress = async () => {
     setTogglingGhost(true);
@@ -538,6 +571,10 @@ export default function MapScreen() {
                   <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
                 )}
               </Pressable>
+              <SosButton
+                onTrigger={() => setSosKind('manual')}
+                onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
+              />
               {/* Boussole : la carte a été tournée au doigt ; un appui remet le nord en haut */}
               {!navigating && Math.abs(((bearing + 540) % 360) - 180) >= 2 && (
                 <Pressable
@@ -581,6 +618,15 @@ export default function MapScreen() {
                   <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={32} color={voice.muted ? Colors.white : Colors.accent} />
                 </Pressable>
               )}
+              {!navigating && !homecoming && (
+                <Pressable
+                  style={styles.layerButton}
+                  onPress={() => router.push('/homecoming')}
+                  hitSlop={6}
+                  accessibilityLabel="Je rentre : prévenir mes contacts si je n'arrive pas">
+                  <Ionicons name="home-outline" size={24} color={Colors.accent} />
+                </Pressable>
+              )}
               {!navigating && (
                 <LayerButton
                   active={layers.showRides}
@@ -597,6 +643,15 @@ export default function MapScreen() {
               <MaterialCommunityIcons name="ghost" size={18} color={Colors.white} />
               <Text style={styles.ghostBannerText}>Mode fantôme · tu es masqué</Text>
             </View>
+          )}
+          {homecoming && (
+            <Pressable style={styles.homecomingChip} onPress={() => router.push('/homecoming')}>
+              <Ionicons name="home" size={18} color={Colors.white} />
+              <Text style={styles.ghostBannerText}>
+                Je rentre · avant{' '}
+                {new Date(homecoming.deadline).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </Pressable>
           )}
           {!navigating && danger && (
             <View style={styles.dangerChip}>
@@ -749,6 +804,17 @@ export default function MapScreen() {
           sharedWith={nav.shares.map((x) => x.friendId)}
           onShare={(friend) => nav.share(friend)}
           onClose={() => setShareSheet(false)}
+        />
+      )}
+      {alertKind && userId && (
+        <SafetyOverlay
+          kind={alertKind}
+          userId={userId}
+          position={position}
+          onClose={() => {
+            setSosKind(null);
+            fall.reset();
+          }}
         />
       )}
       <TripSummaryModal
@@ -920,6 +986,17 @@ const useStyles = makeStyles((Colors) => ({
     elevation: 4,
   },
   ghostBannerText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  homecomingChip: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+  },
   dangerChip: {
     alignSelf: 'center',
     backgroundColor: Colors.danger,

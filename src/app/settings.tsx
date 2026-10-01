@@ -11,6 +11,17 @@ import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constan
 import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
+import { FALL_SENSITIVITIES, updateSafetySettings, useSafetySettings } from '@/lib/fall-detection';
+import { useHomecoming } from '@/lib/homecoming';
+import {
+  DEFAULT_PREFS,
+  fetchNotificationPrefs,
+  pushPermission,
+  registerForPush,
+  saveNotificationPrefs,
+  type NotificationPrefs,
+  type PushStatus,
+} from '@/lib/push';
 import { useSession } from '@/lib/session';
 import { CONTACT_EMAIL, LEGAL_NOTICE_URL, PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
 import { useMapLayers, type MapStyle } from '@/lib/map-layers';
@@ -91,6 +102,10 @@ export default function SettingsScreen() {
       </View>
 
       <VoiceSection />
+
+      <SafetySection />
+
+      <NotificationsSection userId={userId} />
 
       <Text style={styles.section}>Confidentialité</Text>
       <LinkGroup>
@@ -233,11 +248,136 @@ function VoiceSection() {
   );
 }
 
-function SwitchRow({ label, description, value, onChange }: {
+/** Sécurité : contacts d'urgence, « Je rentre », détection de chute. */
+function SafetySection() {
+  const styles = useStyles();
+  const safety = useSafetySettings();
+  const homecoming = useHomecoming();
+  return (
+    <>
+      <Text style={styles.section}>Sécurité</Text>
+      <LinkGroup>
+        <LinkRow icon="medkit" label="Contacts d'urgence" onPress={() => router.push('/emergency-contacts')} />
+        <LinkSeparator />
+        <LinkRow
+          icon="home"
+          label="Je rentre"
+          value={homecoming ? 'en cours' : undefined}
+          onPress={() => router.push('/homecoming')}
+        />
+      </LinkGroup>
+      <View style={styles.card}>
+        <SwitchRow
+          label="Détection de chute"
+          description="Pendant une navigation ou une balade en cours (app ouverte) : choc fort puis immobilité → « Tout va bien ? », puis alerte à tes contacts sans réponse sous 30 s."
+          value={safety.fallDetection}
+          onChange={(v) => updateSafetySettings({ fallDetection: v })}
+        />
+        {safety.fallDetection && (
+          <View style={styles.voiceBlock}>
+            <Text style={styles.optionLabel}>Sensibilité</Text>
+            <View style={styles.chips}>
+              {FALL_SENSITIVITIES.map((s) => (
+                <Chip
+                  key={s.value}
+                  label={s.label}
+                  selected={safety.fallSensitivity === s.value}
+                  onPress={() => updateSafetySettings({ fallSensitivity: s.value })}
+                />
+              ))}
+            </View>
+            <Text style={styles.optionDescription}>
+              {FALL_SENSITIVITIES.find((s) => s.value === safety.fallSensitivity)!.description}. Trop d’alertes sur route
+              dégradée ? Passe en « Peu sensible ».
+            </Text>
+          </View>
+        )}
+      </View>
+    </>
+  );
+}
+
+const NOTIFICATION_TYPES: { key: keyof NotificationPrefs; label: string; description: string }[] = [
+  { key: 'messages', label: 'Messages', description: 'Nouveaux messages privés et de balade.' },
+  { key: 'rides', label: 'Balades', description: 'Invitations, et rappel 1 h avant le rendez-vous.' },
+  { key: 'friends', label: 'Demandes d’ami', description: 'Demandes reçues et acceptées.' },
+  { key: 'dangers', label: 'Dangers près de moi', description: 'Signalement à moins de 3 km de ta dernière position.' },
+];
+
+/** Notifications : permission du téléphone et types reçus (réglés côté serveur). */
+function NotificationsSection({ userId }: { userId: string | undefined }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [status, setStatus] = useState<PushStatus | null>(null);
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
+
+  useEffect(() => {
+    pushPermission().then(setStatus);
+    if (!userId) return;
+    fetchNotificationPrefs(userId)
+      .then(setPrefs)
+      .catch(() => setPrefs(DEFAULT_PREFS));
+  }, [userId]);
+
+  const toggle = async (key: keyof NotificationPrefs, value: boolean) => {
+    if (!userId || !prefs) return;
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    try {
+      await saveNotificationPrefs(userId, next);
+    } catch (e) {
+      setPrefs(prefs);
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const enable = async () => {
+    const s = await registerForPush(true);
+    setStatus(s);
+    if (s === 'denied') Linking.openSettings();
+  };
+
+  return (
+    <>
+      <Text style={styles.section}>Notifications</Text>
+      <View style={styles.card}>
+        {status === 'denied' && (
+          <Pressable style={({ pressed }) => [styles.testVoice, pressed && { opacity: 0.7 }]} onPress={enable}>
+            <Ionicons name="notifications-off" size={20} color={Colors.danger} />
+            <Text style={[styles.testVoiceText, { color: Colors.danger }]}>Notifications désactivées : activer</Text>
+          </Pressable>
+        )}
+        {status === 'unavailable' && (
+          <Text style={[styles.optionDescription, { padding: 12 }]}>Notifications indisponibles sur cette version de l’app.</Text>
+        )}
+        <SwitchRow
+          label="SOS et sécurité"
+          description="Alertes de tes proches, « Je rentre ». Toujours activées."
+          value
+          onChange={() => {}}
+          disabled
+        />
+        {NOTIFICATION_TYPES.map((t) => (
+          <SwitchRow
+            key={t.key}
+            label={t.label}
+            description={t.description}
+            value={prefs?.[t.key] ?? true}
+            onChange={(v) => toggle(t.key, v)}
+            disabled={!prefs}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
+function SwitchRow({ label, description, value, onChange, disabled }: {
   label: string;
   description?: string;
   value: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -250,6 +390,7 @@ function SwitchRow({ label, description, value, onChange }: {
       <Switch
         value={value}
         onValueChange={onChange}
+        disabled={disabled}
         trackColor={{ true: Colors.accent, false: Colors.border }}
         thumbColor={Colors.white}
       />

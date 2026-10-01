@@ -24,7 +24,7 @@
   <main class="wrap">
     <article>
       <h1>Politique de confidentialité</h1>
-      <p class="meta">Application PasseRyder — dernière mise à jour : 1er octobre 2026</p>
+      <p class="meta">Application PasseRyder — dernière mise à jour : 3 octobre 2026</p>
 
       <p>
         Cette politique explique quelles données l'application mobile <strong>PasseRyder</strong> collecte,
@@ -102,6 +102,28 @@
         <li>Les signalements de contenus ou de membres que tu envoies, pour la modération.</li>
       </ul>
 
+      <h3>Sécurité : SOS, contacts d'urgence, « Je rentre »</h3>
+      <ul>
+        <li><strong>Contacts d'urgence</strong> choisis parmi tes amis de l'app. Ils savent qu'ils sont ton contact
+          (ils peuvent refuser). Les <strong>numéros de téléphone</strong> que tu ajoutes restent sur ton téléphone :
+          en cas de SOS, un SMS prérempli s'ouvre et c'est toi qui l'envoies.</li>
+        <li><strong>Alertes SOS</strong> (bouton SOS, chute sans réponse, « Je rentre » dépassé) : type d'alerte, heure et
+          position au moment de l'alerte, envoyées à tes contacts d'urgence (notification et message). Gardées 30 jours.</li>
+        <li><strong>« Je rentre »</strong> (seulement si tu l'actives) : destination, heure d'arrivée maximale et ta
+          dernière position (envoyée toutes les minutes quand l'application est ouverte). Si tu n'es pas arrivé(e) à
+          l'heure, tes contacts d'urgence reçoivent ta dernière position. Supprimé 7 jours après la fin.</li>
+        <li><strong>Détection de chute</strong> : l'accéléromètre est analysé uniquement sur ton téléphone, pendant une
+          navigation ou une balade en cours ; aucune mesure n'est envoyée. Désactivable dans Paramètres › Sécurité.</li>
+      </ul>
+
+      <h3>Notifications</h3>
+      <ul>
+        <li>Un identifiant de notification de ton téléphone (jeton Expo / Firebase), et tes choix de notifications
+          (messages, balades, amis, dangers). Supprimé à la déconnexion ou avec ton compte.</li>
+        <li>« Danger près de moi » utilise ta dernière position en direct (déjà décrite ci-dessus) pour savoir si un
+          signalement est à moins de 3 km.</li>
+      </ul>
+
       <h3>Données qui restent sur ton téléphone</h3>
       <ul>
         <li>Ta session de connexion, tes réglages (thème, style de carte, voix), l'historique de tes recherches de destination,
@@ -146,6 +168,9 @@
         <li><strong>Stations, cafés et restaurants sur ton trajet</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de l'itinéraire devant toi,
           seulement quand tu fais cette recherche.</li>
         <li><strong>Recherche d'adresse</strong> : Géoplateforme de l'IGN (France), Nominatim et Photon (OpenStreetMap, UE) — texte recherché ou point sur la carte.</li>
+        <li><strong>Notifications push</strong> : Expo Push (650 Industries, États-Unis) et Firebase Cloud Messaging (Google) —
+          identifiant de notification du téléphone, titre et texte de la notification (par exemple « Nouveau message de @pseudo »).
+          Transfert encadré par les clauses contractuelles types de la Commission européenne.</li>
         <li><strong>Expo (EAS Update)</strong>, société 650 Industries (États-Unis) : téléchargement des mises à jour de l'application
           (adresse IP, version de l'application et du système). Ce transfert est encadré par les clauses contractuelles types de la Commission européenne.</li>
         <li><strong>Google Play</strong> : téléchargement et installation de l'application, selon les règles de Google.</li>
@@ -158,6 +183,7 @@
         <li>Position en direct : seule la dernière est gardée, jusqu'à la suivante ou jusqu'à la suppression du compte.</li>
         <li>Balades : supprimées automatiquement 1 heure après leur fin, avec leur conversation de groupe (messages et photos).</li>
         <li>Signalements routiers : ils ne sont plus affichés après 1 heure à 7 jours selon le type de danger, et sont effacés avec ton compte.</li>
+        <li>Alertes SOS : 30 jours. « Je rentre » : 7 jours après la fin.</li>
         <li>Partage de trajet en direct : position effacée dès la fin du partage (au plus tard 30 minutes sans mise à jour), fiche supprimée 24 heures après.</li>
         <li>Tout le reste : tant que ton compte existe. Tu peux supprimer à tout moment une photo, une moto, une balade que tu as créée, etc.</li>
         <li>À la suppression du compte, tout est effacé immédiatement (voir ci-dessous). Seuls les signalements

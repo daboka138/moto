@@ -1,5 +1,6 @@
 import type { AuthError } from '@supabase/supabase-js';
 
+import { unregisterPush } from '@/lib/push';
 import { clearHistory } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 import { TERMS_VERSION } from '@/lib/terms';
@@ -43,6 +44,8 @@ export async function verifyPhoneCode(phone: string, token: string) {
 }
 
 export async function signOut() {
+  // Ce téléphone ne reçoit plus les notifications du compte (avant de perdre la session)
+  await unregisterPush().catch((e) => console.warn('Désinscription des notifications impossible', e));
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(authErrorMessage(error));
 }
