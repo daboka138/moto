@@ -11,7 +11,30 @@ import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
 const BUCKETS = ['photos', 'stories', 'chat'];
 
+// Version web (app.passeryder.fr) : appel depuis le navigateur, donc CORS. L'app native
+// n'envoie pas d'en-tête Origin et n'est pas concernée.
+const WEB_ORIGINS = ['https://app.passeryder.fr', 'http://localhost:8081'];
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin');
+  if (!origin || !WEB_ORIGINS.includes(origin)) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    Vary: 'Origin',
+  };
+}
+
 Deno.serve(async (req) => {
+  const cors = corsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  const response = await handle(req);
+  for (const [k, v] of Object.entries(cors)) response.headers.set(k, v);
+  return response;
+});
+
+async function handle(req: Request): Promise<Response> {
   if (req.method !== 'POST') return Response.json({ error: 'Méthode non autorisée' }, { status: 405 });
 
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
@@ -72,7 +95,7 @@ Deno.serve(async (req) => {
     console.error('delete-account', userId, e);
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
-});
+}
 
 /** Tous les fichiers sous <prefix>/, sous-dossiers compris. */
 async function listFiles(admin: SupabaseClient, bucket: string, prefix: string): Promise<string[]> {

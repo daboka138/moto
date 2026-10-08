@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
+import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
 import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constants/theme';
 import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
+import { IS_WEB } from '@/lib/app-link';
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
 import { FALL_SENSITIVITIES, updateSafetySettings, useSafetySettings } from '@/lib/fall-detection';
@@ -101,9 +103,14 @@ export default function SettingsScreen() {
         <SwitchRow label="Points de RDV des balades" value={layers.showRides} onChange={layers.setShowRides} />
       </View>
 
-      <VoiceSection />
-
-      <SafetySection />
+      {IS_WEB ? (
+        <AppOnlySection />
+      ) : (
+        <>
+          <VoiceSection />
+          <SafetySection />
+        </>
+      )}
 
       <NotificationsSection userId={userId} />
 
@@ -152,8 +159,27 @@ export default function SettingsScreen() {
         <LinkRow icon="mail-outline" label="Contact" value={CONTACT_EMAIL} onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)} />
       </LinkGroup>
 
-      <UpdateCard />
+      {!IS_WEB && <UpdateCard />}
     </ScrollView>
+  );
+}
+
+/** Version web : réglages des fonctions réservées à l'app (voix, sécurité). */
+function AppOnlySection() {
+  const Colors = useColors();
+  const styles = useStyles();
+  return (
+    <>
+      <Text style={styles.section}>Voix, sécurité et GPS</Text>
+      <View style={[styles.card, styles.appOnly]}>
+        <Ionicons name="phone-portrait-outline" size={28} color={Colors.accent} />
+        <Text style={styles.optionDescription}>
+          Navigation guidée, voix, limitation de vitesse, SOS, contacts d’urgence, détection de chute et « Je rentre » se
+          règlent dans l’app Android.
+        </Text>
+        <OpenInApp path="/settings" />
+      </View>
+    </>
   );
 }
 
@@ -300,7 +326,7 @@ function SafetySection() {
 const NOTIFICATION_TYPES: { key: keyof NotificationPrefs; label: string; description: string }[] = [
   { key: 'messages', label: 'Messages', description: 'Nouveaux messages privés et de balade.' },
   { key: 'rides', label: 'Balades', description: 'Invitations, et rappel 1 h avant le rendez-vous.' },
-  { key: 'friends', label: 'Demandes d’ami', description: 'Demandes reçues et acceptées.' },
+  { key: 'friends', label: 'Amis et commentaires', description: 'Demandes d’ami, commentaires sur tes photos.' },
   { key: 'dangers', label: 'Dangers près de moi', description: 'Signalement à moins de 3 km de ta dernière position.' },
 ];
 
@@ -348,7 +374,11 @@ function NotificationsSection({ userId }: { userId: string | undefined }) {
           </Pressable>
         )}
         {status === 'unavailable' && (
-          <Text style={[styles.optionDescription, { padding: 12 }]}>Notifications indisponibles sur cette version de l’app.</Text>
+          <Text style={[styles.optionDescription, { padding: 12 }]}>
+            {IS_WEB
+              ? 'Les notifications arrivent sur ton téléphone, dans l’app Android. Choisis ici celles que tu veux recevoir.'
+              : 'Notifications indisponibles sur cette version de l’app.'}
+          </Text>
         )}
         <SwitchRow
           label="SOS et sécurité"
@@ -393,6 +423,8 @@ function SwitchRow({ label, description, value, onChange, disabled }: {
         disabled={disabled}
         trackColor={{ true: Colors.accent, false: Colors.border }}
         thumbColor={Colors.white}
+        // react-native-web : couleur du curseur activé (thumbColor n'y vaut que pour l'état désactivé)
+        {...(IS_WEB && ({ activeThumbColor: Colors.white } as object))}
       />
     </View>
   );
@@ -421,6 +453,7 @@ const useStyles = makeStyles((Colors) => ({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   testVoice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
   testVoiceText: { fontSize: 16, fontWeight: '700', color: Colors.accent },
+  appOnly: { alignItems: 'center', padding: 16, gap: 12 },
 }));
 
 function RadioOptions<T extends string>({ options, value, onChange }: {

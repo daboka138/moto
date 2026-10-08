@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import type { ColorValue } from 'react-native';
+import { Platform, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/constants/theme';
 import { useInbox } from '@/lib/use-inbox';
+import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -19,24 +20,45 @@ export default function TabsLayout() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const { unreadTotal } = useInbox();
+  // Web sur grand écran : onglets en colonne à gauche, contenu centré (sauf la carte, plein écran)
+  const wide = useWideLayout();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        ...(wide && {
+          tabBarPosition: 'left',
+          tabBarVariant: 'material',
+          tabBarLabelPosition: 'below-icon',
+          sceneStyle: {
+            width: '100%',
+            maxWidth: CONTENT_MAX_WIDTH,
+            alignSelf: 'center',
+            borderLeftWidth: 1,
+            borderRightWidth: 1,
+            borderColor: Colors.border,
+          },
+        }),
         // Barre toujours visible, y compris clavier ouvert
         tabBarHideOnKeyboard: false,
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
-        tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
-          height: 62 + insets.bottom,
-          paddingTop: 6,
-          paddingBottom: insets.bottom + 6,
-        },
+        tabBarStyle: wide
+          ? { backgroundColor: Colors.surface, borderRightColor: Colors.border, width: 100, paddingTop: 16 }
+          : {
+              backgroundColor: Colors.surface,
+              borderTopColor: Colors.border,
+              // Web : libellés un peu plus hauts (interligne du navigateur)
+              height: (Platform.OS === 'web' ? 70 : 62) + insets.bottom,
+              paddingTop: 6,
+              paddingBottom: insets.bottom + 6,
+            },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline') }} />
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), ...(wide && { sceneStyle: { flex: 1 } }) }}
+      />
       <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
       <Tabs.Screen name="rides" options={{ title: 'Balades', tabBarIcon: icon('flag', 'flag-outline') }} />
       <Tabs.Screen

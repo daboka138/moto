@@ -22,7 +22,8 @@ export function DroppedPinCard({
   distanceM: number | null;
   onGo: () => void;
   onRide: (role: RidePlaceRole) => void;
-  onReport: () => void;
+  /** Absent (version web) : pas de bouton « Signaler un danger ici » */
+  onReport?: () => void;
   onClose: () => void;
 }) {
   const Colors = useColors();
@@ -61,10 +62,12 @@ export function DroppedPinCard({
         <RoleButton icon="account-group" label="Point de RDV" onPress={() => onRide('meeting')} />
       </View>
 
-      <Pressable style={({ pressed }) => [styles.report, pressed && styles.pressed]} onPress={onReport}>
-        <Ionicons name="warning" size={18} color={Colors.danger} />
-        <Text style={styles.reportText}>Signaler un danger ici</Text>
-      </Pressable>
+      {onReport && (
+        <Pressable style={({ pressed }) => [styles.report, pressed && styles.pressed]} onPress={onReport}>
+          <Ionicons name="warning" size={18} color={Colors.danger} />
+          <Text style={styles.reportText}>Signaler un danger ici</Text>
+        </Pressable>
+      )}
     </View>
   );
 }

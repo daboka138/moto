@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "platforms": [
       "android",
-      "ios"
+      "ios",
+      "web"
     ],
     "icon": "./assets/images/icon.png",
     "scheme": "passeryder",
@@ -34,7 +35,7 @@
       ]
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

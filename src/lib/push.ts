@@ -15,18 +15,23 @@ const CHANNELS: { id: PushCategory; name: string; importance: Notifications.Andr
   { id: 'sos', name: 'SOS et sécurité', importance: Notifications.AndroidImportance.MAX },
   { id: 'messages', name: 'Messages', importance: Notifications.AndroidImportance.HIGH },
   { id: 'rides', name: 'Balades (invitations et rappels)', importance: Notifications.AndroidImportance.HIGH },
-  { id: 'friends', name: 'Demandes d’ami', importance: Notifications.AndroidImportance.DEFAULT },
+  { id: 'friends', name: 'Amis et commentaires', importance: Notifications.AndroidImportance.DEFAULT },
   { id: 'dangers', name: 'Dangers signalés près de moi', importance: Notifications.AndroidImportance.HIGH },
 ];
 
+// Version web : pas de notifications push (elles arrivent sur l'app Android)
+const PUSH_SUPPORTED = Platform.OS !== 'web';
+
 // App ouverte : messages et dangers ont déjà leur affichage dans l'app (bandeau, carte)
-Notifications.setNotificationHandler({
-  handleNotification: async (n) => {
-    const type = (n.request.content.data as { type?: PushCategory } | null)?.type;
-    const show = type !== 'messages' && type !== 'dangers';
-    return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
-  },
-});
+if (PUSH_SUPPORTED) {
+  Notifications.setNotificationHandler({
+    handleNotification: async (n) => {
+      const type = (n.request.content.data as { type?: PushCategory } | null)?.type;
+      const show = type !== 'messages' && type !== 'dangers';
+      return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
+    },
+  });
+}
 
 let registeredToken: string | null = null;
 
@@ -49,7 +54,7 @@ export type PushStatus = 'granted' | 'denied' | 'unavailable';
  * ask = false : n'affiche pas la demande, enregistre seulement si déjà autorisé.
  */
 export async function registerForPush(ask = true): Promise<PushStatus> {
-  if (!Device.isDevice) return 'unavailable';
+  if (!PUSH_SUPPORTED || !Device.isDevice) return 'unavailable';
   await createChannels();
   let { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted' && ask) status = (await Notifications.requestPermissionsAsync()).status;
@@ -76,7 +81,7 @@ export async function unregisterPush() {
 }
 
 export async function pushPermission(): Promise<PushStatus> {
-  if (!Device.isDevice) return 'unavailable';
+  if (!PUSH_SUPPORTED || !Device.isDevice) return 'unavailable';
   const { status } = await Notifications.getPermissionsAsync();
   return status === 'granted' ? 'granted' : 'denied';
 }

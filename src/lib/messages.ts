@@ -1,6 +1,5 @@
-import { File } from 'expo-file-system';
-
 import { photoUrl } from '@/lib/profile';
+import { readFileBytes } from '@/lib/read-file';
 import { supabase } from '@/lib/supabase';
 
 // Messages privés et de balade. Seuls les membres d'une conversation lisent
@@ -132,7 +131,7 @@ export async function sendMessage(
     const contentType = image.mimeType ?? 'image/jpeg';
     const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg';
     imagePath = `${userId}/msg-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-    const bytes = await new File(image.uri).arrayBuffer();
+    const bytes = await readFileBytes(image.uri);
     const { error } = await supabase.storage.from(BUCKET).upload(imagePath, bytes, { contentType });
     if (error) throw new Error(`Envoi de la photo impossible : ${error.message}`);
   }

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { WallPhoto } from '@/lib/wall';
+import { PhotoSocialPanel } from '@/components/photo-comments';
 import { makeStyles, useColors } from '@/constants/theme';
+import type { WallPhoto } from '@/lib/wall';
 
 type Props = {
   photo: WallPhoto | null;
@@ -14,7 +15,7 @@ type Props = {
   onAuthorPress?: (photo: WallPhoto) => void;
 };
 
-/** Photo en grand, avec légende et date. */
+/** Photo en grand, avec légende, date, « J'aime » et commentaires. */
 export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) {
   const Colors = useColors();
   const styles = useStyles();
@@ -23,35 +24,42 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
       {photo && (
         <View style={styles.backdrop}>
           <SafeAreaView style={styles.safe}>
-            <View style={styles.top}>
-              {photo.author ? (
-                <Pressable style={styles.author} onPress={() => onAuthorPress?.(photo)}>
-                  <Image source={{ uri: photo.author.avatarUrl }} style={styles.avatar} />
-                  <Text style={styles.username}>@{photo.author.username}</Text>
-                </Pressable>
-              ) : (
-                <View />
-              )}
-              <View style={styles.topActions}>
-                {onDelete && (
-                  <Pressable onPress={() => onDelete(photo)} hitSlop={12}>
-                    <Ionicons name="trash-outline" size={24} color={Colors.white} />
+            <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <View style={styles.top}>
+                {photo.author ? (
+                  <Pressable style={styles.author} onPress={() => onAuthorPress?.(photo)}>
+                    <Image source={{ uri: photo.author.avatarUrl }} style={styles.avatar} />
+                    <Text style={styles.username}>@{photo.author.username}</Text>
                   </Pressable>
+                ) : (
+                  <View />
                 )}
-                <Pressable onPress={onClose} hitSlop={12}>
-                  <Ionicons name="close" size={30} color={Colors.white} />
-                </Pressable>
+                <View style={styles.topActions}>
+                  {onDelete && (
+                    <Pressable onPress={() => onDelete(photo)} hitSlop={12}>
+                      <Ionicons name="trash-outline" size={24} color={Colors.white} />
+                    </Pressable>
+                  )}
+                  <Pressable onPress={onClose} hitSlop={12}>
+                    <Ionicons name="close" size={30} color={Colors.white} />
+                  </Pressable>
+                </View>
               </View>
-            </View>
 
-            <Image source={{ uri: photo.url }} style={styles.image} contentFit="contain" transition={150} />
+              <Image source={{ uri: photo.url }} style={styles.image} contentFit="contain" transition={150} />
 
-            <View style={styles.bottom}>
-              {!!photo.caption && <Text style={styles.caption}>{photo.caption}</Text>}
-              <Text style={styles.date}>
-                {new Date(photo.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </Text>
-            </View>
+              <View style={styles.bottom}>
+                {!!photo.caption && <Text style={styles.caption}>{photo.caption}</Text>}
+                <Text style={styles.date}>
+                  {new Date(photo.createdAt).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </Text>
+                <PhotoSocialPanel photo={photo} />
+              </View>
+            </KeyboardAvoidingView>
           </SafeAreaView>
         </View>
       )}
@@ -68,7 +76,8 @@ const useStyles = makeStyles((Colors) => ({
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.darkSoft },
   username: { color: Colors.white, fontWeight: '700', fontSize: 16 },
   image: { flex: 1 },
-  bottom: { padding: 16, gap: 6 },
+  // Grand écran (version web) : légende et commentaires en colonne centrée
+  bottom: { padding: 16, gap: 6, width: '100%', maxWidth: 760, alignSelf: 'center' },
   caption: { color: Colors.white, fontSize: 16, lineHeight: 22 },
   date: { color: Colors.textFaint, fontSize: 13 },
 }));

@@ -2,72 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, StyleSheet } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
-import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette, type SignStyle } from '@/constants/theme';
-import type { LatLng } from '@/lib/geo';
+import { mapCss, MAPTILER_KEY, OSM_COPYRIGHT, TILES } from '@/components/map-style';
+import type { MapProps } from '@/components/map-types';
+import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette } from '@/constants/theme';
 import { useMapDark } from '@/lib/use-map-dark';
 
-export type MapPosition = {
-  latitude: number;
-  longitude: number;
-  accuracy: number | null;
-  /** Cap en degrés (0 = nord) : GPS en mouvement, boussole à l'arrêt. null = inconnu (rond au lieu de la flèche) */
-  heading?: number | null;
-};
-
-/** Pastille avec photo affichée sur la carte (autres motards). */
-export type MapMarker = {
-  id: string;
-  latitude: number;
-  longitude: number;
-  photoUrl: string;
-  /** default : orange, muted : gris (arrêté), alert : rouge (excès de vitesse) */
-  tone?: 'default' | 'muted' | 'alert';
-};
-
-/** Repère fixe : départ, arrivée, étape, point de RDV, point posé par appui long. */
-export type MapPin = {
-  id: string;
-  latitude: number;
-  longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped';
-  label: string;
-  /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
-  sign?: SignStyle;
-};
-
-/** Tracé : [[lat, lng], ...]. muted : itinéraire alternatif, plus fin et dessous */
-export type MapRoute = { id: string; points: [number, number][]; color?: string; muted?: boolean };
-
-type Props = {
-  position: MapPosition | null;
-  /** Mode navigation : carte orientée dans mon sens de marche, flèche en bas de l'écran, zoom rapproché */
-  navigating?: boolean;
-  /** La carte suit ma position (et, en navigation, mon cap). Coupé par un glissement ou une rotation au doigt */
-  follow?: boolean;
-  /** L'utilisateur a déplacé ou tourné la carte */
-  onUserPan?: () => void;
-  /** Orientation de la carte en degrés (0 = nord en haut), envoyée quand elle change */
-  onBearingChange?: (bearing: number) => void;
-  /** Incrémenter pour remettre le nord en haut (bouton boussole) */
-  northUpKey?: number;
-  markers?: MapMarker[];
-  selectedMarkerId?: string | null;
-  onMarkerPress?: (id: string) => void;
-  onMapPress?: (point: LatLng) => void;
-  /** Appui long sur la carte (comme Google Maps) */
-  onMapLongPress?: (point: LatLng) => void;
-  pins?: MapPin[];
-  onPinPress?: (id: string) => void;
-  routes?: MapRoute[];
-  /** Cadre la carte sur ces points à chaque changement */
-  fitPoints?: LatLng[];
-  /** Nombre de pastilles réellement affichées dans la page (diagnostic) */
-  onMarkersRendered?: (count: number) => void;
-  /** Incrémenter pour jouer un petit bip (dépassement de vitesse) */
-  beepKey?: number;
-  /** Le bip n'a pas pu être joué (son bloqué par la page) */
-  onBeepFailed?: () => void;
-};
+export type { MapMarker, MapPin, MapPosition, MapRoute } from '@/components/map-types';
 
 type WebMessage =
   | { type: 'ready' }
@@ -83,19 +23,6 @@ type WebMessage =
 
 const BASE_URL = 'https://localhost/';
 
-// Tuiles : MapTiler « streets-v2 » (propre et lisible, façon Google Maps), « streets-v2-dark » si le
-// style de carte est sombre (réglage séparé du thème de l'app). Clé : EXPO_PUBLIC_MAPTILER_KEY (.env
-// en local, variables EAS preview/production). Sans clé ou si MapTiler refuse les tuiles (quota, clé
-// invalide…), la page repasse sur les tuiles OpenStreetMap standard.
-const MAPTILER_KEY = process.env.EXPO_PUBLIC_MAPTILER_KEY ?? '';
-const OSM_COPYRIGHT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const TILES = {
-  light: 'https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}{r}.png?key=',
-  dark: 'https://api.maptiler.com/maps/streets-v2-dark/256/{z}/{x}/{y}{r}.png?key=',
-  attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> ' + OSM_COPYRIGHT,
-  fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-};
-
 /** Page de la carte : marqueurs aux couleurs du thème, tuiles selon le style de carte. */
 function buildHtml(Colors: Palette, dark: boolean) {
   const tilesUrl = MAPTILER_KEY ? (dark ? TILES.dark : TILES.light) + encodeURIComponent(MAPTILER_KEY) : '';
@@ -110,47 +37,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
   html, body, #map { margin: 0; height: 100%; background: ${Colors.mapBackground}; }
   /* Appui long : pas de sélection de texte ni de menu du navigateur */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  .person-wrap { background: none; border: none; transition: transform 1s linear; }
-  .zooming .person-wrap, .rotating .person-wrap { transition: none; }
-  .person {
-    width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: ${Colors.white};
-    border: 3px solid ${Colors.accent}; box-shadow: 0 2px 6px ${Colors.markerShadow};
-    transition: transform .2s, border-color .3s;
-  }
-  .person img { width: 100%; height: 100%; display: block; }
-  .person.muted { border-color: ${Colors.textFaint}; }
-  .person.alert { border-color: ${Colors.danger}; box-shadow: 0 0 0 3px ${Colors.dangerHalo}, 0 2px 6px ${Colors.markerShadow}; }
-  .person.selected { transform: scale(1.25); }
-  .pin-wrap { background: none; border: none; }
-  .pin {
-    min-width: 28px; height: 28px; padding: 0 6px; box-sizing: border-box; border-radius: 14px;
-    border: 2px solid ${Colors.white}; color: ${Colors.white}; font: 700 12px sans-serif;
-    display: flex; align-items: center; justify-content: center; white-space: nowrap;
-    box-shadow: 0 2px 6px ${Colors.markerShadow};
-  }
-  .pin.start { background: ${Colors.success}; } .pin.end { background: ${Colors.danger}; }
-  .pin.step { background: ${Colors.neutral}; } .pin.meeting { background: ${Colors.accent}; }
-  .pin.report {
-    background: ${Colors.white}; border: 3px solid ${Colors.danger}; color: ${Colors.text}; font-size: 18px;
-    min-width: 36px; height: 36px; border-radius: 18px; padding: 0;
-  }
-  /* Point posé par appui long : goutte façon Google Maps, pointe sur le lieu */
-  .drop {
-    width: 26px; height: 26px; box-sizing: border-box; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
-    background: ${Colors.danger}; border: 3px solid ${Colors.white}; box-shadow: 0 2px 6px ${Colors.markerShadow};
-  }
-  .sign-wrap { background: none; border: none; }
-  .sign svg { width: 46px; height: 46px; display: block; overflow: visible;
-    filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
-  .leaflet-control-attribution { background: ${Colors.surface}cc !important; color: ${Colors.textMuted}; }
-  .leaflet-control-attribution a { color: ${Colors.accent}; }
-  /* Ma position : flèche pointée dans ma direction, rond si le cap est inconnu */
-  .me-wrap { background: none; border: none; }
-  .me { width: 40px; height: 40px; }
-  .me svg { width: 40px; height: 40px; display: block; filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
-  .me .dot { display: none; }
-  .me.nohead .arrow { display: none; }
-  .me.nohead .dot { display: block; }
+  ${mapCss(Colors)}
 </style>
 </head>
 <body>
@@ -613,7 +500,7 @@ export function LeafletMap({
   onMarkersRendered,
   beepKey = 0,
   onBeepFailed,
-}: Props) {
+}: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
   const mapDark = useMapDark(position ?? null);

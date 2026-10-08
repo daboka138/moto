@@ -52,6 +52,15 @@ Mélange Life360 + Waze + appli de rencontre (pour rouler, pas pour l'amour) pou
 - Pas de localisation en arrière-plan ni de service de premier plan : ne pas en ajouter sans déclaration Play Console (vidéo) et vraie nécessité
 - google-services.json : variable EAS de type fichier GOOGLE_SERVICES_JSON (app.config.js, sans repli local), ignoré par Git ; clé FCM V1 (compte de service) dans les identifiants EAS
 
+## Version web (PWA, app.passeryder.fr)
+- Même code Expo, export SPA (`web.output: "single"`, gabarit `public/index.html`, manifest + icônes + `sw.js` dans `public/`). Build : `npm run web:build` (dossier `dist/`, ignoré par Git, avec les EXPO_PUBLIC_* du .env), déploiement : commande tar de PLAY_STORE.md (§ 1.4)
+- Variantes web par fichier `.web.tsx` / `.web.ts` (toujours à côté de la version native, jamais seules) : carte Leaflet directe `leaflet-map.web.tsx` (pas de WebView, mêmes props, types dans `map-types.ts`, styles communs `map-style.ts`), onglet Carte de consultation `(tabs)/index.web.tsx` (balades, signalements, amis en direct, recherche ; ma position n'est JAMAIS publiée sur le web), `alert-host.web.tsx` (Alert.alert ne fait rien sur react-native-web), `date-time-input.web.tsx`, `read-file.web.ts`, `push-registrar.web.tsx`
+- Réservé à l'app Android : GPS live, navigation et voix, SOS, chute, « Je rentre », contacts d'urgence, Mes trajets, démarrer une balade en direct. Sur le web : `OpenInApp` / `AppOnlyScreen` (components/open-in-app.tsx) → lien `intent://` (app au bon écran, sinon Google Play) ; iPhone : « Bientôt disponible sur iPhone » ; ordinateur : Google Play. `IS_WEB` / `webDevice()` dans lib/app-link.ts. « Aller ici » ouvre l'app sur `/?goLat=&goLng=&goLabel=` (aperçu d'itinéraire)
+- Grand écran (≥ 900 px, `useWideLayout`) : onglets à gauche, écrans de contenu en colonne de 760 px, carte plein écran
+- Edge Functions appelées depuis le navigateur : gérer le CORS (liste WEB_ORIGINS, voir delete-account)
+- Pas de notifications push sur le web (elles arrivent sur l'app Android)
+- likes / commentaires du mur (fait) : wall_photo_likes, wall_photo_comments (≤ 500, supprimables par l'auteur ou le propriétaire de la photo, signalables : content_reports 'comment', push « friends » au propriétaire), lib/photo-social.ts, components/photo-comments.tsx dans la visionneuse photo
+
 ## Thème et couleurs
 - TOUTES les couleurs sont dans `src/constants/theme.tsx` (palettes claire + sombre, panneaux de signalement). Jamais de couleur en dur ailleurs
 - Couleur principale : bleu ciel (ACCENT), identique en clair et en sombre
@@ -69,7 +78,7 @@ $//' .env.supabase); set +a`
 ## Distribution testeurs (EAS)
 - App « PasseRyder » (domaines passeryder.fr et passeryder.com), identifiant Android/iOS `com.passeryder.app`, scheme `passeryder`. Le slug EAS reste `moto` (lié au projectId) et le dossier reste `C:\projets\moto`. Icônes provisoires dans assets/images (moto blanche sur bleu ciel)
 - eas.json : profil `preview` = APK installable (distribution internal, canal `preview`, environnement EAS `preview`), versionCode géré par EAS (appVersionSource remote + autoIncrement)
-- EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update --platform android` (pas de web : `platforms` android/ios dans app.json) ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
+- EAS Update : expo-updates, runtimeVersion = version de l'app (policy appVersion). Changement JS seul → `eas update --platform android` (toujours préciser android : le web est déployé à part, voir Version web) ; nouveau module natif ou config native → augmenter `version` dans app.json et refaire un APK
 - Le .env n'est PAS envoyé à EAS Build : les EXPO_PUBLIC_* sont dans les variables d'environnement EAS (environnement preview)
 - Les commandes eas (login, init, build, update) sont interactives : c'est Dimitri qui les lance
 - Google Play (voir PLAY_STORE.md) : éditeur DK Tech Lab (Dimitri Koszowski, EI), email éditeur dktechlabweb@gmail.com (mentions légales, identité) ; support de l'app passeryder@gmail.com (aide, droits RGPD, modération, fiche store). Profil `production` = AAB, canal `production`, environnement EAS `production` ; `eas submit` vers le test interne avec `google-service-account.json` (secret, ignoré par Git). Visuels du store dans `store/`

@@ -16,6 +16,7 @@ import {
   type RiderFilters,
   type RiderResult,
 } from '@/lib/discovery';
+import { IS_WEB } from '@/lib/app-link';
 import { relationWith, sendFriendRequest } from '@/lib/friends';
 import type { LatLng } from '@/lib/geo';
 import { AVAILABILITIES, categoryInfo, MOTO_CATEGORIES, PACES, paceInfo } from '@/lib/moto';
@@ -50,7 +51,13 @@ export default function RidersScreen() {
     Location.getLastKnownPositionAsync()
       .then(async (p) => p ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })))
       .then((p) => p && setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude }))
-      .catch(() => setError('Position indisponible : active la localisation pour chercher autour de toi.'));
+      .catch(() =>
+        setError(
+          IS_WEB
+            ? 'Position indisponible : autorise la localisation dans ton navigateur pour chercher autour de toi.'
+            : 'Position indisponible : active la localisation pour chercher autour de toi.',
+        ),
+      );
   }, []);
 
   useEffect(() => {

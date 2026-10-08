@@ -61,7 +61,8 @@ export function ReportCard({
   distanceM: number | null;
   mine: boolean;
   alreadyVoted: boolean;
-  onVote: (vote: Vote) => void;
+  /** Absent (version web) : on confirme ou retire un signalement sur place, depuis l'app */
+  onVote?: (vote: Vote) => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -95,6 +96,8 @@ export function ReportCard({
         </Pressable>
       ) : alreadyVoted ? (
         <Text style={styles.thanks}>Merci pour ta réponse !</Text>
+      ) : !onVote ? (
+        <Text style={styles.meta}>Sur place, confirme ou retire ce signalement depuis l’app.</Text>
       ) : (
         <View style={styles.row}>
           <Pressable style={[styles.big, styles.still]} onPress={() => onVote('still_there')}>

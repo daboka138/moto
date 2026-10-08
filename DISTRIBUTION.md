@@ -72,8 +72,7 @@ Pour toute modification de **code JavaScript / TypeScript, textes, styles, image
 ```powershell
 eas update --channel preview --environment preview --platform android --message "Ce qui change"
 ```
-- `--platform android` : l'app ne vise pas le web (`"platforms": ["android", "ios"]` dans `app.json`) ;
-  sans ce réglage, l'export web plantait (`localStorage is not defined` au rendu statique).
+- `--platform android` : la version web n'est pas distribuée par EAS Update (déployée sur le VPS, voir PLAY_STORE.md § 1.4).
 - Durée : 1 à 2 min.
 - Les testeurs la reçoivent **au prochain lancement** de l'app (téléchargée au lancement, appliquée au lancement suivant),
   ou **tout de suite** avec Paramètres > À propos > **Rechercher une mise à jour**.

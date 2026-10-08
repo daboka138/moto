@@ -1,6 +1,5 @@
-import { File } from 'expo-file-system';
-
 import { inferCategory, type Availability, type MotoCategory, type Pace } from '@/lib/moto';
+import { readFileBytes } from '@/lib/read-file';
 import { supabase } from '@/lib/supabase';
 
 export const RIDING_STYLES = [
@@ -293,7 +292,7 @@ export async function uploadPhoto(
   const contentType = photo.mimeType ?? 'image/jpeg';
   const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg';
   const path = `${userId}/${kind}-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-  const bytes = await new File(photo.localUri!).arrayBuffer();
+  const bytes = await readFileBytes(photo.localUri!);
   const { error } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType });
   if (error) throw new Error(`Envoi de la photo impossible : ${error.message}`);
   return path;

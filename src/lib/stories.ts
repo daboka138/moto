@@ -1,6 +1,5 @@
-import { File } from 'expo-file-system';
-
 import { photoUrl } from '@/lib/profile';
+import { readFileBytes } from '@/lib/read-file';
 import { supabase } from '@/lib/supabase';
 
 // Stories 24 h. Le serveur ne renvoie que les stories actives que j'ai le droit
@@ -133,7 +132,7 @@ export async function publishStory(
   const contentType = media.mimeType ?? (media.type === 'video' ? 'video/mp4' : 'image/jpeg');
   const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg').replace('quicktime', 'mov') ?? 'jpg';
   const path = `${userId}/story-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-  const bytes = await new File(media.uri).arrayBuffer();
+  const bytes = await readFileBytes(media.uri);
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType });
   if (uploadError) throw new Error(`Envoi impossible : ${uploadError.message}`);
   const { error } = await supabase.from('stories').insert({

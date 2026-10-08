@@ -2,6 +2,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
+import { OpenInApp } from '@/components/open-in-app';
 import { RideView } from '@/components/ride-view';
 import { openRideConversation } from '@/lib/messages';
 import { Button } from '@/components/ui';
@@ -16,6 +17,7 @@ import {
   startRide,
   type RideDetails,
 } from '@/lib/rides';
+import { IS_WEB } from '@/lib/app-link';
 import { mainCategory } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 import { confirmJoinRide } from '@/lib/join-ride';
@@ -123,8 +125,15 @@ export default function RideScreen() {
 
       {isOrganizer ? (
         <>
-          {ride.status === 'upcoming' && canStartNow(ride.meetingAt) && (
+          {ride.status === 'upcoming' && canStartNow(ride.meetingAt) && !IS_WEB && (
             <Button title="Démarrer la balade" loading={busy} onPress={confirmStart} />
+          )}
+          {/* Version web : la balade en direct (positions GPS des participants) se lance depuis l'app */}
+          {ride.status === 'upcoming' && canStartNow(ride.meetingAt) && IS_WEB && (
+            <View style={styles.appOnly}>
+              <Text style={styles.hint}>Démarre la balade depuis l’app : les participants se verront sur la carte.</Text>
+              <OpenInApp path={`/ride/${ride.id}`} />
+            </View>
           )}
           {ride.status === 'upcoming' && !canStartNow(ride.meetingAt) && (
             <Text style={styles.hint}>Tu pourras démarrer la balade le jour J, 2 h avant le regroupement.</Text>
@@ -169,4 +178,5 @@ const useStyles = makeStyles((Colors) => ({
   muted: { color: Colors.textMuted, textAlign: 'center' },
   actions: { gap: 10 },
   hint: { fontSize: 13, color: Colors.textMuted },
+  appOnly: { gap: 10, alignItems: 'center' },
 }));

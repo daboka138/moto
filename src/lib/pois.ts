@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { distanceM, type LatLng } from '@/lib/geo';
 import { projectOnRoute, type NavRoute } from '@/lib/navigation';
 import type { SearchResult } from '@/lib/search';
@@ -71,7 +73,10 @@ async function overpass(query: string) {
     try {
       const res = await fetch(server, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          ...(Platform.OS === 'web' ? {} : { 'User-Agent': USER_AGENT }),
+        },
         body: `data=${encodeURIComponent(query)}`,
         signal: controller.signal,
       });

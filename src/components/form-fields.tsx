@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { DateTimeInput } from '@/components/date-time-input';
 import { makeStyles, useColors, useTheme } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 
@@ -49,7 +49,7 @@ export function PlaceField({
   );
 }
 
-/** Choix de la date ou de l'heure (sélecteur natif). */
+/** Choix de la date ou de l'heure (sélecteur natif, ou celui du navigateur sur le web). */
 export function DateTimeField({
   label,
   mode,
@@ -72,28 +72,24 @@ export function DateTimeField({
       ? value.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
       : value.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-  const handle = (event: DateTimePickerEvent, date?: Date) => {
-    setOpen(false);
-    if (event.type === 'set' && date) onChange(date);
-  };
-
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable style={styles.box} onPress={() => setOpen(true)}>
-        <Ionicons name={mode === 'date' ? 'calendar' : 'time'} size={18} color={Colors.accent} />
-        <Text style={[styles.value, { textTransform: 'capitalize' }]}>{text}</Text>
-      </Pressable>
-      {open && (
-        <DateTimePicker
-          value={value}
+      <View>
+        <Pressable style={styles.box} onPress={() => setOpen(true)}>
+          <Ionicons name={mode === 'date' ? 'calendar' : 'time'} size={18} color={Colors.accent} />
+          <Text style={[styles.value, { textTransform: 'capitalize' }]}>{text}</Text>
+        </Pressable>
+        <DateTimeInput
           mode={mode}
-          is24Hour
+          value={value}
+          onChange={onChange}
           minimumDate={minimumDate}
-          themeVariant={scheme}
-          onChange={handle}
+          open={open}
+          onClose={() => setOpen(false)}
+          scheme={scheme}
         />
-      )}
+      </View>
     </View>
   );
 }

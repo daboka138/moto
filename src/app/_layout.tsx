@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { ActionSheetHost } from '@/components/action-sheet';
+import { AlertHost } from '@/components/alert-host';
 import { MessageToast } from '@/components/message-toast';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
@@ -18,6 +19,7 @@ import { MessagesProvider } from '@/lib/messages-context';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 import { StoriesProvider } from '@/lib/stories-context';
+import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,6 +39,7 @@ export default function RootLayout() {
                         <MessageToast />
                         <PushRegistrar />
                         <ActionSheetHost />
+                        <AlertHost />
                       </DemoMessagesProvider>
                     </MessagesProvider>
                   </StoriesProvider>
@@ -78,6 +81,19 @@ function RootNavigator() {
   const { colors: Colors } = useTheme();
   const styles = useStyles();
   const { session, profile, termsAccepted, profileError, refreshProfile } = useSession();
+  // Web sur grand écran : les écrans de contenu en colonne centrée (les onglets gèrent la leur)
+  const wide = useWideLayout();
+  const contentStyle = {
+    backgroundColor: Colors.background,
+    ...(wide && {
+      width: '100%' as const,
+      maxWidth: CONTENT_MAX_WIDTH,
+      alignSelf: 'center' as const,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: Colors.border,
+    }),
+  };
 
   useEffect(() => {
     if (session !== undefined) SplashScreen.hideAsync();
@@ -104,7 +120,7 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle }}>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
       </Stack.Protected>
@@ -115,7 +131,7 @@ function RootNavigator() {
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
       <Stack.Protected guard={!!session && !!termsAccepted && !!profile}>
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: Colors.background } }} />
         <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
         <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />

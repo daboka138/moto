@@ -50,6 +50,37 @@ Après toute modification du Caddyfile, toujours valider avant de recharger (un 
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl reload caddy
 ```
 
+### 1.4 Version web (PWA) : app.passeryder.fr
+- DNS OVH (zone **passeryder.fr**) : enregistrement **A** `app` → `187.6.165.249` (TTL par défaut, pas d'AAAA). Caddy obtient le certificat HTTPS tout seul dès que le DNS répond
+- Fichiers : `/var/www/passeryder-app` (export web de l'app, propriétaire `caddy`) ; la version précédente reste dans `/var/www/passeryder-app.old` (retour arrière : inverser les deux dossiers)
+- Construire puis publier, depuis Git Bash dans `C:\projets\moto` :
+```bash
+npm run web:build
+tar -C dist -cf - . | ssh root@187.6.165.249 'set -e; rm -rf /var/www/passeryder-app.new; mkdir -p /var/www/passeryder-app.new; tar -C /var/www/passeryder-app.new --no-same-owner -xf -; chown -R caddy:caddy /var/www/passeryder-app.new; rm -rf /var/www/passeryder-app.old; if [ -d /var/www/passeryder-app ]; then mv /var/www/passeryder-app /var/www/passeryder-app.old; fi; mv /var/www/passeryder-app.new /var/www/passeryder-app'
+```
+- Bloc Caddy (à la fin du Caddyfile) :
+```caddy
+app.passeryder.fr {
+    root * /var/www/passeryder-app
+    encode zstd gzip
+    @static path /_expo/* /assets/*
+    header @static Cache-Control "public, max-age=31536000, immutable"
+    @dynamic not path /_expo/* /assets/*
+    header @dynamic Cache-Control "no-cache"
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(self), camera=(self), microphone=(self)"
+        -Server
+    }
+    try_files {path} /index.html
+    file_server
+}
+```
+- Supabase › Authentication › URL Configuration : ajouter `https://app.passeryder.fr` aux Redirect URLs (liens des emails)
+- MapTiler : si la clé est limitée à certains domaines, ajouter `app.passeryder.fr`
+
 ### 1.3 À faire : passeryder.com
 Le DNS de passeryder.com ne pointe pas encore vers le VPS, il n'est donc pas dans le Caddyfile.
 1. OVH › **passeryder.com** › Zone DNS : A `@` → `187.6.165.249`, CNAME `www` → `passeryder.com.` ; supprimer les A / AAAA / CNAME par défaut d'OVH sur `@` et `www`.
@@ -100,7 +131,7 @@ Mise à jour JavaScript seule (sans nouvelle version Play Store) :
 ```powershell
 eas update --channel production --environment production --platform android --message "Ce qui change"
 ```
-`--platform android` : pas d'export web (l'app ne vise que android/ios, voir `platforms` dans `app.json`).
+`--platform android` : la version web n'est pas distribuée par EAS Update, elle est déployée sur le VPS (§ 1.4).
 Changement natif (module natif, permissions, icône, nom, SDK) : augmenter `version` dans `app.json` puis nouveau build.
 
 ### Passage test interne → fermé → production

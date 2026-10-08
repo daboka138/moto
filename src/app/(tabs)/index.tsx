@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -479,6 +479,26 @@ export default function MapScreen() {
     setDropped(null);
     nav.choose(r);
   };
+
+  // Lien depuis le site web (« Aller ici » → passeryder://?goLat=…&goLng=…&goLabel=…) :
+  // aperçu de l'itinéraire dès que ma position est connue
+  const goParams = useLocalSearchParams<{ goLat?: string; goLng?: string; goLabel?: string }>();
+  const goKey = goParams.goLat && goParams.goLng ? `${goParams.goLat},${goParams.goLng}` : null;
+  const handledGo = useRef<string | null>(null);
+  const hasFix = !!location;
+  useEffect(() => {
+    if (!goKey || !hasFix || handledGo.current === goKey) return;
+    const latitude = Number(goParams.goLat);
+    const longitude = Number(goParams.goLng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    const label = goParams.goLabel || 'Destination';
+    const timer = setTimeout(() => {
+      handledGo.current = goKey;
+      chooseDestination({ label, latitude, longitude, source: 'lieu' });
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goKey, hasFix]);
 
   const removeMine = async (id: string) => {
     const target = reports.find((r) => r.id === id);

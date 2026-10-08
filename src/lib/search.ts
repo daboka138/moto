@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { distanceM, type LatLng } from '@/lib/geo';
 
 // Recherche de destination :
@@ -20,7 +22,9 @@ async function getJson<T>(url: string, what: string): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }, signal: controller.signal });
+    // Navigateur : User-Agent interdit (et il déclencherait une pré-requête CORS) ; le Referer identifie le site
+    const headers: Record<string, string> = Platform.OS === 'web' ? { Accept: 'application/json' } : { 'User-Agent': USER_AGENT, Accept: 'application/json' };
+    const res = await fetch(url, { headers, signal: controller.signal });
     if (!res.ok) throw new Error(`${what} indisponible (${res.status})`);
     return (await res.json()) as T;
   } finally {

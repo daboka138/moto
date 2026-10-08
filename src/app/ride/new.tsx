@@ -10,6 +10,7 @@ import { LeafletMap } from '@/components/leaflet-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
+import { IS_WEB } from '@/lib/app-link';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
@@ -239,7 +240,10 @@ export default function NewRideScreen() {
               onMapLongPress={placeAt}
             />
           </View>
-          <Text style={styles.mapHint}>Appui long sur la carte pour placer le départ, l’arrivée, le RDV ou une étape.</Text>
+          <Text style={styles.mapHint}>
+            {IS_WEB ? 'Clic droit ou appui long' : 'Appui long'} sur la carte pour placer le départ, l’arrivée, le RDV ou
+            une étape.
+          </Text>
           {start && end && (
             <>
               {currentRoute ? (
