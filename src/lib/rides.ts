@@ -203,6 +203,15 @@ export async function fetchUpcomingRides(userId: string): Promise<RideSummary[]>
   return ((data ?? []) as unknown as Row[]).map((r) => toSummary(r, userId));
 }
 
+/** Balades par identifiants (résultats de recherche), dans l'ordre donné */
+export async function fetchRidesByIds(ids: string[], userId: string): Promise<RideSummary[]> {
+  if (!ids.length) return [];
+  const { data, error } = await supabase.from('group_rides').select(SUMMARY_FIELDS).in('id', ids);
+  if (error) throw error;
+  const rides = ((data ?? []) as unknown as Row[]).map((r) => toSummary(r, userId));
+  return ids.map((id) => rides.find((r) => r.id === id)).filter((r): r is RideSummary => !!r);
+}
+
 export async function fetchRide(id: string, userId: string): Promise<RideDetails | null> {
   const { data, error } = await supabase.from('group_rides').select(DETAIL_FIELDS).eq('id', id).maybeSingle();
   if (error) throw error;

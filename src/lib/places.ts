@@ -92,6 +92,15 @@ export async function fetchPlacesAround(center: LatLng, radiusKm = 80): Promise<
   return ((data ?? []) as unknown as PlaceRow[]).map(toPlace);
 }
 
+/** Lieux par identifiants (résultats de recherche), dans l'ordre donné */
+export async function fetchPlacesByIds(ids: string[]): Promise<CommunityPlace[]> {
+  if (!ids.length) return [];
+  const { data, error } = await supabase.from('places').select(FIELDS).in('id', ids);
+  if (error) throw error;
+  const places = ((data ?? []) as unknown as PlaceRow[]).map(toPlace);
+  return ids.map((id) => places.find((p) => p.id === id)).filter((p): p is CommunityPlace => !!p);
+}
+
 export async function fetchPlace(id: string): Promise<CommunityPlace | null> {
   const { data, error } = await supabase.from('places').select(FIELDS).eq('id', id).maybeSingle();
   if (error) throw error;

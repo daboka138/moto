@@ -60,20 +60,12 @@ export function relationWith(state: FriendsState | null, userId: string, otherId
   return 'none';
 }
 
-export async function searchUsers(query: string, userId: string): Promise<PublicProfile[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  // % et _ sont des jokers en SQL : on les échappe
-  const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(PROFILE_FIELDS)
-    .ilike('username', pattern)
-    .neq('id', userId)
-    .order('username')
-    .limit(20);
+/** Motards par pseudo (sans majuscules ni accents) ; les membres bloqués, dans un sens ou dans l'autre, n'apparaissent pas */
+export async function searchUsers(query: string, _userId: string): Promise<PublicProfile[]> {
+  if (query.trim().length < 2) return [];
+  const { data, error } = await supabase.rpc('search_riders', { p_query: query.trim(), p_limit: 20 });
   if (error) throw error;
-  return data ?? [];
+  return ((data ?? []) as PublicProfile[]).map(({ id, username, avatar_path, city }) => ({ id, username, avatar_path, city }));
 }
 
 export async function sendFriendRequest(userId: string, otherId: string) {

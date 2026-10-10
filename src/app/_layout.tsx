@@ -154,6 +154,7 @@ function RootNavigator() {
         <Stack.Screen name="event/new" options={{ headerShown: true, title: 'Nouvel événement' }} />
         <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
+        <Stack.Screen name="search" />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
         <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
         <Stack.Screen name="chat/[id]" />

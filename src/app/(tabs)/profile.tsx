@@ -84,6 +84,8 @@ export default function ProfileScreen() {
         <>
           <Button title="Modifier mon profil" variant="secondary" onPress={() => router.push('/profile-edit')} />
           <LinkGroup>
+            <LinkRow icon="search" label="Rechercher des motards" onPress={() => router.push('/search')} />
+            <LinkSeparator />
             <LinkRow
               icon="people"
               label="Amis"

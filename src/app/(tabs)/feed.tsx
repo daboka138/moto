@@ -165,11 +165,16 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Mur</Text>
-        <Pressable style={styles.findButton} onPress={() => router.push('/riders')}>
-          <Ionicons name="search" size={18} color={Colors.white} />
-          <Text style={styles.findText}>Trouver des motards</Text>
+        <Pressable style={styles.findButton} onPress={() => router.push('/riders')} accessibilityLabel="Trouver des motards pour rouler">
+          <Ionicons name="people" size={18} color={Colors.white} />
+          <Text style={styles.findText}>Rouler ensemble</Text>
         </Pressable>
       </View>
+      {/* Recherche : motards par pseudo, balades, lieux, événements */}
+      <Pressable style={styles.searchBar} onPress={() => router.push('/search')} accessibilityRole="search" accessibilityLabel="Rechercher">
+        <Ionicons name="search" size={20} color={Colors.textMuted} />
+        <Text style={styles.searchPlaceholder}>Rechercher un motard, une balade, un lieu…</Text>
+      </Pressable>
 
       {!items ? (
         <View style={styles.center}>
@@ -249,6 +254,20 @@ function Header({
 }
 
 const useStyles = makeStyles((Colors) => ({
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchPlaceholder: { flex: 1, fontSize: 15, color: Colors.textMuted },
   screen: { flex: 1, backgroundColor: Colors.background },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
   findButton: {

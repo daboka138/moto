@@ -117,6 +117,15 @@ export async function fetchUpcomingEvents(userId: string): Promise<MotoEvent[]> 
     .filter((e) => eventEnd(e).getTime() > now);
 }
 
+/** Événements par identifiants (résultats de recherche), dans l'ordre donné */
+export async function fetchEventsByIds(ids: string[], userId: string): Promise<MotoEvent[]> {
+  if (!ids.length) return [];
+  const { data, error } = await supabase.from('events').select(FIELDS).in('id', ids);
+  if (error) throw error;
+  const events = ((data ?? []) as unknown as Row[]).map((r) => toEvent(r, userId));
+  return ids.map((id) => events.find((e) => e.id === id)).filter((e): e is MotoEvent => !!e);
+}
+
 export async function fetchEvent(id: string, userId: string): Promise<MotoEvent | null> {
   const { data, error } = await supabase.from('events').select(FIELDS).eq('id', id).maybeSingle();
   if (error) throw error;
