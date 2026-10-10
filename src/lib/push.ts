@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 // Notifications push (Expo Push → FCM). Les envois partent du serveur (fonction SQL send_push,
 // migration 20261003000000_safety_push.sql) ; ici : canaux Android, permission, jeton.
 
-export type PushCategory = 'messages' | 'rides' | 'friends' | 'dangers' | 'sos';
+export type PushCategory = 'messages' | 'rides' | 'friends' | 'dangers' | 'garage' | 'sos';
 
 /** Un canal Android par type : chacun réglable aussi dans les réglages du téléphone */
 const CHANNELS: { id: PushCategory; name: string; importance: Notifications.AndroidImportance }[] = [
@@ -17,6 +17,7 @@ const CHANNELS: { id: PushCategory; name: string; importance: Notifications.Andr
   { id: 'rides', name: 'Balades (invitations et rappels)', importance: Notifications.AndroidImportance.HIGH },
   { id: 'friends', name: 'Amis et commentaires', importance: Notifications.AndroidImportance.DEFAULT },
   { id: 'dangers', name: 'Dangers signalés près de moi', importance: Notifications.AndroidImportance.HIGH },
+  { id: 'garage', name: 'Rappels d’entretien', importance: Notifications.AndroidImportance.DEFAULT },
 ];
 
 // Version web : pas de notifications push (elles arrivent sur l'app Android)
@@ -88,14 +89,14 @@ export async function pushPermission(): Promise<PushStatus> {
 
 // ---------- Préférences par type (côté serveur : c'est lui qui envoie) ----------
 
-export type NotificationPrefs = { messages: boolean; rides: boolean; friends: boolean; dangers: boolean };
+export type NotificationPrefs = { messages: boolean; rides: boolean; friends: boolean; dangers: boolean; garage: boolean };
 
-export const DEFAULT_PREFS: NotificationPrefs = { messages: true, rides: true, friends: true, dangers: true };
+export const DEFAULT_PREFS: NotificationPrefs = { messages: true, rides: true, friends: true, dangers: true, garage: true };
 
 export async function fetchNotificationPrefs(userId: string): Promise<NotificationPrefs> {
   const { data, error } = await supabase
     .from('notification_prefs')
-    .select('messages, rides, friends, dangers')
+    .select('messages, rides, friends, dangers, garage')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;

@@ -5,11 +5,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LeafletMap, type MapPin } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
+import { WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { categoryInfo, paceInfo, surfaceInfo, type MotoCategory } from '@/lib/moto';
-import { formatRideDate, levelInfo, visibilityInfo, type RideDetails } from '@/lib/rides';
+import { formatRideDate, levelInfo, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
+import { roundedNow, useRouteWeather } from '@/lib/weather';
 
 type Props = {
   ride: RideDetails;
@@ -47,6 +49,10 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null }: Pr
   const fit = [...routePoints.map(([latitude, longitude]) => ({ latitude, longitude })), ride.meeting];
   const joined = ride.participants.filter((p) => p.status === 'joined');
   const invited = ride.participants.filter((p) => p.status === 'invited');
+  // Météo le long du parcours, à l'heure de passage (départ = heure du RDV, ou maintenant si en cours)
+  const weatherPoints = ride.status === 'ended' ? null : routePoints.map(([latitude, longitude]) => ({ latitude, longitude }));
+  const departAt = ride.status === 'live' ? null : new Date(ride.meetingAt);
+  const weather = useRouteWeather(weatherPoints, ride.durationS ?? (ride.distanceM ?? 0) / (60 / 3.6), departAt ?? roundedNow());
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -129,6 +135,12 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null }: Pr
           )}
         </Card>
 
+        {weatherPoints && (
+          <Card title={ride.status === 'live' ? 'Météo sur le parcours (à partir de maintenant)' : 'Météo sur le parcours'}>
+            <WeatherStrip weather={weather.weather} loading={weather.loading} error={weather.error} />
+          </Card>
+        )}
+
         <Card title="Organisateur">
           <Person person={ride.organizer} onPress={onPersonPress} />
         </Card>
@@ -137,7 +149,13 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null }: Pr
           title={`Participants (${joined.length}${ride.maxParticipants !== null ? `/${ride.maxParticipants}` : ''})`}>
           <View style={styles.people}>
             {joined.map((p) => (
-              <Person key={p.id} person={p} compact onPress={onPersonPress} />
+              <Person
+                key={p.id}
+                person={p}
+                compact
+                badge={p.role ? `${RIDE_ROLES[p.role].emoji} ${RIDE_ROLES[p.role].label}` : undefined}
+                onPress={onPersonPress}
+              />
             ))}
           </View>
           {invited.length > 0 && (
@@ -177,11 +195,14 @@ function Person({
   person,
   compact,
   faded,
+  badge,
   onPress,
 }: {
   person: { id: string; username: string; avatarUrl: string };
   compact?: boolean;
   faded?: boolean;
+  /** Rôle dans le convoi */
+  badge?: string;
   onPress?: (id: string) => void;
 }) {
   const styles = useStyles();
@@ -194,6 +215,11 @@ function Person({
       <Text style={compact ? styles.usernameSmall : styles.username} numberOfLines={1}>
         @{person.username}
       </Text>
+      {!!badge && (
+        <Text style={styles.badge} numberOfLines={1}>
+          {badge}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -232,6 +258,7 @@ const useStyles = makeStyles((Colors) => ({
   personCompact: { alignItems: 'center', width: 64, gap: 4 },
   avatarSmall: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
   usernameSmall: { fontSize: 11, color: Colors.text, maxWidth: 64 },
+  badge: { fontSize: 10, fontWeight: '800', color: Colors.accent, maxWidth: 64 },
   subtle: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
   description: { fontSize: 15, lineHeight: 21, color: Colors.text },
 }));

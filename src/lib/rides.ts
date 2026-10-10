@@ -67,8 +67,23 @@ export type RideDetails = RideSummary & {
   end: Place;
   waypoints: Place[];
   route: [number, number][] | null;
-  participants: (RidePerson & { status: 'invited' | 'joined' })[];
+  participants: RideParticipant[];
   startedAt: string | null;
+};
+
+/** Rôle dans le convoi : ouvreur (devant) ou serre-file (derrière) */
+export type RideRole = 'leader' | 'sweeper';
+
+export const RIDE_ROLES: Record<RideRole, { label: string; emoji: string }> = {
+  leader: { label: 'Ouvreur', emoji: '🚩' },
+  sweeper: { label: 'Serre-file', emoji: '🧹' },
+};
+
+export type RideParticipant = RidePerson & {
+  status: 'invited' | 'joined';
+  role: RideRole | null;
+  /** Pointé présent au RDV */
+  checkedInAt: string | null;
 };
 
 export type RideDraft = {
@@ -121,6 +136,8 @@ type Row = {
     user_id: string;
     status: 'invited' | 'joined';
     created_at: string;
+    role?: RideRole | null;
+    checked_in_at?: string | null;
     profile?: { id: string; username: string; avatar_path: string } | null;
   }[];
 };
@@ -132,7 +149,7 @@ const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participan
 
 const DETAIL_FIELDS = `*,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, created_at, profile:profiles(id, username, avatar_path))`;
+  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, profile:profiles(id, username, avatar_path))`;
 
 /** Pendant combien de temps après le RDV une balade non démarrée reste listée */
 const LISTED_AFTER_MEETING_MS = 12 * 3600 * 1000;
@@ -205,6 +222,8 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
         username: p.profile!.username,
         avatarUrl: photoUrl(p.profile!.avatar_path),
         status: p.status,
+        role: p.role ?? null,
+        checkedInAt: p.checked_in_at ?? null,
       }))
       // Organisateur en premier, puis les inscrits, puis les invités
       .sort((a, b) => Number(b.id === r.created_by) - Number(a.id === r.created_by) || b.status.localeCompare(a.status)),
@@ -291,6 +310,18 @@ export async function endRide(rideId: string) {
 export async function deleteRide(rideId: string) {
   const { error } = await supabase.from('group_rides').delete().eq('id', rideId);
   if (error) throw error;
+}
+
+/** L'organisateur donne un rôle (ouvreur / serre-file) à un inscrit, ou le retire (null). */
+export async function setRideRole(rideId: string, userId: string, role: RideRole | null) {
+  const { error } = await supabase.rpc('set_ride_role', { p_ride: rideId, p_user: userId, p_role: role });
+  if (error) throw new Error(error.message);
+}
+
+/** Pointage au RDV : moi (userId absent) ou, pour l'organisateur, un inscrit. present = false : annule. */
+export async function checkInRide(rideId: string, userId?: string, present = true) {
+  const { error } = await supabase.rpc('ride_check_in', { p_ride: rideId, p_user: userId ?? null, p_present: present });
+  if (error) throw new Error(error.message);
 }
 
 /** L'organisateur peut démarrer entre 2 h avant et 12 h après le RDV (même règle que le serveur). */

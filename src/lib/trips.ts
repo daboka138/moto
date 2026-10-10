@@ -19,6 +19,8 @@ export type TripSummary = {
   maxKmh: number;
   /** Arrivé à destination (sinon navigation arrêtée en route) */
   arrived: boolean;
+  /** Trace GPS gardée (export GPX) */
+  hasTrack?: boolean;
 };
 
 /** Mesures en cours, sauvegardées avec la navigation (reprise après redémarrage de l'app) */
@@ -28,6 +30,8 @@ export type TripStats = {
   movingS: number;
   maxKmh: number;
   last: (LatLng & { at: number }) | null;
+  /** Trace GPS : [lat, lng, horodatage ms], un point tous les 25 m environ */
+  track?: [number, number, number][];
 };
 
 /** Au-delà, la mesure GPS est trop imprécise pour compter dans la distance */
@@ -40,9 +44,12 @@ const MOVING_KMH = 5;
 const MAX_PLAUSIBLE_KMH = 300;
 /** Trajet trop court pour être gardé */
 const MIN_SAVED_M = 300;
+/** Trace : un point tous les 25 m, 6000 points au plus (au-delà, un point sur deux est retiré) */
+const TRACK_STEP_M = 25;
+const MAX_TRACK_POINTS = 6000;
 
 export function newTripStats(): TripStats {
-  return { startedAt: Date.now(), distanceM: 0, movingS: 0, maxKmh: 0, last: null };
+  return { startedAt: Date.now(), distanceM: 0, movingS: 0, maxKmh: 0, last: null, track: [] };
 }
 
 /** Ajoute une position GPS aux mesures (renvoie de nouvelles mesures) */
@@ -50,6 +57,7 @@ export function recordFix(s: TripStats, p: LatLng & { accuracy: number | null },
   if (p.accuracy != null && p.accuracy > MAX_ACCURACY_M) return s;
   const maxKmh = kmh <= MAX_PLAUSIBLE_KMH ? Math.max(s.maxKmh, kmh) : s.maxKmh;
   const point = { latitude: p.latitude, longitude: p.longitude, at: now };
+  addTrackPoint(s, point);
   if (!s.last) return { ...s, maxKmh, last: point };
   const d = distanceM(s.last, p);
   // Petits déplacements : on attend d'avoir bougé (le bruit GPS gonflerait la distance)
@@ -65,6 +73,15 @@ export function recordFix(s: TripStats, p: LatLng & { accuracy: number | null },
   };
 }
 
+/** Ajoute le point à la trace (tableau partagé, modifié sur place : pas de copie à chaque position) */
+function addTrackPoint(s: TripStats, p: LatLng & { at: number }) {
+  if (!s.track) s.track = [];
+  const last = s.track[s.track.length - 1];
+  if (last && distanceM({ latitude: last[0], longitude: last[1] }, p) < TRACK_STEP_M) return;
+  s.track.push([Math.round(p.latitude * 1e6) / 1e6, Math.round(p.longitude * 1e6) / 1e6, p.at]);
+  if (s.track.length > MAX_TRACK_POINTS) s.track = s.track.filter((_, i) => i % 2 === 0 || i === s.track!.length - 1);
+}
+
 export function summarize(s: TripStats, destination: string, arrived: boolean, now = Date.now()): TripSummary {
   return {
     id: `${s.startedAt}`,
@@ -76,6 +93,7 @@ export function summarize(s: TripStats, destination: string, arrived: boolean, n
     avgKmh: s.movingS > 0 ? Math.round((s.distanceM / s.movingS) * 3.6) : 0,
     maxKmh: Math.round(s.maxKmh),
     arrived,
+    hasTrack: (s.track?.length ?? 0) >= 2,
   };
 }
 
@@ -105,18 +123,49 @@ function write(next: TripSummary[]) {
   listeners.forEach((l) => l());
 }
 
-/** Garde le trajet s'il est assez long ; renvoie true s'il est enregistré */
-export function saveTrip(t: TripSummary) {
+const trackKey = (id: string) => `moto.track.${id}`;
+
+/** Garde le trajet s'il est assez long (et sa trace GPS à part) ; renvoie true s'il est enregistré */
+export function saveTrip(t: TripSummary, track?: TripStats['track']) {
   if (t.distanceM < MIN_SAVED_M) return false;
-  write([t, ...trips.filter((x) => x.id !== t.id)].slice(0, MAX_TRIPS));
+  const next = [t, ...trips.filter((x) => x.id !== t.id)];
+  next.slice(MAX_TRIPS).forEach((old) => removeTrack(old.id));
+  if (track && track.length >= 2) {
+    try {
+      localStorage.setItem(trackKey(t.id), JSON.stringify(track));
+    } catch {
+      t.hasTrack = false;
+    }
+  }
+  write(next.slice(0, MAX_TRIPS));
   return true;
 }
 
+/** Trace GPS d'un trajet (null si non gardée) */
+export function readTrack(id: string): { latitude: number; longitude: number; time: number }[] | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(trackKey(id)) ?? 'null') as [number, number, number][] | null;
+    return raw ? raw.map(([latitude, longitude, time]) => ({ latitude, longitude, time })) : null;
+  } catch {
+    return null;
+  }
+}
+
+function removeTrack(id: string) {
+  try {
+    localStorage.removeItem(trackKey(id));
+  } catch {
+    // pas grave
+  }
+}
+
 export function deleteTrip(id: string) {
+  removeTrack(id);
   write(trips.filter((t) => t.id !== id));
 }
 
 export function clearTrips() {
+  trips.forEach((t) => removeTrack(t.id));
   write([]);
 }
 

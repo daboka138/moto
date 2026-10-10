@@ -146,6 +146,9 @@ function RootNavigator() {
         <Stack.Screen name="ride/new" options={{ headerShown: true, title: 'Nouvelle balade' }} />
         <Stack.Screen name="ride/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
+        <Stack.Screen name="ride/checkin" options={{ headerShown: true, title: 'Qui est au RDV ?' }} />
+        <Stack.Screen name="garage/index" options={{ headerShown: true, title: 'Garage' }} />
+        <Stack.Screen name="garage/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
         <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
         <Stack.Screen name="chat/[id]" />

@@ -294,7 +294,7 @@ function toDetails(seed: DemoRideSeed, s: DemoRideState, me: RidePerson): RideDe
     end: seed.end,
     waypoints: seed.waypoints,
     route: null,
-    participants,
+    participants: participants.map((p) => ({ ...p, role: null, checkedInAt: null })),
     startedAt: status === 'live' ? meetingDate(seed).toISOString() : null,
   };
 }

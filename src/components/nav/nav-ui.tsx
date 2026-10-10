@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/nav/bottom-sheet';
+import { WeatherAlerts, WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { RouteOptions } from '@/lib/moto';
 import { needsValhalla, shortDistance, variantInfo, variantOptions, type ManeuverIcon, type RouteVariant } from '@/lib/navigation';
@@ -9,8 +10,10 @@ import { poiInfo } from '@/lib/pois';
 import { reportInfo } from '@/lib/reports';
 import { formatDuration } from '@/lib/routing';
 import type { SearchResult } from '@/lib/search';
+import type { FuelSuggestion } from '@/lib/fuel';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
+import type { RouteWeather } from '@/lib/weather';
 
 const ICONS: Record<ManeuverIcon, keyof typeof MaterialCommunityIcons.glyphMap> = {
   straight: 'arrow-up',
@@ -55,6 +58,9 @@ export function RoutePreviewSheet({
   onFavorite,
   onStart,
   onCancel,
+  weather,
+  fuel,
+  onAddFuel,
 }: {
   destination: SearchResult;
   choices: RouteChoice[];
@@ -72,6 +78,11 @@ export function RoutePreviewSheet({
   onFavorite: () => void;
   onStart: () => void;
   onCancel: () => void;
+  /** Météo le long de l'itinéraire choisi, à l'heure de passage */
+  weather: { weather: RouteWeather | null; loading: boolean; error: boolean };
+  /** Autonomie (Garage) : null si inconnue ; needed = plein nécessaire avant d'arriver */
+  fuel: { leftKm: number; needed: boolean } | null;
+  onAddFuel: () => void;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -116,6 +127,16 @@ export function RoutePreviewSheet({
               </Text>
             </View>
           ) : null}
+          {/* Alertes avant de partir : météo, carburant */}
+          {route && weather.weather && <WeatherAlerts alerts={weather.weather.alerts} />}
+          {route && fuel?.needed && (
+            <Pressable style={styles.fuelWarning} onPress={onAddFuel}>
+              <MaterialCommunityIcons name="gas-station" size={22} color={Colors.danger} />
+              <Text style={styles.fuelWarningText}>
+                Autonomie ~{Math.round(fuel.leftKm)} km : plein à prévoir. Ajouter une station
+              </Text>
+            </Pressable>
+          )}
         </>
       }
       footer={
@@ -143,8 +164,18 @@ export function RoutePreviewSheet({
       ))}
       {fallback && <Text style={styles.warning}>Options indisponibles pour le moment : itinéraire standard affiché.</Text>}
 
+      {route && (
+        <>
+          <Text style={styles.section}>Météo sur le trajet</Text>
+          <WeatherStrip weather={weather.weather} loading={weather.loading} error={weather.error} />
+        </>
+      )}
+
       <Text style={styles.section}>Étapes</Text>
       <StopList stops={stops} onRemove={onRemoveStop} />
+      {fuel && !fuel.needed && route && (
+        <Text style={styles.small}>⛽ Autonomie ~{Math.round(fuel.leftKm)} km : pas besoin de plein pour ce trajet.</Text>
+      )}
       <Pressable style={({ pressed }) => [styles.addStop, pressed && styles.pressed]} onPress={onAddStop}>
         <Ionicons name="add-circle" size={24} color={Colors.accent} />
         <Text style={styles.addStopText}>Ajouter un arrêt (essence, café…)</Text>
@@ -322,6 +353,8 @@ export function NavSheet({
   onAddStop,
   onShare,
   onRemoveStop,
+  fuelLeftKm,
+  onFilled,
 }: {
   progress: NavProgress | null;
   stops: SearchResult[];
@@ -332,6 +365,10 @@ export function NavSheet({
   onAddStop: () => void;
   onShare: () => void;
   onRemoveStop: (index: number) => void;
+  /** Autonomie restante estimée (null : inconnue) */
+  fuelLeftKm: number | null;
+  /** Plein fait (la jauge repart du plein) ; absent : réservoir non renseigné */
+  onFilled?: () => void;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -366,6 +403,14 @@ export function NavSheet({
         onPress={onShare}
         wide
       />
+      {onFilled && (
+        <ActionButton
+          icon="fuel"
+          label={fuelLeftKm !== null ? `Autonomie ~${Math.round(fuelLeftKm)} km · J’ai fait le plein` : 'J’ai fait le plein'}
+          onPress={onFilled}
+          wide
+        />
+      )}
       {stops.length > 0 && (
         <>
           <Text style={styles.section}>Étapes</Text>
@@ -373,6 +418,51 @@ export function NavSheet({
         </>
       )}
     </BottomSheet>
+  );
+}
+
+/** Autonomie faible en navigation : station proposée sur le trajet */
+export function FuelSuggestionCard({
+  suggestion,
+  onAdd,
+  onSearch,
+  onClose,
+}: {
+  suggestion: FuelSuggestion;
+  onAdd: () => void;
+  onSearch: () => void;
+  onClose: () => void;
+}) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const { station } = suggestion;
+  return (
+    <View style={styles.fuelCard}>
+      <View style={styles.destRow}>
+        <MaterialCommunityIcons name="gas-station" size={30} color={Colors.danger} />
+        <View style={styles.variantText}>
+          <Text style={styles.variantLabel}>Autonomie ~{Math.round(suggestion.leftKm)} km</Text>
+          <Text style={styles.small} numberOfLines={2}>
+            {suggestion.searching
+              ? 'Recherche d’une station sur le trajet…'
+              : station
+                ? `${station.label} · dans ${shortDistance(station.aheadM)} sur ton trajet`
+                : 'Aucune station trouvée sur les 50 prochains km'}
+          </Text>
+        </View>
+        <Pressable style={styles.iconButton} onPress={onClose} hitSlop={8} accessibilityLabel="Fermer">
+          <Ionicons name="close" size={26} color={Colors.textMuted} />
+        </Pressable>
+      </View>
+      {!suggestion.searching && (
+        <Pressable
+          style={({ pressed }) => [styles.bigButton, styles.go, pressed && styles.pressed]}
+          onPress={station ? onAdd : onSearch}>
+          <MaterialCommunityIcons name={station ? 'map-marker-plus' : 'magnify'} size={24} color={Colors.white} />
+          <Text style={styles.goText}>{station ? 'Ajouter l’arrêt' : 'Chercher une station'}</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -475,6 +565,25 @@ const useStyles = makeStyles((Colors) => ({
   addStop: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52 },
   addStopText: { fontSize: 15, fontWeight: '700', color: Colors.accent },
   motoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fuelWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+    padding: 10,
+  },
+  fuelWarningText: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.text },
+  fuelCard: {
+    gap: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: Colors.danger,
+    elevation: 6,
+  },
   optionChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   optionChip: {
     flexDirection: 'row',

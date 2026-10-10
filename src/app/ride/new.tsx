@@ -13,6 +13,8 @@ import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
+import { simplifyTrack, takePendingGpx, trackLengthM, type GpxData } from '@/lib/gpx';
+import { pickAndParseGpx } from '@/lib/gpx-import';
 import { pickPlace } from '@/lib/place-picker';
 import { ALL_CATEGORIES, MOTO_CATEGORIES, PACES, SURFACES, type MotoCategory, type Pace, type Surface } from '@/lib/moto';
 import {
@@ -28,6 +30,18 @@ import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
 const MAX_WAYPOINTS = 8;
+/** Tracé importé : 1500 points au plus (limite du serveur : 2000) */
+const MAX_IMPORTED_POINTS = 1500;
+/** Durée estimée d'un tracé importé sans horaires : 55 km/h de moyenne */
+const IMPORTED_KMH = 55;
+
+/** Durée d'un tracé GPX : ses horaires s'ils sont plausibles, sinon estimation */
+function gpxDurationS(data: GpxData, distanceM: number) {
+  const first = data.points[0].time;
+  const last = data.points[data.points.length - 1].time;
+  const s = first && last ? (last - first) / 1000 : 0;
+  return s > 60 && s < 24 * 3600 ? Math.round(s) : Math.round(distanceM / (IMPORTED_KMH / 3.6));
+}
 
 function defaultMeetingAt() {
   // Demain 9 h
@@ -49,7 +63,7 @@ export default function NewRideScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string }>();
+  const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string; gpx?: string }>();
   const [given] = useState(() => placeFromParams(params));
   const [title, setTitle] = useState('');
   const [start, setStart] = useState<Place | null>(params.role === 'start' ? given : null);
@@ -74,10 +88,14 @@ export default function NewRideScreen() {
     ? JSON.stringify({ stops: stops.map((s) => [s.latitude, s.longitude]), options: routeOptions ?? null })
     : null;
   const [route, setRoute] = useState<{ key: string; route: ComputedRoute } | null>(null);
-  const currentRoute = route && route.key === stopsKey ? route.route : null;
+  // Tracé importé d'un GPX : gardé tant que départ, étapes et arrivée ne changent pas
+  const placesKey = stops ? JSON.stringify(stops.map((s) => [s.latitude, s.longitude])) : null;
+  const [imported, setImported] = useState<{ key: string; route: ComputedRoute } | null>(null);
+  const usingImport = !!imported && imported.key === placesKey;
+  const currentRoute = usingImport ? imported.route : route && route.key === stopsKey ? route.route : null;
 
   useEffect(() => {
-    if (!stopsKey) return;
+    if (!stopsKey || usingImport) return;
     const parsed = JSON.parse(stopsKey) as { stops: [number, number][]; options: typeof routeOptions | null };
     const points = parsed.stops.map(([latitude, longitude]) => ({ latitude, longitude }));
     let cancelled = false;
@@ -87,7 +105,45 @@ export default function NewRideScreen() {
     return () => {
       cancelled = true;
     };
-  }, [stopsKey]);
+  }, [stopsKey, usingImport]);
+
+  // GPX importé : départ, arrivée et tracé repris du fichier
+  const applyGpx = (data: GpxData) => {
+    const points = data.points;
+    const first = points[0];
+    const last = points[points.length - 1];
+    const distanceM = trackLengthM(points);
+    const startPlace = { label: `Point ${first.latitude.toFixed(4)}, ${first.longitude.toFixed(4)}`, latitude: first.latitude, longitude: first.longitude };
+    const endPlace = { label: `Point ${last.latitude.toFixed(4)}, ${last.longitude.toFixed(4)}`, latitude: last.latitude, longitude: last.longitude };
+    setStart(startPlace);
+    setEnd(endPlace);
+    setWaypoints([]);
+    if (data.name) setTitle((t) => t || data.name!.slice(0, 80));
+    setImported({
+      key: JSON.stringify([startPlace, endPlace].map((s) => [s.latitude, s.longitude])),
+      route: {
+        points: simplifyTrack(points, MAX_IMPORTED_POINTS).map((p) => [p.latitude, p.longitude] as [number, number]),
+        distanceM: Math.round(distanceM),
+        durationS: gpxDurationS(data, distanceM),
+        onRoads: true,
+      },
+    });
+    // Noms des lieux (sans toucher aux coordonnées : le tracé importé est gardé)
+    reverseGeocode(first).then((p) => setStart((s) => (s === startPlace ? { ...startPlace, label: p.label } : s)));
+    reverseGeocode(last).then((p) => setEnd((s) => (s === endPlace ? { ...endPlace, label: p.label } : s)));
+  };
+
+  // Arrivée depuis « Importer un GPX » (onglet Balades)
+  useEffect(() => {
+    if (!params.gpx) return;
+    const data = takePendingGpx();
+    if (data) setTimeout(() => applyGpx(data), 0);
+  }, [params.gpx]);
+
+  const importFile = async () => {
+    const data = await pickAndParseGpx();
+    if (data) applyGpx(data);
+  };
 
   // Centre la carte sur moi tant qu'aucun point n'est placé
   useEffect(() => {
@@ -195,6 +251,10 @@ export default function NewRideScreen() {
         <Field label="Titre" required value={title} onChangeText={setTitle} placeholder="ex. Tour des Calanques" maxLength={80} />
 
         <Section title="Itinéraire">
+          <Pressable style={styles.addStep} onPress={importFile}>
+            <Ionicons name="document-attach-outline" size={20} color={Colors.accent} />
+            <Text style={styles.addStepText}>Importer un tracé GPX</Text>
+          </Pressable>
           <PlaceField
             label="Départ (A)"
             required
@@ -250,6 +310,7 @@ export default function NewRideScreen() {
                 <Text style={styles.routeInfo}>
                   {formatDistance(currentRoute.distanceM)} · environ {formatDuration(currentRoute.durationS)}
                   {!currentRoute.onRoads && ' (estimation, calcul d’itinéraire indisponible)'}
+                  {usingImport && ' · tracé du GPX (modifie A, B ou les étapes pour le recalculer)'}
                 </Text>
               ) : (
                 <View style={styles.computing}>

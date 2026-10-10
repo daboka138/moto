@@ -24,7 +24,7 @@
   <main class="wrap">
     <article>
       <h1>Politique de confidentialité</h1>
-      <p class="meta">Application PasseRyder — dernière mise à jour : 8 octobre 2026</p>
+      <p class="meta">Application PasseRyder — dernière mise à jour : 10 octobre 2026</p>
 
       <p>
         Cette politique explique quelles données l'application mobile <strong>PasseRyder</strong> collecte,
@@ -76,6 +76,18 @@
           d'arrivée estimée, la distance restante et ta position sont envoyées pendant la navigation, visibles uniquement
           dans votre conversation privée. À l'arrivée, à l'arrêt de la navigation ou après 30 minutes sans mise à jour,
           le partage s'arrête et ta position est effacée ; la fiche est supprimée 24 heures plus tard.</li>
+        <li><strong>Balades en convoi</strong> : ton rôle (ouvreur ou serre-file, donné par l'organisateur) et l'heure de ton
+          pointage au point de rendez-vous (« Qui est au RDV ? »), visibles par les participants de la balade et supprimés avec elle.
+          Le pointage automatique compare ta position au point de RDV sur ton téléphone ; le suivi du convoi (qui a décroché)
+          utilise les positions déjà partagées pendant la balade et est calculé sur ton téléphone.</li>
+      </ul>
+
+      <h3>Garage et entretien (visible uniquement par toi)</h3>
+      <ul>
+        <li>Pour chaque moto, si tu les renseignes : kilométrage, capacité du réservoir, consommation, date et kilométrage
+          du dernier plein, entretiens réalisés (type, date, kilométrage, coût, notes) et rappels d'entretien.</li>
+        <li>Le kilométrage de ta moto principale augmente de la distance de chaque navigation terminée (la distance seule,
+          jamais le trajet).</li>
       </ul>
 
       <h3>Photos, vidéos et micro</h3>
@@ -121,7 +133,7 @@
       <h3>Notifications</h3>
       <ul>
         <li>Un identifiant de notification de ton téléphone (jeton Expo / Firebase), et tes choix de notifications
-          (messages, balades, amis, dangers). Supprimé à la déconnexion ou avec ton compte.</li>
+          (messages, balades, amis, dangers, rappels d'entretien). Supprimé à la déconnexion ou avec ton compte.</li>
         <li>« Danger près de moi » utilise ta dernière position en direct (déjà décrite ci-dessus) pour savoir si un
           signalement est à moins de 3 km.</li>
       </ul>
@@ -130,7 +142,9 @@
       <ul>
         <li>Ta session de connexion, tes réglages (thème, style de carte, voix), l'historique de tes recherches de destination,
           tes lieux favoris (Maison, Travail…), la navigation en cours (pour la reprendre si l'application redémarre) et
-          l'historique « Mes trajets » (destination, date, distance, durée, vitesses moyenne et maximale).
+          l'historique « Mes trajets » (destination, date, distance, durée, vitesses moyenne et maximale, et la trace GPS
+          du trajet pour pouvoir l'exporter en fichier GPX). Les fichiers GPX que tu importes ou exportes restent sur ton
+          appareil, sauf si tu crées une balade avec (son tracé est alors celui de la balade).
           Ils ne sont pas envoyés sur nos serveurs. Sur la version web, ta session et tes réglages sont gardés dans
           le stockage local de ton navigateur (pas de cookie publicitaire ni de mesure d'audience).</li>
       </ul>
@@ -170,9 +184,12 @@
           pour trouver la route où tu es. Désactivable dans Paramètres › Voix et alertes.</li>
         <li><strong>Stations, cafés et restaurants sur ton trajet</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de l'itinéraire devant toi,
           seulement quand tu fais cette recherche.</li>
+        <li><strong>Météo sur le trajet</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire ou de la balade
+          (arrondis à environ 10 m), sans aucune information sur toi.</li>
         <li><strong>Recherche d'adresse</strong> : Géoplateforme de l'IGN (France), Nominatim et Photon (OpenStreetMap, UE) — texte recherché ou point sur la carte.</li>
         <li><strong>Notifications push</strong> : Expo Push (650 Industries, États-Unis) et Firebase Cloud Messaging (Google) —
-          identifiant de notification du téléphone, titre et texte de la notification (par exemple « Nouveau message de @pseudo »).
+          identifiant de notification du téléphone, titre et texte de la notification (par exemple « Nouveau message de @pseudo »
+          ou un rappel d'entretien).
           Transfert encadré par les clauses contractuelles types de la Commission européenne.</li>
         <li><strong>Expo (EAS Update)</strong>, société 650 Industries (États-Unis) : téléchargement des mises à jour de l'application
           (adresse IP, version de l'application et du système). Ce transfert est encadré par les clauses contractuelles types de la Commission européenne.</li>
@@ -196,7 +213,7 @@
       <h2>7. Supprimer ton compte</h2>
       <p>
         Dans l'application : <strong>Paramètres › Supprimer mon compte</strong>. La suppression est immédiate et définitive :
-        compte, profil, nom, motos, photos, « J'aime » et commentaires, stories, messages, conversations privées, position, amis, blocages,
+        compte, profil, nom, motos (avec garage et carnet d'entretien), photos, « J'aime » et commentaires, stories, messages, conversations privées, position, amis, blocages,
         balades créées et signalements routiers sont effacés de nos serveurs, fichiers compris.
       </p>
       <p>Sans l'application : voir la page <a href="/supprimer-mon-compte">Supprimer mon compte</a>.</p>

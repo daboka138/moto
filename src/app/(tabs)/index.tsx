@@ -6,10 +6,11 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConvoyPanel } from '@/components/convoy-panel';
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
 import { showActionSheet } from '@/components/action-sheet';
-import { NavBanner, NavSheet, ReportButton, RoutePreviewSheet, Speedometer } from '@/components/nav/nav-ui';
+import { FuelSuggestionCard, NavBanner, NavSheet, ReportButton, RoutePreviewSheet, Speedometer } from '@/components/nav/nav-ui';
 import { QuickPlaces } from '@/components/nav/quick-places';
 import { ReportCard, ReportSheet } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
@@ -21,7 +22,11 @@ import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
+import { useConvoy } from '@/lib/convoy';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
+import { needsFuel, useFuelAlert } from '@/lib/fuel';
+import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garage';
+import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { useMapLayers } from '@/lib/map-layers';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
@@ -45,6 +50,7 @@ import { useNavigation } from '@/lib/use-navigation';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
+import { roundedNow, spokenWeatherAlert, useRouteWeather } from '@/lib/weather';
 // DEMO : faux motards simulés (voir src/demo)
 import { useDemoMode } from '@/demo/demo-context';
 import { DemoCounter } from '@/demo/demo-counter';
@@ -74,6 +80,8 @@ const KEEP_AWAKE_TAG = 'navigation';
 /** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
 const HOMECOMING_POSITION_MS = 60_000;
 const HOMECOMING_ARRIVED_M = 150;
+/** Tracé GPX suivi en navigation : points de passage imposés au calcul d'itinéraire */
+const GPX_VIA_POINTS = 6;
 
 export default function MapScreen() {
   const Colors = useColors();
@@ -132,6 +140,35 @@ export default function MapScreen() {
   const navigating = nav.phase === 'navigating';
   const [stopPicker, setStopPicker] = useState<{ kind: PoiKind | null } | null>(null);
   const [shareSheet, setShareSheet] = useState(false);
+
+  // ---------- Garage : autonomie de la moto principale, compteur mis à jour à la fin du trajet ----------
+  const garage = useMyGarage(userId);
+  const myGarage = myMoto ? (garage?.[myMoto.id]?.garage ?? null) : null;
+  const fuelLeftKm = fuelRange(myGarage, nav.tripM / 1000)?.leftKm ?? null;
+  const previewFuel =
+    fuelLeftKm !== null && nav.route ? { leftKm: fuelLeftKm, needed: needsFuel(fuelLeftKm, nav.route.distanceM / 1000) } : null;
+  const fuelAlert = useFuelAlert({
+    navigating,
+    leftKm: fuelLeftKm,
+    remainingKm: nav.progress ? nav.progress.remainingM / 1000 : null,
+    route: navigating ? nav.route : null,
+    alongM: nav.progress?.alongM ?? 0,
+  });
+  const countedTrip = useRef<string | null>(null);
+  const myMotoId = myMoto?.id ?? null;
+  useEffect(() => {
+    const trip = nav.summary;
+    if (!trip || !myMotoId || countedTrip.current === trip.id) return;
+    countedTrip.current = trip.id;
+    addMotorcycleKm(myMotoId, trip.distanceM / 1000).catch((e) => console.warn('Compteur non mis à jour', e));
+  }, [nav.summary, myMotoId]);
+
+  // Météo le long de l'itinéraire proposé, à l'heure de passage
+  const previewWeather = useRouteWeather(
+    nav.phase === 'preview' && nav.route ? nav.route.points : null,
+    nav.route?.durationS ?? null,
+    roundedNow(),
+  );
 
   // Écran toujours allumé pendant la navigation
   useEffect(() => {
@@ -210,12 +247,21 @@ export default function MapScreen() {
 
   // ---------- Motards réels : Supabase ne renvoie que ceux que j'ai le droit de voir ----------
   const liveRiders = useLiveRiders(userId, me, settings?.mode ?? null);
+  // Balade du jour : check-in automatique au RDV, puis convoi (qui décroche ?) pendant la balade
+  const convoy = useConvoy({
+    rides,
+    userId,
+    liveRiders,
+    me: position,
+    onCheckIn: (r) => showToast(`Check-in au RDV : tu es pointé présent pour « ${r.title} »`),
+  });
+  const droppedIds = new Set(convoy?.dropped.map((m) => m.id) ?? []);
   const realMarkers: MapMarker[] = liveRiders.map((r) => ({
     id: REAL_PREFIX + r.userId,
     latitude: r.latitude,
     longitude: r.longitude,
     photoUrl: photoUrl(r.avatarPath),
-    tone: (r.speedKmh ?? 0) < 1 ? 'muted' : 'default',
+    tone: droppedIds.has(r.userId) ? 'alert' : (r.speedKmh ?? 0) < 1 ? 'muted' : 'default',
   }));
 
   // DEMO : même règles de visibilité que côté serveur, rejouées en local
@@ -450,6 +496,16 @@ export default function MapScreen() {
     if (!silent) showToast(value === 'gone' ? 'Merci, signalement retiré si confirmé par d’autres' : 'Merci pour la confirmation');
   };
 
+  const fuelFilled = () => {
+    if (!myGarage) return;
+    markFilled(myGarage, nav.tripM / 1000)
+      .then(() => {
+        fuelAlert.dismiss();
+        showToast('Plein noté : autonomie remise à zéro');
+      })
+      .catch((e) => Alert.alert('Plein', e instanceof Error ? e.message : String(e)));
+  };
+
   const stopNavigation = () => {
     nav.stop();
     speak('Navigation arrêtée', true, 'guidance');
@@ -473,16 +529,16 @@ export default function MapScreen() {
     });
   };
 
-  const chooseDestination = (r: Parameters<typeof nav.choose>[0]) => {
+  const chooseDestination = (r: Parameters<typeof nav.choose>[0], via?: Parameters<typeof nav.choose>[1]) => {
     setFollow(false);
     setSelectedId(null);
     setDropped(null);
-    nav.choose(r);
+    nav.choose(r, via);
   };
 
   // Lien depuis le site web (« Aller ici » → passeryder://?goLat=…&goLng=…&goLabel=…) :
   // aperçu de l'itinéraire dès que ma position est connue
-  const goParams = useLocalSearchParams<{ goLat?: string; goLng?: string; goLabel?: string }>();
+  const goParams = useLocalSearchParams<{ goLat?: string; goLng?: string; goLabel?: string; gpx?: string }>();
   const goKey = goParams.goLat && goParams.goLng ? `${goParams.goLat},${goParams.goLng}` : null;
   const handledGo = useRef<string | null>(null);
   const hasFix = !!location;
@@ -499,6 +555,31 @@ export default function MapScreen() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goKey, hasFix]);
+
+  // GPX importé (onglet Balades › GPX › Naviguer) : arrivée = fin du tracé, points de passage le long
+  const handledGpx = useRef<string | null>(null);
+  useEffect(() => {
+    if (!goParams.gpx || !hasFix || handledGpx.current === goParams.gpx) return;
+    handledGpx.current = goParams.gpx;
+    const data = takePendingGpx();
+    if (!data) return;
+    const end = data.points[data.points.length - 1];
+    const via = viaPointsAlong(data.points, GPX_VIA_POINTS).map((p, i) => ({
+      latitude: p.latitude,
+      longitude: p.longitude,
+      label: `Tracé GPX · point ${i + 1}`,
+      source: 'lieu' as const,
+    }));
+    const dest = {
+      latitude: end.latitude,
+      longitude: end.longitude,
+      label: data.name ? `Fin de « ${data.name} »` : 'Fin du tracé GPX',
+      source: 'lieu' as const,
+    };
+    const timer = setTimeout(() => chooseDestination(dest, via), 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goParams.gpx, hasFix]);
 
   const removeMine = async (id: string) => {
     const target = reports.find((r) => r.id === id);
@@ -664,6 +745,13 @@ export default function MapScreen() {
               <Text style={styles.ghostBannerText}>Mode fantôme · tu es masqué</Text>
             </View>
           )}
+          {convoy && (
+            <ConvoyPanel
+              convoy={convoy}
+              compact={navigating}
+              onOpenRide={() => router.push({ pathname: '/ride/[id]', params: { id: convoy.ride.id } })}
+            />
+          )}
           {homecoming && (
             <Pressable style={styles.homecomingChip} onPress={() => router.push('/homecoming')}>
               <Ionicons name="home" size={18} color={Colors.white} />
@@ -778,16 +866,39 @@ export default function MapScreen() {
                 onAddStop={() => setStopPicker({ kind: null })}
                 onRemoveStop={nav.removeStop}
                 onFavorite={favoriteMenu}
+                weather={previewWeather}
+                fuel={previewFuel}
+                onAddFuel={() => setStopPicker({ kind: 'fuel' })}
                 onStart={() => {
                   setSelectedId(null);
                   setDropped(null);
                   setFollow(true);
                   nav.start();
+                  // Alerte météo au départ (pluie, vent, froid sur le trajet)
+                  const alert = spokenWeatherAlert(previewWeather.weather);
+                  if (alert) speak(alert, false, 'info');
                 }}
                 onCancel={() => {
                   nav.stop();
                   setFollow(true);
                 }}
+              />
+            </View>
+          )}
+          {navigating && fuelAlert.suggestion && (
+            <View style={styles.card}>
+              <FuelSuggestionCard
+                suggestion={fuelAlert.suggestion}
+                onAdd={() => {
+                  const station = fuelAlert.suggestion?.station;
+                  if (station) nav.addStop(station);
+                  fuelAlert.dismiss();
+                }}
+                onSearch={() => {
+                  fuelAlert.dismiss();
+                  setStopPicker({ kind: 'fuel' });
+                }}
+                onClose={fuelAlert.dismiss}
               />
             </View>
           )}
@@ -802,6 +913,8 @@ export default function MapScreen() {
                 onAddStop={() => setStopPicker({ kind: null })}
                 onShare={() => setShareSheet(true)}
                 onRemoveStop={nav.removeStop}
+                fuelLeftKm={fuelLeftKm}
+                onFilled={myGarage?.tankL ? fuelFilled : undefined}
               />
             </View>
           )}

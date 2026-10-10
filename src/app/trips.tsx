@@ -4,8 +4,10 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { showActionSheet } from '@/components/action-sheet';
 import { TripStatsGrid } from '@/components/trip-summary';
 import { makeStyles, useColors } from '@/constants/theme';
+import { buildGpx, gpxFileName } from '@/lib/gpx';
+import { saveGpxFile } from '@/lib/gpx-file';
 import { shortDistance } from '@/lib/navigation';
-import { clearTrips, deleteTrip, useTrips, type TripSummary } from '@/lib/trips';
+import { clearTrips, deleteTrip, readTrack, useTrips, type TripSummary } from '@/lib/trips';
 
 /** Mes trajets : résumés des navigations terminées (gardés sur le téléphone). */
 export default function TripsScreen() {
@@ -52,10 +54,26 @@ function TripRow({ trip }: { trip: TripSummary }) {
   const Colors = useColors();
   const styles = useStyles();
   const start = new Date(trip.startedAt);
+  const exportGpx = async () => {
+    const track = readTrack(trip.id);
+    if (!track) {
+      Alert.alert('Export GPX', 'La trace GPS de ce trajet n’a pas été gardée.');
+      return;
+    }
+    const name = `${start.toLocaleDateString('fr-FR')} ${trip.destination}`;
+    try {
+      await saveGpxFile(gpxFileName(name), buildGpx({ name, points: track }));
+    } catch (e) {
+      Alert.alert('Export GPX impossible', e instanceof Error ? e.message : String(e));
+    }
+  };
   const menu = () =>
     showActionSheet({
       title: trip.destination,
-      options: [{ label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) }],
+      options: [
+        ...(trip.hasTrack ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
+        { label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) },
+      ],
     });
   return (
     <Pressable style={styles.card} onLongPress={menu} delayLongPress={350}>

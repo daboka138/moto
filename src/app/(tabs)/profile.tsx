@@ -90,6 +90,8 @@ export default function ProfileScreen() {
             />
             <LinkSeparator />
             <LinkRow icon="speedometer" label="Mes trajets" value={`${trips.length}`} onPress={() => router.push('/trips')} />
+            <LinkSeparator />
+            <LinkRow icon="construct" label="Garage et entretien" onPress={() => router.push('/garage')} />
           </LinkGroup>
         </>
       }

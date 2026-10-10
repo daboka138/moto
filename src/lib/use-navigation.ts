@@ -149,6 +149,8 @@ export function useNavigation(
   const [shares, setShares] = useState<ActiveShare[]>([]);
   // Résumé affiché à la fin d'une navigation
   const [summary, setSummary] = useState<TripSummary | null>(null);
+  // Distance déjà parcourue pendant cette navigation (mise à jour toutes les 15 s : autonomie)
+  const [tripM, setTripM] = useState(0);
 
   const selected = choices.find((c) => c.variant === variant) ?? null;
   const route = phase === 'navigating' ? navRoute : (selected?.route ?? null);
@@ -217,17 +219,18 @@ export function useNavigation(
     }
   };
 
-  const choose = (dest: SearchResult) => {
+  /** Aperçu vers une destination, avec des étapes déjà prévues (tracé GPX importé) */
+  const choose = (dest: SearchResult, via: SearchResult[] = []) => {
     // Chaque nouveau trajet repart des options de la moto
     const opts = defaultRouteOptions(category);
     const v = defaultVariant(opts);
     setOptions(opts);
     setVariant(v);
     setDestination(dest);
-    setStops([]);
+    setStops(via);
     setPhase('preview');
     setSummary(null);
-    computeChoices(dest, [], opts, v);
+    computeChoices(dest, via, opts, v);
   };
 
   const updateOptions = (patch: Partial<RouteOptions>) => {
@@ -272,6 +275,7 @@ export function useNavigation(
     spoken.current = new Set();
     offRouteCount.current = 0;
     stats.current = newTripStats();
+    setTripM(0);
     setNavRoute(selected.route);
     setNavError(null);
     setShares([]);
@@ -284,7 +288,7 @@ export function useNavigation(
   const stop = (arrived = false) => {
     if (phase === 'navigating' && destination && stats.current) {
       const s = summarize(stats.current, destination.label, arrived);
-      setSummary(saveTrip(s) ? s : null);
+      setSummary(saveTrip(s, stats.current.track) ? s : null);
     }
     if (shares.length) {
       endTripShares(shares.map((x) => x.id), arrived ? 'arrived' : 'stopped').catch((e) => console.warn('Fin du partage impossible', e));
@@ -341,6 +345,7 @@ export function useNavigation(
     if (!saved || !me || phase !== 'idle') return;
     resume.current = null;
     stats.current = saved.stats;
+    setTripM(saved.stats.distanceM);
     setDestination(saved.destination);
     setStops(saved.stops);
     setOptions(saved.options);
@@ -366,6 +371,7 @@ export function useNavigation(
       stats.current = recordFix(stats.current, me, speedKmh, now);
       if (now - lastStatsSave.current > SAVE_STATS_EVERY_MS) {
         lastStatsSave.current = now;
+        setTripM(stats.current.distanceM);
         writeSavedNav({ destination, stops, options, variant, shares, stats: stats.current, savedAt: now });
       }
     }
@@ -437,6 +443,8 @@ export function useNavigation(
     options,
     shares,
     summary,
+    /** Distance parcourue depuis le départ (m), mise à jour toutes les 15 s */
+    tripM: phase === 'navigating' ? tripM : 0,
     choose,
     updateOptions,
     selectVariant,

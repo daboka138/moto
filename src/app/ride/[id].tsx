@@ -18,6 +18,9 @@ import {
   type RideDetails,
 } from '@/lib/rides';
 import { IS_WEB } from '@/lib/app-link';
+import { buildGpx, gpxFileName } from '@/lib/gpx';
+import { saveGpxFile } from '@/lib/gpx-file';
+import { fetchRouteWeather } from '@/lib/weather';
 import { mainCategory } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 import { confirmJoinRide } from '@/lib/join-ride';
@@ -92,11 +95,42 @@ export default function RideScreen() {
       { text: 'Me désister', style: 'destructive', onPress: () => run(() => leaveRide(ride.id, userId)) },
     ]);
 
-  const confirmStart = () =>
-    Alert.alert('Démarrer la balade', 'Les participants vont se voir sur la carte jusqu’à la fin de la balade.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Démarrer', onPress: () => run(() => startRide(ride.id)) },
-    ]);
+  const routePoints = (ride.route ?? [ride.start, ...ride.waypoints, ride.end].map((p) => [p.latitude, p.longitude] as [number, number])).map(
+    ([latitude, longitude]) => ({ latitude, longitude }),
+  );
+
+  // Alerte météo avant de partir (pluie, vent, froid sur le parcours)
+  const confirmStart = async () => {
+    setBusy(true);
+    const weather = await fetchRouteWeather(routePoints, ride.durationS ?? 3600, new Date()).catch(() => null);
+    setBusy(false);
+    const alerts = weather?.alerts ?? [];
+    Alert.alert(
+      'Démarrer la balade',
+      `${alerts.length ? `⚠️ Météo : ${alerts.join(' · ')}
+
+` : ''}Les participants vont se voir sur la carte jusqu’à la fin de la balade.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Démarrer', onPress: () => run(() => startRide(ride.id)) },
+      ],
+    );
+  };
+
+  const exportGpx = () =>
+    run(async () => {
+      const gpx = buildGpx({
+        name: ride.title,
+        points: routePoints,
+        waypoints: [
+          { ...ride.meeting, label: `RDV : ${ride.meeting.label}` },
+          { ...ride.start, label: `Départ : ${ride.start.label}` },
+          ...ride.waypoints.map((w, i) => ({ ...w, label: `Étape ${i + 1} : ${w.label}` })),
+          { ...ride.end, label: `Arrivée : ${ride.end.label}` },
+        ],
+      });
+      await saveGpxFile(gpxFileName(ride.title), gpx);
+    });
 
   const confirmEnd = () =>
     Alert.alert('Terminer la balade', 'Les participants ne se verront plus (selon leurs réglages habituels).', [
@@ -122,6 +156,13 @@ export default function RideScreen() {
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
       )}
+      {(isOrganizer || ride.joined) && ride.status !== 'ended' && canStartNow(ride.meetingAt) && (
+        <Button
+          title={`✅ Qui est au RDV ? (${ride.participants.filter((p) => p.status === 'joined' && p.checkedInAt).length}/${ride.participantsCount})`}
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/ride/checkin', params: { id: ride.id } })}
+        />
+      )}
 
       {isOrganizer ? (
         <>
@@ -146,17 +187,20 @@ export default function RideScreen() {
               onPress={() => router.push({ pathname: '/ride/invite', params: { id: ride.id } })}
             />
           )}
+          <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />
           <Button title="Supprimer la balade" variant="ghost" onPress={confirmDelete} />
         </>
       ) : ride.joined ? (
         ride.status !== 'ended' && <Button title="Je me désiste" variant="secondary" loading={busy} onPress={confirmLeave} />
-      ) : canJoin ? (
+      ) : null}
+      {isOrganizer || ride.joined ? null : canJoin ? (
         full ? (
           <Button title="Complet" variant="secondary" disabled onPress={() => {}} />
         ) : (
           <Button title={ride.invited ? 'Tu es invité · Je participe' : 'Je participe'} loading={busy} onPress={confirmJoin} />
         )
       ) : null}
+      {!isOrganizer && <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />}
     </View>
   );
 

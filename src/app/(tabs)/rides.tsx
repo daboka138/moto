@@ -9,6 +9,7 @@ import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
+import { importGpx } from '@/lib/gpx-import';
 import { categoryInfo, rideFitsCategory } from '@/lib/moto';
 import { mainCategory, photoUrl } from '@/lib/profile';
 import { RIDE_LEVELS, type RideLevel, type RideSummary } from '@/lib/rides';
@@ -90,10 +91,16 @@ export default function RidesScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Balades</Text>
-        <Pressable style={styles.create} onPress={() => router.push('/ride/new')}>
-          <Ionicons name="add" size={20} color={Colors.white} />
-          <Text style={styles.createText}>Créer</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          <Pressable style={styles.gpx} onPress={importGpx} accessibilityLabel="Importer un fichier GPX">
+            <Ionicons name="document-attach-outline" size={18} color={Colors.accent} />
+            <Text style={styles.gpxText}>GPX</Text>
+          </Pressable>
+          <Pressable style={styles.create} onPress={() => router.push('/ride/new')}>
+            <Ionicons name="add" size={20} color={Colors.white} />
+            <Text style={styles.createText}>Créer</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.filters}>
@@ -183,6 +190,18 @@ const useStyles = makeStyles((Colors) => ({
     paddingVertical: 8,
   },
   createText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  gpx: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  gpxText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
   filters: { gap: 8, paddingVertical: 8 },
   filterRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },
