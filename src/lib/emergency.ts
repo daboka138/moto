@@ -1,14 +1,15 @@
-import * as SMS from 'expo-sms';
 import { useSyncExternalStore } from 'react';
 
+import { sendAlertSms, type AlertSmsResult } from '@/lib/alert-sms';
 import type { LatLng } from '@/lib/geo';
 import { photoUrl } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
 // Contacts d'urgence et SOS.
 // - Amis de l'app : enregistrés sur le serveur ; un SOS leur envoie une notification et un message.
-// - Numéros de téléphone : restent sur ce téléphone ; un SOS ouvre un SMS prérempli (envoyé par
-//   moi : pas de permission SEND_SMS, interdite par Google Play).
+// - Numéros de téléphone : gardés sur ce téléphone ; un SOS leur envoie un SMS automatique via le
+//   serveur (Brevo, lib/alert-sms.ts). Si ça échoue : SMS prérempli à envoyer soi-même (pas de
+//   permission SEND_SMS, interdite par Google Play).
 
 export type MemberContact = { id: string; username: string; avatarUrl: string };
 export type PhoneContact = { id: string; name: string; phone: string };
@@ -120,24 +121,18 @@ export function mapLink(p: LatLng) {
   return `https://maps.google.com/?q=${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
 }
 
-const SMS_TEXT: Record<SosKind, string> = {
-  manual: 'SOS : j’ai besoin d’aide.',
-  fall: 'SOS : chute détectée par PasseRyder, je ne réponds pas.',
-  homecoming: 'SOS : je ne suis pas arrivé(e) à l’heure prévue.',
-};
-
 export type SosResult = {
   /** Id du SOS enregistré (null si le serveur n'a pas pu être joint) */
   id: string | null;
   /** Message d'erreur du serveur, le cas échéant */
   error: string | null;
-  /** Un SMS prérempli a été ouvert pour les numéros de téléphone */
-  smsOpened: boolean;
+  /** SMS aux numéros de téléphone (null : aucun numéro) */
+  sms: AlertSmsResult | null;
 };
 
 /**
- * Envoie un SOS : notification + message aux amis contacts d'urgence (serveur), puis ouvre un
- * SMS prérempli pour les numéros de téléphone (il faut appuyer sur Envoyer).
+ * Envoie un SOS : notification + message aux amis contacts d'urgence (serveur), puis SMS
+ * automatique aux numéros de téléphone (SMS prérempli à envoyer soi-même si ça échoue).
  */
 export async function sendSos(kind: Exclude<SosKind, 'homecoming'>, position: LatLng | null): Promise<SosResult> {
   let id: string | null = null;
@@ -154,18 +149,12 @@ export async function sendSos(kind: Exclude<SosKind, 'homecoming'>, position: La
     error = e instanceof Error ? e.message : String(e);
   }
 
-  let smsOpened = false;
-  const numbers = phones.map((p) => p.phone);
-  if (numbers.length && (await SMS.isAvailableAsync())) {
-    const where = position ? ` Ma position : ${mapLink(position)}` : ' Position inconnue.';
-    try {
-      smsOpened = true;
-      await SMS.sendSMSAsync(numbers, `${SMS_TEXT[kind]}${where}`);
-    } catch (e) {
-      console.warn('SMS impossible', e);
-    }
-  }
-  return { id, error, smsOpened };
+  const sms = await sendAlertSms(
+    kind === 'fall' ? 'chute' : 'sos',
+    phones.map((p) => p.phone),
+    position,
+  );
+  return { id, error, sms };
 }
 
 /** « Je vais bien » : l'alerte est levée et les contacts prévenus */

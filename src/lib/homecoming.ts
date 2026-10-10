@@ -1,12 +1,16 @@
 import { useSyncExternalStore } from 'react';
 
+import { sendAlertSms, type AlertSmsResult } from '@/lib/alert-sms';
 import type { LatLng } from '@/lib/geo';
 import type { SearchResult } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
 
-// Mode « Je rentre » : destination + heure d'arrivée max. Si je ne suis pas arrivé (et que je
-// n'ai pas prolongé), le serveur (pg_cron, check_homecomings) alerte mes contacts d'urgence avec
-// ma dernière position connue. L'app envoie ma position toutes les minutes tant qu'elle est ouverte.
+// Mode « Je rentre » : destination + heure d'arrivée prévue. Si je ne suis pas arrivé 15 min après
+// (et que je n'ai pas prolongé), le serveur (pg_cron, check_homecomings) alerte mes contacts
+// d'urgence avec ma dernière position connue : amis de l'app (notification + message) et numéros
+// de téléphone (SMS Brevo). Ces numéros ne sont gardés sur le serveur que pendant le « Je rentre »
+// (homecoming_sms). Au départ, un SMS les prévient. L'app envoie ma position toutes les minutes
+// tant qu'elle est ouverte.
 
 export type Homecoming = {
   id: string;
@@ -63,7 +67,17 @@ export function ensureHomecomingLoaded(userId: string) {
   refreshHomecoming(userId).catch((e) => console.warn('« Je rentre » indisponible', e));
 }
 
-export async function startHomecoming(userId: string, dest: SearchResult, deadline: Date, me: LatLng | null) {
+/** Marge après l'heure prévue avant l'alerte (même valeur que check_homecomings) */
+export const HOMECOMING_MARGIN_MIN = 15;
+
+/** Démarre « Je rentre » ; renvoie le résultat du SMS de départ (null si aucun numéro) */
+export async function startHomecoming(
+  userId: string,
+  dest: SearchResult,
+  deadline: Date,
+  me: LatLng | null,
+  phones: string[],
+): Promise<AlertSmsResult | null> {
   const { data, error } = await supabase
     .from('homecomings')
     .insert({
@@ -78,7 +92,17 @@ export async function startHomecoming(userId: string, dest: SearchResult, deadli
     .select(FIELDS)
     .single();
   if (error) throw new Error(error.message.includes('homecomings_one_active') ? '« Je rentre » déjà en cours' : error.message);
-  set(toHomecoming(data as Row));
+  const started = toHomecoming(data as Row);
+  if (phones.length) {
+    // Numéros pour le SMS de retard (effacés à l'arrivée ou à l'annulation)
+    const { error: phonesError } = await supabase.from('homecoming_sms').insert({ homecoming_id: started.id, phones });
+    if (phonesError) {
+      await supabase.from('homecomings').update({ status: 'cancelled' }).eq('id', started.id);
+      throw new Error(phonesError.message);
+    }
+  }
+  set(started);
+  return sendAlertSms('je_rentre', phones, me, deadline);
 }
 
 /** Repousse l'heure limite (à partir de l'heure limite actuelle, ou de maintenant si elle est passée) */

@@ -8,10 +8,11 @@ import { DateTimeField } from '@/components/form-fields';
 import { SearchBar } from '@/components/nav/search-bar';
 import { Button, Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { fetchMemberContacts } from '@/lib/emergency';
+import { alertSmsLabel } from '@/lib/alert-sms';
+import { fetchMemberContacts, usePhoneContacts } from '@/lib/emergency';
 import { useFavorites } from '@/lib/favorites';
 import type { LatLng } from '@/lib/geo';
-import { extendHomecoming, finishHomecoming, startHomecoming, useHomecoming } from '@/lib/homecoming';
+import { extendHomecoming, finishHomecoming, HOMECOMING_MARGIN_MIN, startHomecoming, useHomecoming } from '@/lib/homecoming';
 import type { SearchResult } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
@@ -26,7 +27,9 @@ function delayLabel(min: number) {
   return min < 60 ? `+${min} min` : `+${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}`;
 }
 
-/** Mode « Je rentre » : destination + heure d'arrivée max, alerte aux contacts si je n'arrive pas. */
+const withMargin = (d: Date) => new Date(d.getTime() + HOMECOMING_MARGIN_MIN * 60_000);
+
+/** Mode « Je rentre » : destination + heure d'arrivée prévue, alerte aux contacts si je n'arrive pas. */
 export default function HomecomingScreen() {
   const active = useHomecoming();
   return active ? <ActiveHomecoming /> : <NewHomecoming />;
@@ -54,13 +57,13 @@ function ActiveHomecoming() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Ionicons name="home" size={36} color={Colors.accent} style={{ alignSelf: 'center' }} />
-        <Text style={styles.big}>Arrivée avant {clock(deadline)}</Text>
+        <Text style={styles.big}>Arrivée prévue vers {clock(deadline)}</Text>
         <Text style={styles.muted} numberOfLines={2}>
           → {active.destination}
         </Text>
         <Text style={styles.muted}>
-          À cette heure-là, si tu n’es pas arrivé(e), tes contacts d’urgence reçoivent une alerte avec ta dernière position.
-          L’arrivée est détectée toute seule quand l’app est ouverte.
+          Si tu n’es pas arrivé(e) à {clock(withMargin(deadline))}, tes contacts d’urgence reçoivent une alerte avec ta
+          dernière position (SMS pour les numéros de téléphone). L’arrivée est détectée toute seule quand l’app est ouverte.
         </Text>
       </View>
 
@@ -93,6 +96,8 @@ function NewHomecoming() {
   const [deadline, setDeadline] = useState(() => new Date(Date.now() + 60 * 60_000));
   const [me, setMe] = useState<LatLng | null>(null);
   const [contacts, setContacts] = useState<number | null>(null);
+  const phones = usePhoneContacts();
+  const nobody = contacts === 0 && phones.length === 0;
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(
@@ -119,8 +124,15 @@ function NewHomecoming() {
     if (!dest) return;
     setBusy(true);
     try {
-      await startHomecoming(userId, dest, deadline, me);
+      const sms = await startHomecoming(
+        userId,
+        dest,
+        deadline,
+        me,
+        phones.map((p) => p.phone),
+      );
       router.back();
+      if (sms) Alert.alert('« Je rentre » démarré', alertSmsLabel(sms));
     } catch (e) {
       Alert.alert('« Je rentre » impossible', e instanceof Error ? e.message : String(e));
     } finally {
@@ -131,14 +143,15 @@ function NewHomecoming() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.muted}>
-        Indique où tu rentres et l’heure max d’arrivée. Si tu n’es pas arrivé(e) à temps et que tu n’as pas prolongé, tes
-        contacts d’urgence (amis de l’app) sont alertés avec ta dernière position.
+        Indique où tu rentres et l’heure d’arrivée prévue. Tes numéros d’urgence reçoivent un SMS au départ. Si tu n’es pas
+        arrivé(e) {HOMECOMING_MARGIN_MIN} min après et que tu n’as pas prolongé, tes contacts d’urgence (amis de l’app et
+        numéros de téléphone par SMS) sont alertés avec ta dernière position.
       </Text>
 
-      {contacts === 0 && (
+      {nobody && (
         <Pressable style={styles.warning} onPress={() => router.push('/emergency-contacts')}>
           <Ionicons name="warning" size={22} color={Colors.danger} />
-          <Text style={styles.warningText}>Aucun ami contact d’urgence : personne ne serait alerté. Ajouter →</Text>
+          <Text style={styles.warningText}>Aucun contact d’urgence (ami ou numéro) : personne ne serait alerté. Ajouter →</Text>
         </Pressable>
       )}
 
@@ -160,19 +173,20 @@ function NewHomecoming() {
         </>
       )}
 
-      <Text style={styles.section}>Arrivée au plus tard</Text>
+      <Text style={styles.section}>Arrivée prévue</Text>
       <View style={styles.row}>
         {DELAYS.map((m) => (
           <Chip key={m} label={delayLabel(m)} onPress={() => setDeadline(new Date(Date.now() + m * 60_000))} />
         ))}
       </View>
-      <DateTimeField label="Heure limite" mode="time" value={deadline} onChange={pickTime} />
+      <DateTimeField label="Heure d’arrivée" mode="time" value={deadline} onChange={pickTime} />
       <Text style={styles.muted}>
-        Alerte à {clock(deadline)}
-        {deadline.toDateString() !== new Date().toDateString() ? ' (demain)' : ''}. Rappel 10 min avant pour prolonger.
+        Alerte à {clock(withMargin(deadline))}
+        {withMargin(deadline).toDateString() !== new Date().toDateString() ? ' (demain)' : ''} si tu n’es pas arrivé(e).
+        Rappel 10 min avant l’heure prévue pour prolonger.
       </Text>
 
-      <Button title="Démarrer « Je rentre »" onPress={start} loading={busy} disabled={!dest || contacts === 0} />
+      <Button title="Démarrer « Je rentre »" onPress={start} loading={busy} disabled={!dest || nobody} />
     </ScrollView>
   );
 }

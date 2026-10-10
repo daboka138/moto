@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Modal, Pressable, Text, Vibration, View } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { makeStyles, useColors } from '@/constants/theme';
+import { alertSmsLabel } from '@/lib/alert-sms';
 import { fetchMemberContacts, getPhoneContacts, resolveSos, sendSos, type SosResult } from '@/lib/emergency';
 import type { LatLng } from '@/lib/geo';
 import { speakAlarm } from '@/lib/voice';
@@ -121,7 +122,7 @@ export function SafetyOverlay({
         {phase === 'sent' && result && (
           <>
             <MaterialCommunityIcons name="bullhorn" size={64} color={Colors.white} style={styles.center} />
-            <Text style={styles.title}>{result.error ? 'Alerte non envoyée' : 'Alerte envoyée'}</Text>
+            <Text style={styles.title}>{result.error && !result.sms?.sent ? 'Alerte non envoyée' : 'Alerte envoyée'}</Text>
             {result.error ? (
               <Text style={styles.text}>Serveur injoignable ({result.error}). Appelle les secours si besoin.</Text>
             ) : (
@@ -133,7 +134,7 @@ export function SafetyOverlay({
                     : 'Aucun ami contact d’urgence dans l’app.'}
               </Text>
             )}
-            {result.smsOpened && <Text style={styles.text}>SMS prérempli ouvert : vérifie qu’il est bien parti.</Text>}
+            {result.sms && <Text style={styles.text}>{alertSmsLabel(result.sms)}</Text>}
             {nobody && (
               <Pressable
                 style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}

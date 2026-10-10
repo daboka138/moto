@@ -20,7 +20,7 @@ import {
 import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
 
-/** Contacts d'urgence : amis de l'app (alerte dans l'app) et numéros de téléphone (SMS prérempli). */
+/** Contacts d'urgence : amis de l'app (alerte dans l'app) et numéros de téléphone (SMS automatique). */
 export default function EmergencyContactsScreen() {
   const Colors = useColors();
   const styles = useStyles();
@@ -116,8 +116,10 @@ export default function EmergencyContactsScreen() {
 
       <Text style={styles.section}>Numéros de téléphone</Text>
       <Text style={styles.help}>
-        Pour un proche sans l’app : un SMS prérempli avec ta position s’ouvre, il faut appuyer sur Envoyer (Android n’autorise
-        pas l’envoi automatique). Ces numéros restent sur ce téléphone.
+        Pour un proche sans l’app : SOS, chute et « Je rentre » lui envoient un SMS automatique avec ta position (via notre
+        prestataire Brevo, 10 SMS max par 24 h). Si l’envoi échoue, un SMS prérempli s’ouvre pour l’envoyer toi-même. Ces
+        numéros sont gardés sur ce téléphone ; pendant un « Je rentre », ils sont aussi gardés sur le serveur jusqu’à ton
+        arrivée.
       </Text>
       <View style={styles.card}>
         {phones.map((p) => (

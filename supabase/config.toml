@@ -425,3 +425,7 @@ verify_jwt = false
 # Suppression de compte : le jeton de l'utilisateur est vérifié dans la fonction (auth.getUser)
 [functions.delete-account]
 verify_jwt = false
+
+# SMS d'alerte (Brevo) : jeton vérifié dans la fonction ; pg_cron l'appelle sans jeton pour « Je rentre » en retard
+[functions.send-sms]
+verify_jwt = false

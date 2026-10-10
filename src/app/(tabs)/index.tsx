@@ -817,7 +817,7 @@ export default function MapScreen() {
             <Pressable style={styles.homecomingChip} onPress={() => router.push('/homecoming')}>
               <Ionicons name="home" size={18} color={Colors.white} />
               <Text style={styles.ghostBannerText}>
-                Je rentre · avant{' '}
+                Je rentre · vers{' '}
                 {new Date(homecoming.deadline).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </Text>
             </Pressable>

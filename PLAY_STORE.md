@@ -274,9 +274,14 @@ La classification (PEGI…) est calculée automatiquement à partir des réponse
 
 Depuis la version 1.1.0 (sécurité et notifications), vérifier aussi :
 - Position › Position exacte : inchangé (finalité Fonctionnement de l'application). La position d'un SOS va aux contacts d'urgence, qui sont des utilisateurs de l'app : ce n'est pas un « partage avec un tiers » au sens Play.
-- Pas de nouveau type à cocher : les numéros de téléphone des contacts d'urgence restent sur le téléphone, l'accéléromètre est analysé sur place.
+- L'accéléromètre est analysé sur place (rien à cocher).
 
-**Ne pas cocher** : Informations financières, Santé et remise en forme, Contacts, Agenda, Historique de navigation web,
+Depuis les SMS automatiques (Brevo) : cocher **Contacts › Contacts** (numéros des contacts d'urgence saisis à la main) :
+Collectés = Oui, **Partagés = Oui** (Brevo, prestataire d'envoi des SMS d'alerte), Traités de manière éphémère = Non
+(gardés le temps d'un « Je rentre »), Facultatif, finalité Fonctionnement de l'application. Position exacte : partagée
+aussi avec Brevo (lien de position dans le SMS), déjà « Partagée = Oui ».
+
+**Ne pas cocher** : Informations financières, Santé et remise en forme, Agenda, Historique de navigation web,
 Informations et performances de l'application (pas d'outil de plantage/analyse), Historique des recherches dans l'app
 (il reste sur le téléphone), Achats, Enregistrements vocaux, Fichiers et documents.
 
@@ -285,8 +290,8 @@ L'app n'utilise **pas** la localisation en arrière-plan ni `READ_MEDIA_IMAGES` 
 aucune déclaration spéciale n'est normalement demandée. Si la Play Console en réclame une après l'import du `.aab`, suivre son message.
 
 Version 1.1.0 : `POST_NOTIFICATIONS` (demandée au lancement, Android 13+), `VIBRATE`, `RECEIVE_BOOT_COMPLETED`,
-`WAKE_LOCK` : permissions normales, aucune déclaration. **Pas** de `SEND_SMS` (le SOS ouvre un SMS prérempli, envoyé par
-l'utilisateur), **pas** de `ACTIVITY_RECOGNITION` (bloquée dans app.json), **pas** de localisation en arrière-plan ni de
+`WAKE_LOCK` : permissions normales, aucune déclaration. **Pas** de `SEND_SMS` (SMS automatiques envoyés par le serveur via Brevo ; en
+secours, SMS prérempli envoyé par l'utilisateur), **pas** de `ACTIVITY_RECOGNITION` (bloquée dans app.json), **pas** de localisation en arrière-plan ni de
 service de premier plan : SOS, chute et « Je rentre » fonctionnent app ouverte, le serveur prend le relais pour « Je rentre ».
 
 ### 4.8 Tests internes
