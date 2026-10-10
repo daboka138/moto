@@ -15,6 +15,8 @@ export function DroppedPinCard({
   onGo,
   onRide,
   onReport,
+  onAddPlace,
+  onAddEvent,
   onClose,
 }: {
   place: Place;
@@ -24,6 +26,9 @@ export function DroppedPinCard({
   onRide: (role: RidePlaceRole) => void;
   /** Absent (version web) : pas de bouton « Signaler un danger ici » */
   onReport?: () => void;
+  /** Ajouter un lieu motard / créer un événement à cet endroit */
+  onAddPlace?: () => void;
+  onAddEvent?: () => void;
   onClose: () => void;
 }) {
   const Colors = useColors();
@@ -61,6 +66,16 @@ export function DroppedPinCard({
         <RoleButton icon="flag-checkered" label="Arrivée" onPress={() => onRide('end')} />
         <RoleButton icon="account-group" label="Point de RDV" onPress={() => onRide('meeting')} />
       </View>
+
+      {(onAddPlace || onAddEvent) && (
+        <>
+          <Text style={styles.section}>Pour la communauté</Text>
+          <View style={styles.row}>
+            {onAddPlace && <RoleButton icon="coffee" label="Lieu motard" onPress={onAddPlace} />}
+            {onAddEvent && <RoleButton icon="calendar-star" label="Événement" onPress={onAddEvent} />}
+          </View>
+        </>
+      )}
 
       {onReport && (
         <Pressable style={({ pressed }) => [styles.report, pressed && styles.pressed]} onPress={onReport}>

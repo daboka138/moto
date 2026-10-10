@@ -26,7 +26,7 @@ export type MapPin = {
   id: string;
   latitude: number;
   longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped';
+  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event';
   label: string;
   /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
   sign?: SignStyle;

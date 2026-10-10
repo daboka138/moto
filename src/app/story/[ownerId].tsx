@@ -13,6 +13,7 @@ import {
   PanResponder,
   Pressable,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -21,6 +22,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { showActionSheet } from '@/components/action-sheet';
 import { PersonRow } from '@/components/person-row';
 import { makeStyles, useColors } from '@/constants/theme';
+import { useDemoMode } from '@/demo/demo-context';
+import { useDemoMessages } from '@/demo/messages';
+import { useDrivingLock } from '@/lib/driving-lock';
 import { timeAgo } from '@/lib/feed';
 import { askBlock, askReport } from '@/lib/moderation';
 import { useSession } from '@/lib/session';
@@ -34,6 +38,7 @@ import {
   type StoryViewer,
 } from '@/lib/stories';
 import { useStories } from '@/lib/stories-context';
+import { fetchMyStoryLikes, fetchStoryLikers, replyToStory, setStoryLike } from '@/lib/social';
 
 const TICK_MS = 50;
 const CLOSE_DRAG_PX = 120;
@@ -65,11 +70,21 @@ export default function StoryViewerScreen() {
   const [loadedId, setLoadedId] = useState<string | null>(null);
   const [viewers, setViewers] = useState<{ id: string; list: StoryViewer[] | null } | null>(null);
   const [showViewers, setShowViewers] = useState(false);
+  // J'aime et réponse (message privé à l'auteur)
+  const demo = useDemoMode();
+  const demoMessages = useDemoMessages();
+  const { locked } = useDrivingLock();
+  const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [likers, setLikers] = useState<{ id: string; list: string[] } | null>(null);
+  const [reply, setReply] = useState('');
+  const [replying, setReplying] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const group = groups[position.group];
   const story: Story | undefined = group?.stories[position.story];
   const mine = !!story && story.ownerId === meId;
-  const paused = held || overlayOpen || showViewers || loadedId !== story?.id;
+  const paused = held || overlayOpen || showViewers || replying || loadedId !== story?.id;
   const value = progress.id === story?.id ? progress.value : 0;
 
   const close = () => router.back();
@@ -102,6 +117,26 @@ export default function StoryViewerScreen() {
     fetchStoryViewers(story.id)
       .then((list) => !cancelled && setViewers({ id: story.id, list }))
       .catch(() => !cancelled && setViewers({ id: story.id, list: [] }));
+    return () => {
+      cancelled = true;
+    };
+  }, [story, mine]);
+
+  // Mes J'aime (une fois à l'ouverture)
+  useEffect(() => {
+    if (!meId) return;
+    fetchMyStoryLikes(meId)
+      .then(setLikedIds)
+      .catch(() => {});
+  }, [meId]);
+
+  // Ma story : qui l'a aimée
+  useEffect(() => {
+    if (!story || !mine || story.isDemo) return;
+    let cancelled = false;
+    fetchStoryLikers(story.id)
+      .then((list) => !cancelled && setLikers({ id: story.id, list }))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -205,7 +240,52 @@ export default function StoryViewerScreen() {
     });
   };
 
+  const liked = story.isDemo ? demo.liked.includes(story.id) : likedIds.includes(story.id);
+
+  const toggleLike = async () => {
+    if (!meId) return;
+    if (story.isDemo) {
+      demo.toggleLike(story.id);
+      return;
+    }
+    const next = !liked;
+    setLikedIds((ids) => (next ? [...ids, story.id] : ids.filter((x) => x !== story.id)));
+    try {
+      await setStoryLike(story.id, meId, next);
+    } catch (e) {
+      setLikedIds((ids) => (next ? ids.filter((x) => x !== story.id) : [...ids, story.id]));
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const showNotice = (text: string) => {
+    setNotice(text);
+    setTimeout(() => setNotice((n) => (n === text ? null : n)), 2500);
+  };
+
+  const sendReply = async () => {
+    const text = reply.trim();
+    if (!text || !meId) return;
+    setSendingReply(true);
+    try {
+      if (story.isDemo) {
+        const conv = demoMessages.openDirect(story.ownerId);
+        demoMessages.send(conv, `↩️ Réponse à ta story${story.caption ? ` « ${story.caption.slice(0, 60)} »` : ''} : ${text}`);
+      } else {
+        await replyToStory(meId, story, text);
+      }
+      setReply('');
+      setReplying(false);
+      showNotice(`Réponse envoyée à @${story.username} en message privé`);
+    } catch (e) {
+      Alert.alert('Réponse impossible', e instanceof Error ? e.message : String(e));
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
   const onTap = (x: number) => (x < width * 0.3 ? prev() : next());
+  const likerList = likers?.id === story.id ? likers.list : [];
   const viewerList = viewers?.id === story.id ? viewers.list : null;
 
   return (
@@ -284,11 +364,45 @@ export default function StoryViewerScreen() {
           </View>
         </View>
 
+        {!mine && (
+          <View style={[styles.replyBar, { paddingBottom: insets.bottom + 10 }]}>
+            {notice && <Text style={styles.notice}>{notice}</Text>}
+            <View style={styles.replyRow}>
+              <TextInput
+                value={reply}
+                onChangeText={setReply}
+                onFocus={() => setReplying(true)}
+                onBlur={() => setReplying(false)}
+                placeholder={locked ? 'Saisie bloquée en roulant' : `Répondre à @${story.username}…`}
+                placeholderTextColor={Colors.textFaint}
+                editable={!locked && !sendingReply}
+                maxLength={500}
+                style={styles.replyInput}
+                onSubmitEditing={sendReply}
+                returnKeyType="send"
+              />
+              {reply.trim() ? (
+                <Pressable onPress={sendReply} disabled={sendingReply} hitSlop={8} accessibilityLabel="Envoyer la réponse">
+                  {sendingReply ? <ActivityIndicator color={Colors.white} /> : <Ionicons name="send" size={24} color={Colors.white} />}
+                </Pressable>
+              ) : (
+                <Pressable onPress={toggleLike} hitSlop={8} accessibilityLabel={liked ? 'Je n’aime plus' : 'J’aime'}>
+                  <Ionicons name={liked ? 'heart' : 'heart-outline'} size={30} color={liked ? Colors.danger : Colors.white} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
         {mine && !story.isDemo && (
           <View style={[styles.bottom, { paddingBottom: insets.bottom + 12 }]}>
             <Pressable style={styles.bottomButton} onPress={() => setShowViewers(true)}>
               <Ionicons name="eye-outline" size={22} color={Colors.white} />
               <Text style={styles.bottomText}>{viewerList ? `${viewerList.length} vue${viewerList.length > 1 ? 's' : ''}` : 'Vues'}</Text>
+            </Pressable>
+            <Pressable style={styles.bottomButton} onPress={() => setShowViewers(true)}>
+              <Ionicons name="heart" size={22} color={Colors.white} />
+              <Text style={styles.bottomText}>{likerList.length} j’aime</Text>
             </Pressable>
             <Pressable style={styles.bottomButton} onPress={confirmDelete}>
               <Ionicons name="trash-outline" size={22} color={Colors.white} />
@@ -311,7 +425,11 @@ export default function StoryViewerScreen() {
                 data={viewerList}
                 keyExtractor={(v) => v.id}
                 renderItem={({ item }) => (
-                  <PersonRow photoUrl={item.avatarUrl} title={`@${item.username}`} subtitle={timeAgo(item.viewedAt)} />
+                  <PersonRow
+                    photoUrl={item.avatarUrl}
+                    title={`@${item.username}${likerList.includes(item.id) ? '  ❤️' : ''}`}
+                    subtitle={timeAgo(item.viewedAt)}
+                  />
                 )}
               />
             )}
@@ -397,6 +515,29 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.overlayLight,
   },
   bottomButton: { alignItems: 'center', gap: 4, padding: 6 },
+  replyBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingTop: 10, gap: 8 },
+  replyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  replyInput: {
+    flex: 1,
+    color: Colors.white,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: Colors.textFaint,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: Colors.overlayLight,
+  },
+  notice: {
+    alignSelf: 'center',
+    color: Colors.white,
+    fontWeight: '700',
+    backgroundColor: Colors.overlayStrong,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    overflow: 'hidden',
+  },
   bottomText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.backdrop },
   sheet: {

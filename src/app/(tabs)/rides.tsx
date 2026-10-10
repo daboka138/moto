@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EventsList, PlacesList } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -27,6 +28,14 @@ const DATE_FILTERS: { value: DateFilter; label: string }[] = [
   { value: 'month', label: '30 jours' },
 ];
 const DISTANCE_FILTERS: (number | null)[] = [null, 10, 25, 50, 100];
+
+/** Onglet Sorties : balades, événements, lieux motards */
+type Segment = 'rides' | 'events' | 'places';
+const SEGMENTS: { value: Segment; label: string }[] = [
+  { value: 'rides', label: 'Balades' },
+  { value: 'events', label: 'Événements' },
+  { value: 'places', label: 'Lieux' },
+];
 
 function matchesDate(ride: RideSummary, filter: DateFilter) {
   if (filter === 'all') return true;
@@ -52,6 +61,7 @@ export default function RidesScreen() {
   // Filtre automatique sur la catégorie de ma moto principale (désactivable : « Tout voir »)
   const myCategory = mainCategory(profile);
   const [onlyMine, setOnlyMine] = useState(true);
+  const [segment, setSegment] = useState<Segment>('rides');
 
   useEffect(() => {
     Location.getLastKnownPositionAsync()
@@ -90,80 +100,104 @@ export default function RidesScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Balades</Text>
+        <Text style={styles.title}>Sorties</Text>
         <View style={styles.headerButtons}>
-          <Pressable style={styles.gpx} onPress={importGpx} accessibilityLabel="Importer un fichier GPX">
-            <Ionicons name="document-attach-outline" size={18} color={Colors.accent} />
-            <Text style={styles.gpxText}>GPX</Text>
-          </Pressable>
-          <Pressable style={styles.create} onPress={() => router.push('/ride/new')}>
+          {segment === 'rides' && (
+            <Pressable style={styles.gpx} onPress={importGpx} accessibilityLabel="Importer un fichier GPX">
+              <Ionicons name="document-attach-outline" size={18} color={Colors.accent} />
+              <Text style={styles.gpxText}>GPX</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.create}
+            onPress={() => router.push(segment === 'rides' ? '/ride/new' : segment === 'events' ? '/event/new' : '/place/new')}>
             <Ionicons name="add" size={20} color={Colors.white} />
-            <Text style={styles.createText}>Créer</Text>
+            <Text style={styles.createText}>{segment === 'places' ? 'Ajouter' : 'Créer'}</Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.filters}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {myCategory && (
-            <>
-              <Chip
-                label={`Pour ma moto (${categoryInfo(myCategory).short})`}
-                selected={onlyMine}
-                onPress={() => setOnlyMine(true)}
-              />
-              <Chip label="Tout voir" selected={!onlyMine} onPress={() => setOnlyMine(false)} />
-              <View style={styles.separator} />
-            </>
-          )}
-          {DATE_FILTERS.map((f) => (
-            <Chip key={f.value} label={f.label} selected={dateFilter === f.value} onPress={() => setDateFilter(f.value)} />
-          ))}
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {DISTANCE_FILTERS.map((km) => (
-            <Chip
-              key={String(km)}
-              label={km === null ? 'Toutes distances' : `< ${km} km`}
-              selected={maxKm === km}
-              onPress={() => setMaxKm(km)}
-            />
-          ))}
-          <View style={styles.separator} />
-          {RIDE_LEVELS.map((l) => (
-            <Chip key={l.value} label={l.label} selected={levels.includes(l.value)} onPress={() => toggleLevel(l.value)} />
-          ))}
-        </ScrollView>
+      <View style={styles.segments}>
+        {SEGMENTS.map((s) => (
+          <Pressable
+            key={s.value}
+            style={[styles.segment, segment === s.value && styles.segmentOn]}
+            onPress={() => setSegment(s.value)}
+            accessibilityState={{ selected: segment === s.value }}>
+            <Text style={[styles.segmentText, segment === s.value && styles.segmentTextOn]}>{s.label}</Text>
+          </Pressable>
+        ))}
       </View>
 
-      {!filtered ? (
-        <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Impossible de charger les balades.</Text> : <ActivityIndicator color={Colors.accent} />}
-        </View>
+      {segment === 'events' ? (
+        <EventsList me={me} />
+      ) : segment === 'places' ? (
+        <PlacesList me={me} />
       ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(r) => r.id}
-          contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
-          renderItem={({ item }) => (
-            <RideCard
-              ride={item}
-              distanceFromMeM={distanceOf(item)}
-              fit={rideFitsCategory(item.categories, myCategory)}
-              onPress={() => open(item)}
+        <>
+          <View style={styles.filters}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {myCategory && (
+                <>
+                  <Chip
+                    label={`Pour ma moto (${categoryInfo(myCategory).short})`}
+                    selected={onlyMine}
+                    onPress={() => setOnlyMine(true)}
+                  />
+                  <Chip label="Tout voir" selected={!onlyMine} onPress={() => setOnlyMine(false)} />
+                  <View style={styles.separator} />
+                </>
+              )}
+              {DATE_FILTERS.map((f) => (
+                <Chip key={f.value} label={f.label} selected={dateFilter === f.value} onPress={() => setDateFilter(f.value)} />
+              ))}
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {DISTANCE_FILTERS.map((km) => (
+                <Chip
+                  key={String(km)}
+                  label={km === null ? 'Toutes distances' : `< ${km} km`}
+                  selected={maxKm === km}
+                  onPress={() => setMaxKm(km)}
+                />
+              ))}
+              <View style={styles.separator} />
+              {RIDE_LEVELS.map((l) => (
+                <Chip key={l.value} label={l.label} selected={levels.includes(l.value)} onPress={() => toggleLevel(l.value)} />
+              ))}
+            </ScrollView>
+          </View>
+
+          {!filtered ? (
+            <View style={styles.center}>
+              {error ? <Text style={styles.muted}>Impossible de charger les balades.</Text> : <ActivityIndicator color={Colors.accent} />}
+            </View>
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={(r) => r.id}
+              contentContainerStyle={styles.list}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
+              renderItem={({ item }) => (
+                <RideCard
+                  ride={item}
+                  distanceFromMeM={distanceOf(item)}
+                  fit={rideFitsCategory(item.categories, myCategory)}
+                  onPress={() => open(item)}
+                />
+              )}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <Ionicons name="map-outline" size={40} color={Colors.textMuted} />
+                  <Text style={styles.muted}>Aucune balade ne correspond à ces filtres.</Text>
+                  {onlyMine && myCategory && (
+                    <Chip label="Voir aussi les autres balades" onPress={() => setOnlyMine(false)} />
+                  )}
+                </View>
+              }
             />
           )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="map-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.muted}>Aucune balade ne correspond à ces filtres.</Text>
-              {onlyMine && myCategory && (
-                <Chip label="Voir aussi les autres balades" onPress={() => setOnlyMine(false)} />
-              )}
-            </View>
-          }
-        />
+        </>
       )}
     </SafeAreaView>
   );
@@ -191,6 +225,19 @@ const useStyles = makeStyles((Colors) => ({
   },
   createText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
   headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  segments: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 6,
+    padding: 4,
+    gap: 4,
+    borderRadius: 14,
+    backgroundColor: Colors.border,
+  },
+  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
+  segmentOn: { backgroundColor: Colors.surface },
+  segmentText: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
+  segmentTextOn: { color: Colors.text },
   gpx: {
     flexDirection: 'row',
     alignItems: 'center',

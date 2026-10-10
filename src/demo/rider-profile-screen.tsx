@@ -1,7 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { BadgesCard } from '@/components/badges-card';
 import { ProfileView } from '@/components/profile-view';
+import { demoRiderStats } from '@/demo/community';
 import { Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { useDemoMode } from '@/demo/demo-context';
@@ -49,6 +51,7 @@ export default function DemoRiderProfileScreen() {
         resolvePhoto={(path) => path}
         stats={{ photos: photos.length, friends: friendsCount, rides: demoRideCountOf(rider.username) }}
         photos={photos}
+        badges={<BadgesCard stats={demoRiderStats(rider.username)} />}
         actions={
           <>
             {actions}

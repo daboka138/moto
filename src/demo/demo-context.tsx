@@ -23,6 +23,12 @@ type DemoState = DemoSocialState & {
   invitedRideIds: string[];
   joinRide: (id: string) => void;
   leaveRide: (id: string) => void;
+  /** Mes inscriptions aux événements de démo */
+  eventStatus: Record<string, 'going' | 'interested'>;
+  setEventStatus: (id: string, status: 'going' | 'interested' | null) => void;
+  /** J'aime de démo (stories, balades) */
+  liked: string[];
+  toggleLike: (id: string) => void;
 };
 
 const DemoContext = createContext<DemoState | null>(null);
@@ -45,6 +51,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [rideActive, setRideActive] = useState(true);
   const [joinedRideIds, setJoinedRideIds] = useState(DEMO_INITIAL_JOINED);
   const [invitedRideIds] = useState(DEMO_INITIAL_INVITED);
+  const [eventStatus, setEventStatuses] = useState<Record<string, 'going' | 'interested'>>({});
+  const [liked, setLiked] = useState<string[]>([]);
 
   const setEnabled = (value: boolean) => {
     setEnabledState(value);
@@ -66,6 +74,16 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     invitedRideIds,
     joinRide: (id) => setJoinedRideIds((ids) => (ids.includes(id) ? ids : [...ids, id])),
     leaveRide: (id) => setJoinedRideIds((ids) => ids.filter((x) => x !== id)),
+    eventStatus,
+    setEventStatus: (id, status) =>
+      setEventStatuses((all) => {
+        const next = { ...all };
+        if (status) next[id] = status;
+        else delete next[id];
+        return next;
+      }),
+    liked,
+    toggleLike: (id) => setLiked((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id])),
     acceptRequest: (id) => {
       setIncomingIds((ids) => ids.filter((x) => x !== id));
       setFriendIds((ids) => [...ids, id]);

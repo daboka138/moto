@@ -4,7 +4,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 // Masquer les signalements ne coupe PAS les alertes vocales de danger (sécurité).
 
 // Balades : nouvelle clé pour qu'elles réapparaissent par défaut chez ceux qui les avaient masquées
-const KEYS = { reports: 'moto.map.showReports', rides: 'moto.map.showRides.v2', style: 'moto.map.style' };
+const KEYS = { reports: 'moto.map.showReports', rides: 'moto.map.showRides.v2', places: 'moto.map.showPlaces', style: 'moto.map.style' };
 
 /** Style des tuiles, indépendant du thème de l'app. Automatique = sombre entre le coucher et le lever du soleil. */
 export type MapStyle = 'classic' | 'dark' | 'auto';
@@ -20,9 +20,13 @@ function readStyle(): MapStyle {
 
 type MapLayers = {
   showReports: boolean;
+  /** Balades et événements */
   showRides: boolean;
+  /** Lieux motards (cafés, garages, points de vue, routes) */
+  showPlaces: boolean;
   setShowReports: (v: boolean) => void;
   setShowRides: (v: boolean) => void;
+  setShowPlaces: (v: boolean) => void;
   mapStyle: MapStyle;
   setMapStyle: (v: MapStyle) => void;
 };
@@ -48,6 +52,7 @@ function write(key: string, value: boolean) {
 export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showReports, setReports] = useState(() => read(KEYS.reports));
   const [showRides, setRides] = useState(() => read(KEYS.rides));
+  const [showPlaces, setPlaces] = useState(() => read(KEYS.places));
   const [mapStyle, setStyle] = useState(readStyle);
   return (
     <MapLayersContext.Provider
@@ -61,6 +66,11 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
         setShowRides: (v) => {
           setRides(v);
           write(KEYS.rides, v);
+        },
+        showPlaces,
+        setShowPlaces: (v) => {
+          setPlaces(v);
+          write(KEYS.places, v);
         },
         mapStyle,
         setMapStyle: (v) => {

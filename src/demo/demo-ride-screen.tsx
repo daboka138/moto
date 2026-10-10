@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 
+import { RideSocial } from '@/components/ride-social';
 import { RideView } from '@/components/ride-view';
 import { Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
@@ -116,6 +117,7 @@ export default function DemoRideScreen() {
         ride={details}
         myCategory={myCategory}
         actions={actions}
+        footer={<RideSocial rideId={ride.id} meId={me.id} me={me} isOrganizer={false} isDemo />}
         onPersonPress={(pid) => pid.startsWith('demo-') && router.push({ pathname: '/demo-rider/[id]', params: { id: pid } })}
       />
     </>

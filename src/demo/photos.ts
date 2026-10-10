@@ -7,7 +7,7 @@ import type { WallPhoto } from '@/lib/wall';
 const T = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/';
 const U = 'https://upload.wikimedia.org/wikipedia/commons/';
 
-const IMG = {
+export const DEMO_IMAGES = {
   monster1000: `${T}c/cc/Ducati_Monster_1000S.jpg/960px-Ducati_Monster_1000S.jpg`,
   monster695: `${U}0/06/Ducati_Monster_695.jpg`,
   monster900: `${T}7/7f/Ducati_Monster_900_%2798_in_Ontario%2C_Canada_-_front_quarter.jpg/960px-Ducati_Monster_900_%2798_in_Ontario%2C_Canada_-_front_quarter.jpg`,
@@ -35,49 +35,49 @@ type Seed = { url: string; caption: string; hoursAgo: number };
 
 const PHOTOS: Record<string, Seed[]> = {
   julie_cb650r: [
-    { url: IMG.cassis, caption: 'Vue sur les calanques juste avant la route des Crêtes', hoursAgo: 2 },
-    { url: IMG.enVau, caption: 'En-Vau, ça valait la marche depuis le parking 😅', hoursAgo: 70 },
+    { url: DEMO_IMAGES.cassis, caption: 'Vue sur les calanques juste avant la route des Crêtes', hoursAgo: 2 },
+    { url: DEMO_IMAGES.enVau, caption: 'En-Vau, ça valait la marche depuis le parking 😅', hoursAgo: 70 },
   ],
   antoine_monster: [
-    { url: IMG.monster900, caption: 'Le 900 de 98, une légende', hoursAgo: 5 },
-    { url: IMG.monster1000, caption: 'Mon ancienne 1000S, je la regrette encore', hoursAgo: 49 },
-    { url: IMG.monster695, caption: 'Le 695 de ma sœur, prête pour son premier rasso', hoursAgo: 150 },
+    { url: DEMO_IMAGES.monster900, caption: 'Le 900 de 98, une légende', hoursAgo: 5 },
+    { url: DEMO_IMAGES.monster1000, caption: 'Mon ancienne 1000S, je la regrette encore', hoursAgo: 49 },
+    { url: DEMO_IMAGES.monster695, caption: 'Le 695 de ma sœur, prête pour son premier rasso', hoursAgo: 150 },
   ],
   lucas_mt07: [
-    { url: IMG.mt07, caption: 'Toute propre après le lavage du dimanche', hoursAgo: 9 },
-    { url: IMG.ubacs, caption: 'Petite route du Garlaban, personne à l’horizon', hoursAgo: 30 },
-    { url: IMG.mt07b, caption: 'Pause café à Aubagne', hoursAgo: 120 },
+    { url: DEMO_IMAGES.mt07, caption: 'Toute propre après le lavage du dimanche', hoursAgo: 9 },
+    { url: DEMO_IMAGES.ubacs, caption: 'Petite route du Garlaban, personne à l’horizon', hoursAgo: 30 },
+    { url: DEMO_IMAGES.mt07b, caption: 'Pause café à Aubagne', hoursAgo: 120 },
   ],
-  yanis_duke: [{ url: IMG.mt09, caption: 'Sortie avec les copains ce matin, MT-09 et MT-07 de la partie', hoursAgo: 14 }],
-  max_sportster: [{ url: IMG.concours, caption: 'Le Concours d’un pote du club, sacré engin', hoursAgo: 26 }],
-  lea_tenere: [{ url: IMG.sportTouring, caption: 'Souvenir du road trip aux États-Unis', hoursAgo: 40 }],
+  yanis_duke: [{ url: DEMO_IMAGES.mt09, caption: 'Sortie avec les copains ce matin, MT-09 et MT-07 de la partie', hoursAgo: 14 }],
+  max_sportster: [{ url: DEMO_IMAGES.concours, caption: 'Le Concours d’un pote du club, sacré engin', hoursAgo: 26 }],
+  lea_tenere: [{ url: DEMO_IMAGES.sportTouring, caption: 'Souvenir du road trip aux États-Unis', hoursAgo: 40 }],
   'sarah.gs': [
-    { url: IMG.gs, caption: 'Prête pour le cap Nord 💪', hoursAgo: 20 },
-    { url: IMG.morocco, caption: 'Maroc l’an dernier, le plus beau voyage', hoursAgo: 200 },
+    { url: DEMO_IMAGES.gs, caption: 'Prête pour le cap Nord 💪', hoursAgo: 20 },
+    { url: DEMO_IMAGES.morocco, caption: 'Maroc l’an dernier, le plus beau voyage', hoursAgo: 200 },
   ],
   karim_z900: [
-    { url: IMG.z900, caption: 'Nouvelle Z900 !', hoursAgo: 8 },
-    { url: IMG.z900rs, caption: 'Croisé cette Z900RS Moriwaki au rasso de Marignane', hoursAgo: 96 },
+    { url: DEMO_IMAGES.z900, caption: 'Nouvelle Z900 !', hoursAgo: 8 },
+    { url: DEMO_IMAGES.z900rs, caption: 'Croisé cette Z900RS Moriwaki au rasso de Marignane', hoursAgo: 96 },
   ],
   cam_street765: [
-    { url: IMG.tripleGreen, caption: 'Le vert lime, on aime ou on déteste', hoursAgo: 12 },
-    { url: IMG.tripleBlack, caption: 'Street Triple en noir, plus sobre', hoursAgo: 80 },
-    { url: IMG.triumph, caption: 'Expo Triumph ce week-end', hoursAgo: 170 },
+    { url: DEMO_IMAGES.tripleGreen, caption: 'Le vert lime, on aime ou on déteste', hoursAgo: 12 },
+    { url: DEMO_IMAGES.tripleBlack, caption: 'Street Triple en noir, plus sobre', hoursAgo: 80 },
+    { url: DEMO_IMAGES.triumph, caption: 'Expo Triumph ce week-end', hoursAgo: 170 },
   ],
-  hugo_gsxs: [{ url: IMG.mt03, caption: 'Ma toute première moto, la MT-03 🥲', hoursAgo: 60 }],
-  mehdi_africa: [{ url: IMG.gtr1000, caption: 'Le GTR de mon père, toujours dans le garage', hoursAgo: 33 }],
-  emi_interceptor: [{ url: IMG.piana, caption: 'Les calanques de Piana, Corse l’été dernier', hoursAgo: 55 }],
+  hugo_gsxs: [{ url: DEMO_IMAGES.mt03, caption: 'Ma toute première moto, la MT-03 🥲', hoursAgo: 60 }],
+  mehdi_africa: [{ url: DEMO_IMAGES.gtr1000, caption: 'Le GTR de mon père, toujours dans le garage', hoursAgo: 33 }],
+  emi_interceptor: [{ url: DEMO_IMAGES.piana, caption: 'Les calanques de Piana, Corse l’été dernier', hoursAgo: 55 }],
 };
 
 const COVERS: Record<string, string> = {
-  julie_cb650r: IMG.cassis,
-  antoine_monster: IMG.monster900,
-  lucas_mt07: IMG.ubacs,
-  'sarah.gs': IMG.morocco,
-  karim_z900: IMG.z900,
-  cam_street765: IMG.tripleGreen,
-  lea_tenere: IMG.sportTouring,
-  emi_interceptor: IMG.piana,
+  julie_cb650r: DEMO_IMAGES.cassis,
+  antoine_monster: DEMO_IMAGES.monster900,
+  lucas_mt07: DEMO_IMAGES.ubacs,
+  'sarah.gs': DEMO_IMAGES.morocco,
+  karim_z900: DEMO_IMAGES.z900,
+  cam_street765: DEMO_IMAGES.tripleGreen,
+  lea_tenere: DEMO_IMAGES.sportTouring,
+  emi_interceptor: DEMO_IMAGES.piana,
 };
 
 export function demoCover(username: string): string | null {

@@ -20,6 +20,8 @@ type Props = {
   photos?: WallPhoto[] | null;
   /** Boutons sous les compteurs (Modifier, Ajouter en ami...) */
   actions?: ReactNode;
+  /** Badges et défis, sous les boutons */
+  badges?: ReactNode;
   /** En bas de l'onglet « À propos » (réglages, déconnexion...) */
   footer?: ReactNode;
   /** Profil affiché sans barre de titre : la couverture passe sous la barre d'état */
@@ -43,6 +45,7 @@ export function ProfileView({
   stats,
   photos,
   actions,
+  badges,
   footer,
   underStatusBar,
   onAddPhoto,
@@ -107,6 +110,7 @@ export function ProfileView({
         </View>
 
         {actions && <View style={styles.actions}>{actions}</View>}
+        {badges}
 
         <View style={styles.tabs}>
           <TabButton label="Photos" icon="grid" active={tab === 'photos'} onPress={() => setTab('photos')} />

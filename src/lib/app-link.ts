@@ -1,4 +1,5 @@
 import { Alert, Linking, Platform } from 'react-native';
+import { router } from 'expo-router';
 
 // Version web : certaines fonctions (GPS en direct, navigation, SOS, chute, « Je rentre »,
 // trajets) n'existent que dans l'app Android. Ici : sur quel appareil tourne la page, et
@@ -42,4 +43,14 @@ export function openInApp(path: string) {
   window.location.href =
     `intent://${target}#Intent;scheme=${APP_SCHEME};package=${ANDROID_PACKAGE};` +
     `S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
+}
+
+/**
+ * « Y aller » vers un lieu : aperçu d'itinéraire sur la carte de l'app ; sur le web, ouvre l'app
+ * (la navigation guidée est réservée à l'app Android).
+ */
+export function goToPlace(place: { latitude: number; longitude: number; label: string }) {
+  const params = { goLat: place.latitude.toFixed(6), goLng: place.longitude.toFixed(6), goLabel: place.label };
+  if (IS_WEB) openInApp(`/?${new URLSearchParams(params).toString()}`);
+  else router.navigate({ pathname: '/', params });
 }

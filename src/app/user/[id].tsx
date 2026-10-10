@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
+import { BadgesCard, useRiderStats } from '@/components/badges-card';
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -19,6 +20,7 @@ export default function UserProfileScreen() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, refresh, userId } = useFriends();
+  const riderStats = useRiderStats(id);
   const [loaded, setLoaded] = useState<{ id: string; profile: Profile | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const { photos, stats, refresh: refreshWall } = useProfileWall(id);
@@ -160,7 +162,7 @@ export default function UserProfileScreen() {
                 ),
         }}
       />
-      <ProfileView profile={profile} stats={stats} photos={photos} actions={actions} />
+      <ProfileView profile={profile} stats={stats} photos={photos} actions={actions} badges={<BadgesCard stats={riderStats} />} />
     </>
   );
 }

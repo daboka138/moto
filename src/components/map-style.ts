@@ -38,6 +38,8 @@ export function mapCss(Colors: Palette) {
   }
   .pin.start { background: ${Colors.success}; } .pin.end { background: ${Colors.danger}; }
   .pin.step { background: ${Colors.neutral}; } .pin.meeting { background: ${Colors.accent}; }
+  .pin.place { background: ${Colors.placePin}; font-size: 15px; min-width: 32px; height: 32px; border-radius: 16px; }
+  .pin.event { background: ${Colors.eventPin}; font-size: 13px; }
   .pin.report {
     background: ${Colors.white}; border: 3px solid ${Colors.danger}; color: ${Colors.text}; font-size: 18px;
     min-width: 36px; height: 36px; border-radius: 18px; padding: 0;

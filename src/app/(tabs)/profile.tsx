@@ -3,6 +3,7 @@ import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
+import { BadgesCard, useRiderStats } from '@/components/badges-card';
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
   const { state: friends } = useFriends();
   const { photos, stats, refresh } = useProfileWall(userId);
   const trips = useTrips();
+  const riderStats = useRiderStats(userId);
 
   // Couverture sombre : barre d'état claire tant que l'onglet est affiché
   useFocusEffect(
@@ -77,6 +79,7 @@ export default function ProfileScreen() {
       onDeletePhoto={deletePhoto}
       onEditCover={editCover}
       onOpenSettings={() => router.push('/settings')}
+      badges={<BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />}
       actions={
         <>
           <Button title="Modifier mon profil" variant="secondary" onPress={() => router.push('/profile-edit')} />

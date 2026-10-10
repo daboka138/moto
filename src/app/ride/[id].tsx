@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { OpenInApp } from '@/components/open-in-app';
+import { RideSocial } from '@/components/ride-social';
 import { RideView } from '@/components/ride-view';
 import { openRideConversation } from '@/lib/messages';
 import { Button } from '@/components/ui';
@@ -21,7 +22,7 @@ import { IS_WEB } from '@/lib/app-link';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { saveGpxFile } from '@/lib/gpx-file';
 import { fetchRouteWeather } from '@/lib/weather';
-import { mainCategory } from '@/lib/profile';
+import { mainCategory, photoUrl } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 import { confirmJoinRide } from '@/lib/join-ride';
 
@@ -211,6 +212,14 @@ export default function RideScreen() {
         ride={ride}
         myCategory={myCategory}
         actions={actions}
+        footer={
+          <RideSocial
+            rideId={ride.id}
+            meId={userId}
+            me={{ username: profile?.username ?? 'moi', avatarUrl: profile ? photoUrl(profile.avatar_path) : '' }}
+            isOrganizer={isOrganizer}
+          />
+        }
         onPersonPress={(pid) => pid !== userId && router.push({ pathname: '/user/[id]', params: { id: pid } })}
       />
     </>

@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EventCard, PlaceCard } from '@/components/community-cards';
+import { openEvent, openPlace } from '@/components/community-lists';
 import { ConvoyPanel } from '@/components/convoy-panel';
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
@@ -22,7 +24,12 @@ import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
+import { recordTrip, retryPendingPasses } from '@/lib/badges';
 import { useConvoy } from '@/lib/convoy';
+import { eventKindInfo } from '@/lib/events';
+import { placeKindInfo } from '@/lib/places';
+import { readTrack } from '@/lib/trips';
+import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { needsFuel, useFuelAlert } from '@/lib/fuel';
 import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garage';
@@ -66,6 +73,10 @@ type Status = 'loading' | 'denied' | 'ready';
 const REAL_PREFIX = 'user:';
 const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
+const PLACE_PREFIX = 'place:';
+const EVENT_PREFIX = 'event:';
+/** Événements affichés sur la carte : dans les 60 jours */
+const EVENTS_ON_MAP_DAYS = 60;
 /** Balades affichées sur la carte : publiques, entre amis ou auxquelles je participe, dans les 30 jours */
 const RIDES_ON_MAP_DAYS = 30;
 /** Au-delà de 5,4 km/h, le cap GPS est fiable ; en dessous, la flèche suit la boussole */
@@ -104,6 +115,11 @@ export default function MapScreen() {
   const [reportSheet, setReportSheet] = useState(false);
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const showToast = (text: string) => {
+    setToast(text);
+    setTimeout(() => setToast((t) => (t === text ? null : t)), 3000);
+  };
+
   // Point posé par appui long, et lieu visé par le prochain signalement (sinon ma position)
   const [dropped, setDropped] = useState<{ place: Place; resolving: boolean } | null>(null);
   const [reportAt, setReportAt] = useState<LatLng | null>(null);
@@ -158,10 +174,21 @@ export default function MapScreen() {
   const myMotoId = myMoto?.id ?? null;
   useEffect(() => {
     const trip = nav.summary;
-    if (!trip || !myMotoId || countedTrip.current === trip.id) return;
+    if (!trip || countedTrip.current === trip.id) return;
     countedTrip.current = trip.id;
-    addMotorcycleKm(myMotoId, trip.distanceM / 1000).catch((e) => console.warn('Compteur non mis à jour', e));
+    if (myMotoId) addMotorcycleKm(myMotoId, trip.distanceM / 1000).catch((e) => console.warn('Compteur non mis à jour', e));
+    // Badges : km et cols franchis
+    recordTrip(trip.distanceM / 1000, readTrack(trip.id), trip.id)
+      .then((newPasses) => {
+        if (newPasses > 0) setTimeout(() => showToast(`⛰️ ${newPasses} nouveau${newPasses > 1 ? 'x' : ''} col${newPasses > 1 ? 's' : ''} franchi${newPasses > 1 ? 's' : ''} !`), 1500);
+      })
+      .catch((e) => console.warn('Statistiques non mises à jour', e));
   }, [nav.summary, myMotoId]);
+
+  // Cols des trajets précédents pas encore cherchés (Overpass saturé) : nouvel essai à l'ouverture
+  useEffect(() => {
+    retryPendingPasses(readTrack).catch(() => {});
+  }, []);
 
   // Météo le long de l'itinéraire proposé, à l'heure de passage
   const previewWeather = useRouteWeather(
@@ -178,11 +205,6 @@ export default function MapScreen() {
       deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {});
     };
   }, [navigating]);
-
-  const showToast = (text: string) => {
-    setToast(text);
-    setTimeout(() => setToast((t) => (t === text ? null : t)), 3000);
-  };
 
   // ---------- Sécurité : SOS, détection de chute, « Je rentre » ----------
   const [sosKind, setSosKind] = useState<'manual' | null>(null);
@@ -277,6 +299,15 @@ export default function MapScreen() {
   }));
   const markers = [...realMarkers, ...demoMarkers];
 
+  // ---------- Lieux motards et événements (réels + démo) ----------
+  const { places: communityPlaces } = useCommunityPlaces(position);
+  const { events } = useEvents();
+  const mapPlaces = navigating || !layers.showPlaces ? [] : (communityPlaces ?? []);
+  const mapEvents =
+    navigating || !layers.showRides ? [] : (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS));
+  const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
+  const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
+
   // ---------- Repères : RDV de balades, signalements, destination ----------
   const demoRideList = demo.enabled
     ? demoRides(demo, { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: '' })
@@ -297,6 +328,20 @@ export default function MapScreen() {
       label: rideLabel(r),
       latitude: r.meeting.latitude,
       longitude: r.meeting.longitude,
+    })),
+    ...mapPlaces.map((p) => ({
+      id: PLACE_PREFIX + p.id,
+      kind: 'place' as const,
+      label: placeKindInfo(p.kind).emoji,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    })),
+    ...mapEvents.map((e) => ({
+      id: EVENT_PREFIX + e.id,
+      kind: 'event' as const,
+      label: eventLabel(e.kind, e.startsAt),
+      latitude: e.place.latitude,
+      longitude: e.place.longitude,
     })),
     ...(layers.showReports ? reports : []).map((r) => ({
       id: REPORT_PREFIX + r.id,
@@ -390,7 +435,8 @@ export default function MapScreen() {
   };
 
   const onPinPress = (id: string) => {
-    if (id.startsWith(REPORT_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX)) {
+      setDropped(null);
       setSelectedId(id);
       return;
     }
@@ -449,6 +495,13 @@ export default function MapScreen() {
       pathname: '/ride/new',
       params: { role, label: place.label, lat: String(place.latitude), lng: String(place.longitude) },
     });
+  };
+
+  const communityFromDropped = (target: '/place/new' | '/event/new') => {
+    if (!dropped) return;
+    const { place } = dropped;
+    setDropped(null);
+    router.push({ pathname: target, params: { label: place.label, lat: String(place.latitude), lng: String(place.longitude) } });
   };
 
   const reportAtDropped = () => {
@@ -732,8 +785,16 @@ export default function MapScreen() {
                 <LayerButton
                   active={layers.showRides}
                   icon="flag"
-                  label={layers.showRides ? 'Masquer les balades' : 'Afficher les balades'}
+                  label={layers.showRides ? 'Masquer les balades et événements' : 'Afficher les balades et événements'}
                   onPress={() => layers.setShowRides(!layers.showRides)}
+                />
+              )}
+              {!navigating && (
+                <LayerButton
+                  active={layers.showPlaces}
+                  icon="cafe"
+                  label={layers.showPlaces ? 'Masquer les lieux motards' : 'Afficher les lieux motards'}
+                  onPress={() => layers.setShowPlaces(!layers.showPlaces)}
                 />
               )}
             </View>
@@ -798,6 +859,8 @@ export default function MapScreen() {
                 onGo={goToDropped}
                 onRide={rideFromDropped}
                 onReport={reportAtDropped}
+                onAddPlace={() => communityFromDropped('/place/new')}
+                onAddEvent={() => communityFromDropped('/event/new')}
                 onClose={() => setDropped(null)}
               />
             </View>
@@ -812,6 +875,26 @@ export default function MapScreen() {
               <Pressable style={styles.rideClose} onPress={() => setSelectedId(null)} hitSlop={10} accessibilityLabel="Fermer">
                 <Ionicons name="close" size={20} color={Colors.textMuted} />
               </Pressable>
+            </View>
+          )}
+          {selectedPlace && (
+            <View style={styles.card}>
+              <PlaceCard
+                place={selectedPlace}
+                distanceM={position ? distanceM(position, selectedPlace) : null}
+                onPress={() => openPlace(selectedPlace)}
+                onClose={() => setSelectedId(null)}
+              />
+            </View>
+          )}
+          {selectedEvent && (
+            <View style={styles.card}>
+              <EventCard
+                event={selectedEvent}
+                distanceM={position ? distanceM(position, selectedEvent.place) : null}
+                onPress={() => openEvent(selectedEvent)}
+                onClose={() => setSelectedId(null)}
+              />
             </View>
           )}
           {selectedReport && (
@@ -971,7 +1054,7 @@ function LayerButton({
   onPress,
 }: {
   active: boolean;
-  icon: 'warning' | 'flag';
+  icon: 'warning' | 'flag' | 'cafe';
   label: string;
   onPress: () => void;
 }) {
@@ -987,6 +1070,12 @@ function LayerButton({
       {!active && <View style={styles.layerStrike} />}
     </Pressable>
   );
+}
+
+/** Texte du repère d'événement : « 🏍️ sam. 12 » */
+function eventLabel(kind: Parameters<typeof eventKindInfo>[0], iso: string) {
+  const d = new Date(iso);
+  return `${eventKindInfo(kind).emoji} ${d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`;
 }
 
 function isWithinDays(iso: string, days: number) {

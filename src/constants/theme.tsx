@@ -43,6 +43,9 @@ export const LightColors = {
   successSoft: '#DCFCE7',
   warning: '#F59E0B',
   ghost: '#7C3AED',
+  /** Repères de la carte : lieux motards et événements */
+  placePin: '#EA580C',
+  eventPin: '#DB2777',
 
   // Navigation
   /** Bandeau d'instruction pendant le guidage */

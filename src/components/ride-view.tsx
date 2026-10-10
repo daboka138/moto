@@ -20,6 +20,8 @@ type Props = {
   onPersonPress?: (id: string) => void;
   /** Catégorie de ma moto principale : met en avant si la balade l'accepte */
   myCategory?: MotoCategory | null;
+  /** En bas de la fiche (J'aime et commentaires) */
+  footer?: ReactNode;
 };
 
 const at = (p: { latitude: number; longitude: number }) => ({ latitude: p.latitude, longitude: p.longitude });
@@ -39,7 +41,7 @@ export function ridePins(ride: {
 }
 
 /** Fiche balade : carte avec tracé, infos, organisateur, participants. */
-export function RideView({ ride, actions, onPersonPress, myCategory = null }: Props) {
+export function RideView({ ride, actions, onPersonPress, myCategory = null, footer }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const level = levelInfo(ride.level);
@@ -175,6 +177,8 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null }: Pr
             <Text style={styles.description}>{ride.description}</Text>
           </Card>
         )}
+
+        {footer}
       </View>
     </ScrollView>
   );

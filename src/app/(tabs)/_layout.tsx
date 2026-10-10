@@ -60,7 +60,7 @@ export default function TabsLayout() {
         options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), ...(wide && { sceneStyle: { flex: 1 } }) }}
       />
       <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
-      <Tabs.Screen name="rides" options={{ title: 'Balades', tabBarIcon: icon('flag', 'flag-outline') }} />
+      <Tabs.Screen name="rides" options={{ title: 'Sorties', tabBarIcon: icon('flag', 'flag-outline') }} />
       <Tabs.Screen
         name="messages"
         options={{

@@ -4,6 +4,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
+import { EventCard, PlaceCard } from '@/components/community-cards';
+import { openEvent, openPlace } from '@/components/community-lists';
 import { LeafletMap, type MapMarker, type MapPin, type MapRoute } from '@/components/leaflet-map';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
 import { ReportCard } from '@/components/nav/report-ui';
@@ -24,6 +26,9 @@ import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 import { useLiveRiders } from '@/lib/use-live-riders';
 import { useUpcomingRides } from '@/lib/use-rides';
+import { eventKindInfo } from '@/lib/events';
+import { placeKindInfo } from '@/lib/places';
+import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 import { useRoadReports } from '@/lib/use-road-reports';
 
 // Onglet Carte, version web : consultation. Balades, signalements, amis en direct, recherche de
@@ -33,7 +38,10 @@ import { useRoadReports } from '@/lib/use-road-reports';
 const REAL_PREFIX = 'user:';
 const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
+const PLACE_PREFIX = 'place:';
+const EVENT_PREFIX = 'event:';
 const RIDES_ON_MAP_DAYS = 30;
+const EVENTS_ON_MAP_DAYS = 60;
 
 export default function MapScreen() {
   const Colors = useColors();
@@ -111,6 +119,14 @@ export default function MapScreen() {
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
   const selectedRider = liveRiders.find((r) => REAL_PREFIX + r.userId === selectedId) ?? null;
 
+  // Lieux motards et événements (réels + démo)
+  const { places: communityPlaces } = useCommunityPlaces(center ?? me);
+  const { events } = useEvents();
+  const mapPlaces = layers.showPlaces ? (communityPlaces ?? []) : [];
+  const mapEvents = layers.showRides ? (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS)) : [];
+  const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
+  const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
+
   const pins: MapPin[] = [
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
@@ -118,6 +134,20 @@ export default function MapScreen() {
       label: rideLabel(r),
       latitude: r.meeting.latitude,
       longitude: r.meeting.longitude,
+    })),
+    ...mapPlaces.map((p) => ({
+      id: PLACE_PREFIX + p.id,
+      kind: 'place' as const,
+      label: placeKindInfo(p.kind).emoji,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    })),
+    ...mapEvents.map((e) => ({
+      id: EVENT_PREFIX + e.id,
+      kind: 'event' as const,
+      label: `${eventKindInfo(e.kind).emoji} ${new Date(e.startsAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`,
+      latitude: e.place.latitude,
+      longitude: e.place.longitude,
     })),
     ...(layers.showReports ? reports : []).map((r) => ({
       id: REPORT_PREFIX + r.id,
@@ -145,7 +175,7 @@ export default function MapScreen() {
       : [];
 
   const onPinPress = (id: string) => {
-    if (id.startsWith(REPORT_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
       return;
@@ -192,6 +222,13 @@ export default function MapScreen() {
       pathname: '/ride/new',
       params: { role, label: place.label, lat: String(place.latitude), lng: String(place.longitude) },
     });
+  };
+
+  const communityFromDropped = (target: '/place/new' | '/event/new') => {
+    if (!dropped) return;
+    const { place } = dropped;
+    setDropped(null);
+    router.push({ pathname: target, params: { label: place.label, lat: String(place.latitude), lng: String(place.longitude) } });
   };
 
   // « Aller ici » : la navigation guidée est dans l'app, qui ouvre directement l'aperçu du trajet
@@ -301,8 +338,14 @@ export default function MapScreen() {
               <LayerButton
                 active={layers.showRides}
                 icon="flag"
-                label={layers.showRides ? 'Masquer les balades' : 'Afficher les balades'}
+                label={layers.showRides ? 'Masquer les balades et événements' : 'Afficher les balades et événements'}
                 onPress={() => layers.setShowRides(!layers.showRides)}
+              />
+              <LayerButton
+                active={layers.showPlaces}
+                icon="cafe"
+                label={layers.showPlaces ? 'Masquer les lieux motards' : 'Afficher les lieux motards'}
+                onPress={() => layers.setShowPlaces(!layers.showPlaces)}
               />
             </View>
           </View>
@@ -323,7 +366,25 @@ export default function MapScreen() {
               distanceM={me ? distanceM(me, dropped.place) : null}
               onGo={goInApp}
               onRide={rideFromDropped}
+              onAddPlace={() => communityFromDropped('/place/new')}
+              onAddEvent={() => communityFromDropped('/event/new')}
               onClose={() => setDropped(null)}
+            />
+          )}
+          {selectedPlace && (
+            <PlaceCard
+              place={selectedPlace}
+              distanceM={me ? distanceM(me, selectedPlace) : null}
+              onPress={() => openPlace(selectedPlace)}
+              onClose={() => setSelectedId(null)}
+            />
+          )}
+          {selectedEvent && (
+            <EventCard
+              event={selectedEvent}
+              distanceM={me ? distanceM(me, selectedEvent.place) : null}
+              onPress={() => openEvent(selectedEvent)}
+              onClose={() => setSelectedId(null)}
             />
           )}
           {selectedRide && (
@@ -382,7 +443,7 @@ function LayerButton({
   onPress,
 }: {
   active: boolean;
-  icon: 'warning' | 'flag';
+  icon: 'warning' | 'flag' | 'cafe';
   label: string;
   onPress: () => void;
 }) {
