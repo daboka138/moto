@@ -16,6 +16,7 @@ import { signOut } from '@/lib/auth';
 import { DrivingLockProvider } from '@/lib/driving-lock';
 import { MapLayersProvider } from '@/lib/map-layers';
 import { MessagesProvider } from '@/lib/messages-context';
+import { NotificationsProvider } from '@/lib/notifications';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 import { StoriesProvider } from '@/lib/stories-context';
@@ -34,13 +35,15 @@ export default function RootLayout() {
                 <DemoProvider /* DEMO */>
                   <StoriesProvider>
                     <MessagesProvider>
-                      <DemoMessagesProvider /* DEMO */>
-                        <RootNavigator />
-                        <MessageToast />
-                        <PushRegistrar />
-                        <ActionSheetHost />
-                        <AlertHost />
-                      </DemoMessagesProvider>
+                      <NotificationsProvider>
+                        <DemoMessagesProvider /* DEMO */>
+                          <RootNavigator />
+                          <MessageToast />
+                          <PushRegistrar />
+                          <ActionSheetHost />
+                          <AlertHost />
+                        </DemoMessagesProvider>
+                      </NotificationsProvider>
                     </MessagesProvider>
                   </StoriesProvider>
                 </DemoProvider>
@@ -156,6 +159,7 @@ function RootNavigator() {
         <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
         <Stack.Screen name="search" />
+        <Stack.Screen name="notifications" options={{ headerShown: true, title: 'Notifications' }} />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
         <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
         <Stack.Screen name="chat/[id]" />

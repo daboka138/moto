@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { ensureHomecomingLoaded } from '@/lib/homecoming';
+import { markNotificationsReadByUrl, useNotificationsBadge } from '@/lib/notifications';
 import { registerForPush } from '@/lib/push';
 import { useSession } from '@/lib/session';
 
@@ -16,6 +17,7 @@ export function PushRegistrar() {
   const ready = !!userId && !!profile;
   const response = Notifications.useLastNotificationResponse();
   const handled = useRef<string | null>(null);
+  const { refresh: refreshBadge } = useNotificationsBadge();
 
   useEffect(() => {
     if (!ready || !userId) return;
@@ -29,9 +31,12 @@ export function PushRegistrar() {
     if (handled.current === id) return;
     handled.current = id;
     const url = (response.notification.request.content.data as { url?: unknown } | null)?.url;
-    if (typeof url === 'string' && url.startsWith('/')) router.push(url as Href);
+    if (typeof url === 'string' && url.startsWith('/')) {
+      router.push(url as Href);
+      markNotificationsReadByUrl(url).then(() => refreshBadge());
+    }
     Notifications.clearLastNotificationResponse();
-  }, [ready, response]);
+  }, [ready, response, refreshBadge]);
 
   return null;
 }

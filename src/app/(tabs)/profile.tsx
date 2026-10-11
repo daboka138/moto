@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
@@ -23,6 +23,8 @@ export default function ProfileScreen() {
   const { photos, stats, refresh } = useProfileWall(userId);
   const trips = useTrips();
   const riderStats = useRiderStats(userId);
+  // ?photo=<id> : depuis une notification (like ou commentaire sur ma photo)
+  const { photo: openPhotoId } = useLocalSearchParams<{ photo?: string }>();
 
   // Couverture sombre : barre d'état claire tant que l'onglet est affiché
   useFocusEffect(
@@ -79,6 +81,7 @@ export default function ProfileScreen() {
       onDeletePhoto={deletePhoto}
       onEditCover={editCover}
       onOpenSettings={() => router.push('/settings')}
+      openPhotoId={openPhotoId}
       badges={<BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />}
       actions={
         <>

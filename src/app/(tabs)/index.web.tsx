@@ -12,6 +12,7 @@ import { ReportCard } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
 import { OpenInApp } from '@/components/open-in-app';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
+import { NotificationBell } from '@/components/notification-bell';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
@@ -331,6 +332,7 @@ export default function MapScreen() {
               </Pressable>
             </View>
             <View style={styles.column} pointerEvents="box-none">
+              <NotificationBell floating />
               <LayerButton
                 active={layers.showReports}
                 icon="warning"

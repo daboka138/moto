@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NotificationBell } from '@/components/notification-bell';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -32,6 +33,8 @@ type Props = {
   onEditCover?: () => void;
   /** Mon profil : bouton engrenage vers les paramètres */
   onOpenSettings?: () => void;
+  /** Photo à ouvrir directement (notification « a liké ta photo ») */
+  openPhotoId?: string;
 };
 
 const COVER_HEIGHT = 170;
@@ -52,13 +55,18 @@ export function ProfileView({
   onDeletePhoto,
   onEditCover,
   onOpenSettings,
+  openPhotoId,
 }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [tab, setTab] = useState<'photos' | 'about'>('photos');
-  const [viewing, setViewing] = useState<WallPhoto | null>(null);
+  const [picked, setViewing] = useState<WallPhoto | null>(null);
+  // Photo demandée par une notification : ouverte tant qu'elle n'a pas été fermée
+  const [closedId, setClosedId] = useState<string | null>(null);
+  const requested = openPhotoId && openPhotoId !== closedId ? (photos?.find((p) => p.id === openPhotoId) ?? null) : null;
+  const viewing = picked ?? requested;
   const tile = (width - GRID_GAP * 2) / 3;
   const coverHeight = COVER_HEIGHT + (underStatusBar ? insets.top : 0);
   const mainMoto = profile.motorcycles[0];
@@ -82,6 +90,11 @@ export function ProfileView({
               accessibilityLabel="Paramètres">
               <Ionicons name="settings-sharp" size={22} color={Colors.white} />
             </Pressable>
+          )}
+          {onOpenSettings && (
+            <View style={[styles.settingsButton, styles.bellButton, { top: (underStatusBar ? insets.top : 0) + 12 }]}>
+              <NotificationBell light />
+            </View>
           )}
           {onEditCover && (
             <Pressable style={[styles.coverButton, { top: (underStatusBar ? insets.top : 0) + 12 }]} onPress={onEditCover}>
@@ -141,11 +154,15 @@ export function ProfileView({
 
       <PhotoViewer
         photo={viewing}
-        onClose={() => setViewing(null)}
+        onClose={() => {
+          setViewing(null);
+          setClosedId(openPhotoId ?? null);
+        }}
         onDelete={
           onDeletePhoto
             ? (p) => {
                 setViewing(null);
+                setClosedId(openPhotoId ?? null);
                 onDeletePhoto(p);
               }
             : undefined
@@ -336,6 +353,7 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     backgroundColor: Colors.overlayLight,
   },
+  bellButton: { left: 62 },
   coverButtonText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
   identity: { alignItems: 'center', paddingHorizontal: 24, marginTop: -AVATAR_SIZE / 2, gap: 6 },
   avatar: {
