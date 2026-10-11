@@ -178,6 +178,16 @@ export default function RidesScreen() {
               keyExtractor={(r) => r.id}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
+              ListHeaderComponent={
+                <Pressable style={({ pressed }) => [styles.loopCard, pressed && { opacity: 0.7 }]} onPress={() => router.push('/loop')}>
+                  <Ionicons name="infinite" size={28} color={Colors.white} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.loopTitle}>Fais-moi une boucle</Text>
+                    <Text style={styles.loopText}>2-3 boucles sinueuses au départ de ta position, selon ton temps.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={22} color={Colors.white} />
+                </Pressable>
+              }
               renderItem={({ item }) => (
                 <RideCard
                   ride={item}
@@ -249,6 +259,9 @@ const useStyles = makeStyles((Colors) => ({
     paddingVertical: 7,
   },
   gpxText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
+  loopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.accent, borderRadius: 16, padding: 14 },
+  loopTitle: { color: Colors.white, fontSize: 16, fontWeight: '900' },
+  loopText: { color: Colors.white, fontSize: 13 },
   filters: { gap: 8, paddingVertical: 8 },
   filterRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },

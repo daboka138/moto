@@ -505,6 +505,7 @@ export default function MapScreen() {
         { label: '⚠️ Signaler un danger', onPress: () => setReportSheet(true) },
         { label: '📍 Ajouter un spot motard', onPress: () => router.push({ pathname: '/place/new', params: here }) },
         { label: '📅 Créer un événement', onPress: () => router.push({ pathname: '/event/new', params: here }) },
+        { label: '🌀 Fais-moi une boucle', onPress: () => router.push('/loop') },
       ],
     });
   };

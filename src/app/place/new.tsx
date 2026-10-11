@@ -17,7 +17,8 @@ export default function NewPlaceScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const params = useLocalSearchParams<{ label?: string; lat?: string; lng?: string; kind?: string }>();
+  // name / description : préremplis par « Enregistrer comme belle route » (boucle)
+  const params = useLocalSearchParams<{ label?: string; lat?: string; lng?: string; kind?: string; name?: string; description?: string }>();
   const [place, setPlace] = useState<Place | null>(() => {
     const latitude = Number(params.lat);
     const longitude = Number(params.lng);
@@ -27,8 +28,8 @@ export default function NewPlaceScreen() {
   });
   const [kind, setKind] = useState<PlaceKind>(() => PLACE_KINDS.find((k) => k.value === params.kind)?.value ?? 'biker_cafe');
   const [rating, setRating] = useState(0);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState(params.name ?? '');
+  const [description, setDescription] = useState(params.description ?? '');
   const [photo, setPhoto] = useState<PhotoValue>({ path: null, localUri: null });
   const [saving, setSaving] = useState(false);
 
