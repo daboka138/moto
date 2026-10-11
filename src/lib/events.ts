@@ -5,16 +5,20 @@ import { supabase } from '@/lib/supabase';
 // Événements et rassemblements motards : ouverts à tous les membres, inscription « J'y vais »
 // ou « Intéressé ». Supprimés automatiquement 30 jours après leur fin (purge_old_events).
 
-export type EventKind = 'rassemblement' | 'salon' | 'sortie' | 'circuit' | 'concert' | 'autre';
+export type EventKind = 'rassemblement' | 'sortie' | 'balade' | 'salon' | 'circuit' | 'concert' | 'autre';
 
 export const EVENT_KINDS: { value: EventKind; label: string; emoji: string }[] = [
-  { value: 'rassemblement', label: 'Rassemblement', emoji: '🏍️' },
-  { value: 'sortie', label: 'Sortie / balade géante', emoji: '🛣️' },
-  { value: 'salon', label: 'Salon / expo', emoji: '🎪' },
-  { value: 'circuit', label: 'Journée circuit', emoji: '🏁' },
+  { value: 'rassemblement', label: 'Rasso', emoji: '🏍️' },
+  { value: 'sortie', label: 'Sortie club', emoji: '🚩' },
+  { value: 'balade', label: 'Balade', emoji: '🛣️' },
+  { value: 'salon', label: 'Expo / salon', emoji: '🎪' },
+  { value: 'circuit', label: 'Sortie piste', emoji: '🏁' },
   { value: 'concert', label: 'Concert / soirée', emoji: '🎸' },
   { value: 'autre', label: 'Autre', emoji: '📍' },
 ];
+
+/** Lien de partage : ouvre la version web (app.passeryder.fr), qui propose d'ouvrir l'app */
+export const eventShareUrl = (id: string) => `https://app.passeryder.fr/event/${id}`;
 
 export const eventKindInfo = (k: EventKind) => EVENT_KINDS.find((x) => x.value === k)!;
 
@@ -177,6 +181,26 @@ export async function setAttendance(eventId: string, userId: string, status: Att
     ? await supabase.from('event_attendees').upsert({ event_id: eventId, user_id: userId, status }, { onConflict: 'event_id,user_id' })
     : await supabase.from('event_attendees').delete().eq('event_id', eventId).eq('user_id', userId);
   if (error) throw new Error(error.message.includes('complet') ? 'Cet événement est complet.' : error.message);
+}
+
+/** Inviter des amis (le serveur n'accepte que des amis, pour un événement pas encore terminé) */
+export async function inviteToEvent(eventId: string, friendIds: string[]) {
+  if (!friendIds.length) return;
+  const { error } = await supabase.from('event_invites').insert(friendIds.map((user_id) => ({ event_id: eventId, user_id })));
+  if (error) throw new Error(error.message);
+}
+
+/** Amis que j'ai déjà invités à cet événement */
+export async function fetchMyEventInvites(eventId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('event_invites').select('user_id').eq('event_id', eventId);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.user_id as string);
+}
+
+/** Refuser une invitation */
+export async function declineEventInvite(eventId: string, userId: string) {
+  const { error } = await supabase.from('event_invites').delete().eq('event_id', eventId).eq('user_id', userId);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteEvent(e: MotoEvent) {

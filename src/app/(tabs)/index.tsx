@@ -19,6 +19,7 @@ import { SearchBar } from '@/components/nav/search-bar';
 import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
 import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
+import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { NavWeatherChip } from '@/components/weather-strip';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
@@ -115,6 +116,7 @@ export default function MapScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [togglingGhost, setTogglingGhost] = useState(false);
   const [reportSheet, setReportSheet] = useState(false);
+  const [placeFilter, setPlaceFilter] = useState(false);
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (text: string) => {
@@ -310,7 +312,8 @@ export default function MapScreen() {
   // ---------- Lieux motards et événements (réels + démo) ----------
   const { places: communityPlaces } = useCommunityPlaces(position);
   const { events } = useEvents();
-  const mapPlaces = navigating || !layers.showPlaces ? [] : (communityPlaces ?? []);
+  const mapPlaces =
+    navigating || !layers.showPlaces ? [] : (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind));
   const mapEvents =
     navigating || !layers.showRides ? [] : (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS));
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
@@ -490,6 +493,20 @@ export default function MapScreen() {
     setDropped((d) =>
       d && d.place.latitude === point.latitude && d.place.longitude === point.longitude ? { place, resolving: false } : d,
     );
+  };
+
+  // Bouton « + » : en navigation, signaler un danger directement ; sinon, choisir quoi ajouter ici
+  const onPlus = () => {
+    if (navigating || !position) return setReportSheet(true);
+    const here = { label: 'Ma position', lat: String(position.latitude), lng: String(position.longitude) };
+    showActionSheet({
+      title: 'Ajouter ici',
+      options: [
+        { label: '⚠️ Signaler un danger', onPress: () => setReportSheet(true) },
+        { label: '📍 Ajouter un spot motard', onPress: () => router.push({ pathname: '/place/new', params: here }) },
+        { label: '📅 Créer un événement', onPress: () => router.push({ pathname: '/event/new', params: here }) },
+      ],
+    });
   };
 
   const goToConvoyPoint = (place: Place) => {
@@ -838,8 +855,8 @@ export default function MapScreen() {
                 <LayerButton
                   active={layers.showPlaces}
                   icon="cafe"
-                  label={layers.showPlaces ? 'Masquer les lieux motards' : 'Afficher les lieux motards'}
-                  onPress={() => layers.setShowPlaces(!layers.showPlaces)}
+                  label="Spots sur la carte (catégories)"
+                  onPress={() => setPlaceFilter(true)}
                 />
               )}
             </View>
@@ -894,7 +911,7 @@ export default function MapScreen() {
             ) : (
               <View />
             )}
-            <ReportButton onPress={() => setReportSheet(true)} />
+            <ReportButton onPress={onPlus} />
           </View>
 
           {dropped && !navigating && (
@@ -1081,6 +1098,7 @@ export default function MapScreen() {
           }}
         />
       )}
+      <PlaceFilterSheet visible={placeFilter} onClose={() => setPlaceFilter(false)} />
       <TripSummaryModal
         trip={nav.summary}
         onClose={nav.clearSummary}

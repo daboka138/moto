@@ -2,17 +2,20 @@ import type { LatLng } from '@/lib/geo';
 import { photoUrl, uploadPhoto, type PhotoValue } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
-// Lieux motards communautaires : cafés et restos bikers, garages moto, points de vue, routes à faire.
-// Chaque membre peut ajouter un lieu (avec photo) et donner une note + un avis par lieu.
-// Lecture filtrée par le serveur (RLS) : rien entre deux membres qui se sont bloqués.
+// Spots motards communautaires : cafés et restos motards, points de vue, belles routes, stations,
+// garages / concessions, parkings moto. Chaque membre peut ajouter un spot (photo + note) et donner
+// une note + un avis par spot. Lecture filtrée par le serveur (RLS) : rien entre deux membres qui se
+// sont bloqués, et un spot (ou avis) signalé par 3 membres est masqué (sauf pour son auteur).
 
-export type PlaceKind = 'biker_cafe' | 'garage' | 'viewpoint' | 'road';
+export type PlaceKind = 'biker_cafe' | 'viewpoint' | 'road' | 'fuel' | 'garage' | 'parking';
 
 export const PLACE_KINDS: { value: PlaceKind; label: string; short: string; emoji: string }[] = [
-  { value: 'biker_cafe', label: 'Café / resto biker', short: 'Café biker', emoji: '☕' },
-  { value: 'garage', label: 'Garage moto', short: 'Garage', emoji: '🔧' },
+  { value: 'biker_cafe', label: 'Café / resto motard', short: 'Café motard', emoji: '☕' },
   { value: 'viewpoint', label: 'Point de vue', short: 'Point de vue', emoji: '📸' },
-  { value: 'road', label: 'Route à faire', short: 'Route', emoji: '🛣️' },
+  { value: 'road', label: 'Belle route', short: 'Belle route', emoji: '🛣️' },
+  { value: 'fuel', label: 'Station essence', short: 'Station', emoji: '⛽' },
+  { value: 'garage', label: 'Garage / concession', short: 'Garage', emoji: '🔧' },
+  { value: 'parking', label: 'Parking moto', short: 'Parking', emoji: '🅿️' },
 ];
 
 export const placeKindInfo = (k: PlaceKind) => PLACE_KINDS.find((x) => x.value === k)!;
@@ -138,7 +141,7 @@ export async function fetchReviews(placeId: string): Promise<PlaceReview[]> {
   }));
 }
 
-export type PlaceDraft = LatLng & { kind: PlaceKind; name: string; description: string; photo: PhotoValue };
+export type PlaceDraft = LatLng & { kind: PlaceKind; name: string; description: string; photo: PhotoValue; rating: number };
 
 export async function createPlace(userId: string, d: PlaceDraft): Promise<string> {
   const photoPath = d.photo.localUri ? await uploadPhoto(userId, 'place', d.photo) : null;
@@ -159,6 +162,9 @@ export async function createPlace(userId: string, d: PlaceDraft): Promise<string
     if (photoPath) await supabase.storage.from('photos').remove([photoPath]);
     throw new Error(error.message);
   }
+  // Ma note du spot (premier avis)
+  const { error: reviewError } = await supabase.from('place_reviews').insert({ place_id: data.id, author_id: userId, rating: d.rating });
+  if (reviewError) console.warn('Note du spot non enregistrée', reviewError);
   return data.id;
 }
 

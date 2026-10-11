@@ -11,6 +11,7 @@ import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin
 import { ReportCard } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
 import { OpenInApp } from '@/components/open-in-app';
+import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
@@ -56,6 +57,7 @@ export default function MapScreen() {
   const [center, setCenter] = useState<LatLng | null>(null);
   const [follow, setFollow] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [placeFilter, setPlaceFilter] = useState(false);
   const [dropped, setDropped] = useState<{ place: Place; resolving: boolean } | null>(null);
   const [fit, setFit] = useState<LatLng[] | undefined>(undefined);
   const [rideRoute, setRideRoute] = useState<{ id: string; points: [number, number][] } | null>(null);
@@ -122,7 +124,7 @@ export default function MapScreen() {
   // Lieux motards et événements (réels + démo)
   const { places: communityPlaces } = useCommunityPlaces(center ?? me);
   const { events } = useEvents();
-  const mapPlaces = layers.showPlaces ? (communityPlaces ?? []) : [];
+  const mapPlaces = layers.showPlaces ? (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind)) : [];
   const mapEvents = layers.showRides ? (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS)) : [];
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
@@ -344,8 +346,8 @@ export default function MapScreen() {
               <LayerButton
                 active={layers.showPlaces}
                 icon="cafe"
-                label={layers.showPlaces ? 'Masquer les lieux motards' : 'Afficher les lieux motards'}
-                onPress={() => layers.setShowPlaces(!layers.showPlaces)}
+                label="Spots sur la carte (catégories)"
+                onPress={() => setPlaceFilter(true)}
               />
             </View>
           </View>
@@ -431,6 +433,7 @@ export default function MapScreen() {
           )}
         </View>
       </View>
+      <PlaceFilterSheet visible={placeFilter} onClose={() => setPlaceFilter(false)} />
     </View>
   );
 }

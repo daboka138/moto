@@ -1,10 +1,27 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
+import type { PlaceKind } from '@/lib/places';
+
 // Calques et style de la carte, mémorisés sur le téléphone.
 // Masquer les signalements ne coupe PAS les alertes vocales de danger (sécurité).
 
 // Balades : nouvelle clé pour qu'elles réapparaissent par défaut chez ceux qui les avaient masquées
-const KEYS = { reports: 'moto.map.showReports', rides: 'moto.map.showRides.v2', places: 'moto.map.showPlaces', style: 'moto.map.style' };
+const KEYS = {
+  reports: 'moto.map.showReports',
+  rides: 'moto.map.showRides.v2',
+  places: 'moto.map.showPlaces',
+  hiddenPlaceKinds: 'moto.map.hiddenPlaceKinds',
+  style: 'moto.map.style',
+};
+
+function readHiddenKinds(): PlaceKind[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEYS.hiddenPlaceKinds) ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Style des tuiles, indépendant du thème de l'app. Automatique = sombre entre le coucher et le lever du soleil. */
 export type MapStyle = 'classic' | 'dark' | 'auto';
@@ -27,6 +44,9 @@ type MapLayers = {
   setShowReports: (v: boolean) => void;
   setShowRides: (v: boolean) => void;
   setShowPlaces: (v: boolean) => void;
+  /** Catégories de spots masquées sur la carte */
+  hiddenPlaceKinds: PlaceKind[];
+  setHiddenPlaceKinds: (v: PlaceKind[]) => void;
   mapStyle: MapStyle;
   setMapStyle: (v: MapStyle) => void;
 };
@@ -53,6 +73,7 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showReports, setReports] = useState(() => read(KEYS.reports));
   const [showRides, setRides] = useState(() => read(KEYS.rides));
   const [showPlaces, setPlaces] = useState(() => read(KEYS.places));
+  const [hiddenPlaceKinds, setHidden] = useState(readHiddenKinds);
   const [mapStyle, setStyle] = useState(readStyle);
   return (
     <MapLayersContext.Provider
@@ -71,6 +92,15 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
         setShowPlaces: (v) => {
           setPlaces(v);
           write(KEYS.places, v);
+        },
+        hiddenPlaceKinds,
+        setHiddenPlaceKinds: (v) => {
+          setHidden(v);
+          try {
+            localStorage.setItem(KEYS.hiddenPlaceKinds, JSON.stringify(v));
+          } catch {
+            // pas grave
+          }
         },
         mapStyle,
         setMapStyle: (v) => {

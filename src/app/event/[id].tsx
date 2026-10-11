@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
 import { LeafletMap } from '@/components/leaflet-map';
@@ -15,6 +15,7 @@ import { goToPlace } from '@/lib/app-link';
 import {
   deleteEvent,
   eventKindInfo,
+  eventShareUrl,
   fetchEvent,
   formatEventDates,
   isEventOver,
@@ -124,6 +125,22 @@ export default function EventScreen() {
         : [{ label: 'Signaler cet événement', destructive: true, onPress: () => askReport('event', event.id) }],
     });
 
+  // Lien app.passeryder.fr : s'ouvre dans le navigateur (version web), qui propose l'app
+  const share = async () => {
+    const url = eventShareUrl(event.id);
+    const message = `${event.title} · ${formatEventDates(event)} · ${event.place.label}\n${url}`;
+    try {
+      if (Platform.OS === 'web' && !navigator.share) {
+        await navigator.clipboard.writeText(url);
+        Alert.alert('Lien copié', url);
+        return;
+      }
+      await Share.share(Platform.OS === 'web' ? { title: event.title, message, url } : { title: event.title, message });
+    } catch (e) {
+      console.warn('Partage impossible', e);
+    }
+  };
+
   const openPerson = (pid: string) => {
     if (pid === userId) return;
     if (isDemo) router.push({ pathname: '/demo-rider/[id]', params: { id: pid } });
@@ -176,6 +193,18 @@ export default function EventScreen() {
           </View>
         )}
         <Button title="Y aller" variant="ghost" onPress={() => goToPlace(event.place)} />
+        {!event.isDemo && (
+          <View style={styles.buttons}>
+            <Button title="Partager le lien" variant="secondary" onPress={share} />
+            {!ended && (
+              <Button
+                title="Inviter des amis"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/event/invite', params: { id: event.id } })}
+              />
+            )}
+          </View>
+        )}
 
         <View style={styles.map}>
           <LeafletMap
