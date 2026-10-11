@@ -21,11 +21,17 @@ export function mapCss(Colors: Palette) {
   .person-wrap { background: none; border: none; transition: transform 1s linear; }
   .zooming .person-wrap, .rotating .person-wrap { transition: none; }
   .person {
-    width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: ${Colors.white};
+    position: relative;
+    width: 38px; height: 38px; border-radius: 50%; background: ${Colors.white};
     border: 3px solid ${Colors.accent}; box-shadow: 0 2px 6px ${Colors.markerShadow};
     transition: transform .2s, border-color .3s;
   }
-  .person img { width: 100%; height: 100%; display: block; }
+  .person img { width: 100%; height: 100%; display: block; border-radius: 50%; }
+  .person .badge {
+    position: absolute; top: -9px; right: -11px; width: 22px; height: 22px; border-radius: 11px;
+    background: ${Colors.surface}; box-shadow: 0 1px 3px ${Colors.markerShadow};
+    font-size: 13px; line-height: 22px; text-align: center;
+  }
   .person.muted { border-color: ${Colors.textFaint}; }
   .person.alert { border-color: ${Colors.danger}; box-shadow: 0 0 0 3px ${Colors.dangerHalo}, 0 2px 6px ${Colors.markerShadow}; }
   .person.selected { transform: scale(1.25); }

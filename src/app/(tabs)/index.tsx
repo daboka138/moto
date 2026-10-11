@@ -19,6 +19,7 @@ import { SearchBar } from '@/components/nav/search-bar';
 import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
 import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
+import { NavWeatherChip } from '@/components/weather-strip';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
@@ -46,7 +47,7 @@ import { categoryInfo } from '@/lib/moto';
 import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
 import type { PoiKind } from '@/lib/pois';
 import { createReport, deleteReport, reportInfo, voteReport, type ReportType, type Vote } from '@/lib/reports';
-import { fetchRide, type RideSummary } from '@/lib/rides';
+import { fetchRide, RIDE_ROLES, setRegroupPoint, type RideSummary } from '@/lib/rides';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 import { useSpeedLimit } from '@/lib/speed-limit';
@@ -57,7 +58,7 @@ import { useNavigation } from '@/lib/use-navigation';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
-import { roundedNow, spokenWeatherAlert, useRouteWeather } from '@/lib/weather';
+import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
 // DEMO : faux motards simulés (voir src/demo)
 import { useDemoMode } from '@/demo/demo-context';
 import { DemoCounter } from '@/demo/demo-counter';
@@ -71,6 +72,7 @@ import { useDemoRiders } from '@/demo/use-demo-riders';
 type Status = 'loading' | 'denied' | 'ready';
 
 const REAL_PREFIX = 'user:';
+const REGROUP_PIN = 'regroup';
 const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
 const PLACE_PREFIX = 'place:';
@@ -197,6 +199,9 @@ export default function MapScreen() {
     roundedNow(),
   );
 
+  // Navigation : prochain phénomène météo devant moi (pluie, vent fort, gel…)
+  const navWeather = useNavWeather(navigating ? nav.route : null, nav.progress?.alongM ?? null);
+
   // Écran toujours allumé pendant la navigation
   useEffect(() => {
     if (!navigating) return;
@@ -278,12 +283,15 @@ export default function MapScreen() {
     onCheckIn: (r) => showToast(`Check-in au RDV : tu es pointé présent pour « ${r.title} »`),
   });
   const droppedIds = new Set(convoy?.dropped.map((m) => m.id) ?? []);
+  // Convoi : badge ouvreur / serre-file sur la pastille
+  const convoyRoles = new Map((convoy?.ride.participants ?? []).filter((p) => p.role).map((p) => [p.id, RIDE_ROLES[p.role!].emoji]));
   const realMarkers: MapMarker[] = liveRiders.map((r) => ({
     id: REAL_PREFIX + r.userId,
     latitude: r.latitude,
     longitude: r.longitude,
     photoUrl: photoUrl(r.avatarPath),
     tone: droppedIds.has(r.userId) ? 'alert' : (r.speedKmh ?? 0) < 1 ? 'muted' : 'default',
+    badge: convoyRoles.get(r.userId),
   }));
 
   // DEMO : même règles de visibilité que côté serveur, rejouées en local
@@ -364,6 +372,9 @@ export default function MapScreen() {
     ...(dropped
       ? [{ id: 'dropped', kind: 'dropped' as const, label: '', latitude: dropped.place.latitude, longitude: dropped.place.longitude }]
       : []),
+    ...(convoy?.ride.regroup
+      ? [{ id: REGROUP_PIN, kind: 'meeting' as const, label: '🚩 Regroupement', latitude: convoy.ride.regroup.latitude, longitude: convoy.ride.regroup.longitude }]
+      : []),
   ];
   const toLine = (points: LatLng[]) => points.map((p) => [p.latitude, p.longitude] as [number, number]);
   // Aperçu : les autres itinéraires proposés en gris, sous celui choisi
@@ -435,6 +446,7 @@ export default function MapScreen() {
   };
 
   const onPinPress = (id: string) => {
+    if (id === REGROUP_PIN && convoy?.ride.regroup) return goToConvoyPoint(convoy.ride.regroup);
     if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
@@ -478,6 +490,36 @@ export default function MapScreen() {
     setDropped((d) =>
       d && d.place.latitude === point.latitude && d.place.longitude === point.longitude ? { place, resolving: false } : d,
     );
+  };
+
+  const goToConvoyPoint = (place: Place) => {
+    const go = () => chooseDestination({ ...place, source: 'lieu' });
+    if (!navigating) return go();
+    Alert.alert('Changer de destination ?', `Remplacer la navigation en cours par ${place.label} ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Y aller', onPress: go },
+    ]);
+  };
+
+  const regroupAtDropped = () => {
+    if (!dropped || !convoy) return;
+    const { place } = dropped;
+    const rideId = convoy.ride.id;
+    Alert.alert('Point de regroupement', `Tout le groupe reçoit une notification avec l’itinéraire vers « ${place.label} ».`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Envoyer',
+        onPress: () => {
+          setDropped(null);
+          setRegroupPoint(rideId, place)
+            .then(() => {
+              convoy.refresh();
+              showToast('Point de regroupement envoyé au groupe');
+            })
+            .catch((e) => Alert.alert('Regroupement', e instanceof Error ? e.message : String(e)));
+        },
+      },
+    ]);
   };
 
   const goToDropped = () => {
@@ -702,7 +744,10 @@ export default function MapScreen() {
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <View style={styles.header} pointerEvents="box-none">
           {navigating ? (
-            <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
+            <>
+              <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
+              <NavWeatherChip ahead={navWeather} />
+            </>
           ) : (
             <SearchBar
               near={position}
@@ -810,6 +855,8 @@ export default function MapScreen() {
             <ConvoyPanel
               convoy={convoy}
               compact={navigating}
+              position={position}
+              onGoTo={goToConvoyPoint}
               onOpenRide={() => router.push({ pathname: '/ride/[id]', params: { id: convoy.ride.id } })}
             />
           )}
@@ -861,6 +908,7 @@ export default function MapScreen() {
                 onReport={reportAtDropped}
                 onAddPlace={() => communityFromDropped('/place/new')}
                 onAddEvent={() => communityFromDropped('/event/new')}
+                onRegroup={convoy?.canRegroup ? regroupAtDropped : undefined}
                 onClose={() => setDropped(null)}
               />
             </View>

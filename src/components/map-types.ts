@@ -19,6 +19,8 @@ export type MapMarker = {
   photoUrl: string;
   /** default : orange, muted : gris (arrêté), alert : rouge (excès de vitesse) */
   tone?: 'default' | 'muted' | 'alert';
+  /** Petit badge en haut à droite (convoi : 🚩 ouvreur, 🧹 serre-file) */
+  badge?: string;
 };
 
 /** Repère fixe : départ, arrivée, étape, point de RDV, point posé par appui long. */

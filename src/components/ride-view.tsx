@@ -139,7 +139,7 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
 
         {weatherPoints && (
           <Card title={ride.status === 'live' ? 'Météo sur le parcours (à partir de maintenant)' : 'Météo sur le parcours'}>
-            <WeatherStrip weather={weather.weather} loading={weather.loading} error={weather.error} />
+            <WeatherStrip weather={weather.weather} loading={weather.loading} error={weather.error} showEnds />
           </Card>
         )}
 

@@ -1,23 +1,65 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { makeStyles, useColors } from '@/constants/theme';
-import { roleLabel, type Convoy, type ConvoyMember } from '@/lib/convoy';
+import { isDropped, roleLabel, type Convoy, type ConvoyMember } from '@/lib/convoy';
+import type { LatLng } from '@/lib/geo';
+import type { Place } from '@/lib/geocoding';
+import { setRegroupPoint, setRidePause } from '@/lib/rides';
+
+const PAUSE_MIN = 15;
 
 /**
  * Convoi d'une balade en cours, sur la carte : pastille « 5/6 groupés » (rouge si quelqu'un
- * décroche), dépliable en liste des participants avec leur rôle et leur état.
+ * décroche, avec le motard concerné), point de regroupement (« Y aller »), et liste dépliable
+ * des participants avec leur rôle, leur état et les actions : pause, regroupement.
  */
-export function ConvoyPanel({ convoy, compact, onOpenRide }: { convoy: Convoy; compact?: boolean; onOpenRide: () => void }) {
+export function ConvoyPanel({
+  convoy,
+  compact,
+  position,
+  onOpenRide,
+  onGoTo,
+}: {
+  convoy: Convoy;
+  compact?: boolean;
+  position: LatLng | null;
+  onOpenRide: () => void;
+  /** Lancer l'itinéraire vers un point (regroupement, motard décroché) */
+  onGoTo: (place: Place) => void;
+}) {
   const Colors = useColors();
   const styles = useStyles();
   const [open, setOpen] = useState(false);
-  const { members, dropped } = convoy;
+  const [busy, setBusy] = useState(false);
+  const { members, dropped, ride, mine, canRegroup } = convoy;
   if (!members.length) return null;
   const grouped = members.filter((m) => m.state === 'ok').length;
   const alert = dropped.length > 0;
+  const me = members.find((m) => m.isMe);
+  const paused = me?.state === 'paused';
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+      convoy.refresh();
+    } catch (e) {
+      Alert.alert('Convoi', e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const regroupHere = () => {
+    if (!position) return Alert.alert('Regroupement', 'Position inconnue pour le moment.');
+    Alert.alert('Point de regroupement', 'Tout le groupe reçoit une notification avec l’itinéraire vers ta position actuelle.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Envoyer', onPress: () => run(() => setRegroupPoint(ride.id, { label: 'Regroupement', ...position })) },
+    ]);
+  };
 
   return (
     <View style={styles.wrap}>
@@ -28,21 +70,63 @@ export function ConvoyPanel({ convoy, compact, onOpenRide }: { convoy: Convoy; c
         <MaterialCommunityIcons name="motorbike" size={18} color={Colors.white} />
         <Text style={styles.chipText} numberOfLines={1}>
           {alert
-            ? `${dropped[0].username} ${dropped[0].state === 'stopped' ? 'arrêté' : 'a décroché'}${dropped.length > 1 ? ` (+${dropped.length - 1})` : ''}`
+            ? `${dropped[0].username} ${dropped[0].state === 'stopped' ? 'arrêté' : dropped[0].state === 'lost' ? 'sans réseau' : 'a décroché'}${dropped.length > 1 ? ` (+${dropped.length - 1})` : ''}`
             : `Convoi · ${grouped}/${members.length} groupés`}
         </Text>
-        {!compact && <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.white} />}
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.white} />
       </Pressable>
-      {open && !compact && (
+      {ride.regroup && (
+        <Pressable
+          style={[styles.chip, styles.chipRegroup]}
+          onPress={() => onGoTo(ride.regroup!)}
+          accessibilityLabel="Aller au point de regroupement">
+          <Ionicons name="flag" size={16} color={Colors.white} />
+          <Text style={styles.chipText} numberOfLines={1}>
+            Regroupement : {ride.regroup.label} · Y aller
+          </Text>
+        </Pressable>
+      )}
+      {open && (
         <View style={styles.list}>
           <Text style={styles.title} numberOfLines={1}>
             {convoy.ride.title}
           </Text>
-          <ScrollView style={styles.scroll} contentContainerStyle={{ gap: 8 }}>
+          <ScrollView style={[styles.scroll, compact && styles.scrollCompact]} contentContainerStyle={{ gap: 8 }}>
             {members.map((m) => (
-              <MemberRow key={m.id} member={m} />
+              <MemberRow
+                key={m.id}
+                member={m}
+                onGo={isDropped(m) && m.position ? () => onGoTo({ label: `@${m.username}`, ...m.position! }) : undefined}
+              />
             ))}
           </ScrollView>
+          <View style={styles.actions}>
+            {mine?.status === 'joined' && (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                disabled={busy}
+                onPress={() => run(() => setRidePause(ride.id, paused ? 0 : PAUSE_MIN))}>
+                <Ionicons name={paused ? 'play' : 'pause'} size={18} color={Colors.accent} />
+                <Text style={styles.actionText}>{paused ? 'Je repars' : `Je fais une pause (${PAUSE_MIN} min)`}</Text>
+              </Pressable>
+            )}
+            {canRegroup && (
+              <Pressable style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]} disabled={busy} onPress={regroupHere}>
+                <Ionicons name="flag" size={18} color={Colors.accent} />
+                <Text style={styles.actionText}>Regroupement ici</Text>
+              </Pressable>
+            )}
+            {canRegroup && ride.regroup && (
+              <Pressable
+                style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+                disabled={busy}
+                onPress={() => run(() => setRegroupPoint(ride.id, null))}>
+                <Ionicons name="close" size={18} color={Colors.textMuted} />
+                <Text style={[styles.actionText, { color: Colors.textMuted }]}>Retirer le regroupement</Text>
+              </Pressable>
+            )}
+          </View>
+          {canRegroup && <Text style={styles.hint}>Ou appui long sur la carte › Point de regroupement.</Text>}
           <Pressable onPress={onOpenRide} hitSlop={6}>
             <Text style={styles.link}>Voir la balade</Text>
           </Pressable>
@@ -52,11 +136,15 @@ export function ConvoyPanel({ convoy, compact, onOpenRide }: { convoy: Convoy; c
   );
 }
 
-function MemberRow({ member: m }: { member: ConvoyMember }) {
+function MemberRow({ member: m, onGo }: { member: ConvoyMember; onGo?: () => void }) {
   const Colors = useColors();
   const styles = useStyles();
   const color =
-    m.state === 'ok' ? Colors.success : m.state === 'lost' ? Colors.textMuted : Colors.danger;
+    m.state === 'ok'
+      ? Colors.success
+      : m.state === 'paused' || (m.state === 'lost' && !m.position)
+        ? Colors.textMuted
+        : Colors.danger;
   const role = roleLabel(m);
   return (
     <View style={styles.row}>
@@ -70,7 +158,13 @@ function MemberRow({ member: m }: { member: ConvoyMember }) {
           {m.state === 'ok' ? 'Avec le groupe' : m.detail}
         </Text>
       </View>
-      <View style={[styles.dot, { backgroundColor: color }]} />
+      {onGo ? (
+        <Pressable style={({ pressed }) => [styles.go, pressed && { opacity: 0.6 }]} onPress={onGo} hitSlop={6}>
+          <Text style={styles.goText}>Y aller</Text>
+        </Pressable>
+      ) : (
+        <View style={[styles.dot, { backgroundColor: color }]} />
+      )}
     </View>
   );
 }
@@ -88,6 +182,7 @@ const useStyles = makeStyles((Colors) => ({
     elevation: 4,
   },
   chipAlert: { backgroundColor: Colors.danger },
+  chipRegroup: { backgroundColor: Colors.accent },
   chipText: { color: Colors.white, fontWeight: '800', fontSize: 14, flexShrink: 1 },
   list: {
     backgroundColor: Colors.surface,
@@ -103,6 +198,21 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   scroll: { maxHeight: 260 },
+  scrollCompact: { maxHeight: 150 },
+  actions: { gap: 6 },
+  action: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.accentSoft,
+  },
+  actionText: { color: Colors.accent, fontWeight: '800', fontSize: 14 },
+  hint: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
+  go: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.danger },
+  goText: { color: Colors.white, fontWeight: '800', fontSize: 13 },
   title: { fontSize: 15, fontWeight: '800', color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },

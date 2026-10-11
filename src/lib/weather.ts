@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { distanceM, type LatLng } from '@/lib/geo';
+import { speak } from '@/lib/voice';
 
 // Météo sur le trajet (API Open-Meteo, gratuite, sans clé) : quelques points répartis le long
 // de l'itinéraire, chacun à son heure de passage estimée (départ + part de la durée).
@@ -174,9 +175,104 @@ export function weatherAlerts(samples: WeatherSample[]): string[] {
   const gust = Math.max(...f.map((x) => x.gustKmh));
   if (gust >= 60) alerts.push(`Vent fort : rafales jusqu’à ${Math.round(gust)} km/h`);
   const cold = Math.min(...f.map((x) => x.tempC));
-  if (cold <= 3) alerts.push(`Froid : ${Math.round(cold)} °C, verglas possible`);
+  if (cold <= 3) alerts.push(`Risque de gel : ${Math.round(cold)} °C, verglas possible`);
   if (f.some((x) => x.code === 45 || x.code === 48)) alerts.push('Brouillard');
   return alerts;
+}
+
+// ---------- Pendant la navigation : ce qui arrive devant moi ----------
+
+export type WeatherHazard = 'storm' | 'rain' | 'snow' | 'wind' | 'frost' | 'fog';
+
+export type WeatherAhead = {
+  hazard: WeatherHazard;
+  emoji: string;
+  /** « Pluie prévue dans ~40 km » */
+  text: string;
+  /** Distance jusqu'au point concerné (m), 0 = déjà sur place */
+  inM: number;
+};
+
+function hazardOf(f: NonNullable<WeatherSample['forecast']>): { hazard: WeatherHazard; emoji: string; label: string; extra: string } | null {
+  if (f.code >= 95) return { hazard: 'storm', emoji: '⛈️', label: 'Orage prévu', extra: '' };
+  if ((f.code >= 71 && f.code <= 77) || f.code === 85 || f.code === 86) return { hazard: 'snow', emoji: '🌨️', label: 'Neige prévue', extra: '' };
+  if (f.precipMm >= 0.5 || ((f.precipProb ?? 0) >= 60 && f.precipMm > 0)) return { hazard: 'rain', emoji: '🌧️', label: 'Pluie prévue', extra: '' };
+  if (f.gustKmh >= 60) return { hazard: 'wind', emoji: '💨', label: 'Vent fort', extra: ` (rafales ${Math.round(f.gustKmh)} km/h)` };
+  if (f.tempC <= 3) return { hazard: 'frost', emoji: '🧊', label: 'Risque de gel', extra: ` (${Math.round(f.tempC)} °C)` };
+  if (f.code === 45 || f.code === 48) return { hazard: 'fog', emoji: '🌫️', label: 'Brouillard', extra: '' };
+  return null;
+}
+
+function aboutKm(m: number) {
+  const km = m / 1000;
+  return km < 10 ? `${Math.max(1, Math.round(km))} km` : `${Math.round(km / 5) * 5} km`;
+}
+
+/** Premier phénomène météo à surveiller devant moi sur l'itinéraire (fonction pure) */
+export function weatherAhead(weather: RouteWeather | null, alongM: number): WeatherAhead | null {
+  if (!weather) return null;
+  for (const s of weather.samples) {
+    if (s.alongM < alongM - 2000 || !s.forecast) continue;
+    const h = hazardOf(s.forecast);
+    if (!h) continue;
+    const inM = Math.max(0, s.alongM - alongM);
+    const text = inM < 3000 ? `${h.label.replace(' prévue', '').replace(' prévu', '')} sur ta route${h.extra}` : `${h.label} dans ~${aboutKm(inM)}${h.extra}`;
+    return { hazard: h.hazard, emoji: h.emoji, text, inM };
+  }
+  return null;
+}
+
+/** Nouvelle prévision pendant la navigation toutes les 30 min (le cache évite de rappeler l'API) */
+const NAV_REFRESH_MS = 30 * 60_000;
+
+/**
+ * Météo devant moi pendant une navigation : prévisions le long de l'itinéraire (heure de passage
+ * estimée), rafraîchies toutes les 30 min ou après un recalcul d'itinéraire. Annonce vocale une
+ * fois par phénomène.
+ */
+export function useNavWeather(route: { points: LatLng[]; durationS: number; distanceM: number } | null, alongM: number | null) {
+  const [state, setState] = useState<{ key: string; weather: RouteWeather } | null>(null);
+  const progress = useRef(alongM ?? 0);
+  const announced = useRef(new Set<WeatherHazard>());
+  const routeKey = route ? `${route.points.length}:${Math.round(route.distanceM)}` : null;
+
+  useEffect(() => {
+    progress.current = alongM ?? 0;
+  });
+
+  useEffect(() => {
+    if (!route || !routeKey) {
+      announced.current.clear();
+      return;
+    }
+    let cancelled = false;
+    const load = () => {
+      // Départ « virtuel » : maintenant moins le temps déjà roulé, pour garder les heures de passage justes
+      const doneS = route.durationS * (progress.current / Math.max(route.distanceM, 1));
+      const departAt = new Date(Date.now() - doneS * 1000);
+      fetchRouteWeather(route.points, route.durationS, new Date(Math.floor(departAt.getTime() / 600_000) * 600_000))
+        .then((w) => !cancelled && setState({ key: routeKey, weather: w }))
+        .catch((e) => console.warn('Météo de navigation indisponible', e));
+    };
+    load();
+    const timer = setInterval(load, NAV_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
+
+  const weather = state && state.key === routeKey ? state.weather : null;
+  const ahead = route ? weatherAhead(weather, alongM ?? 0) : null;
+  const hazard = ahead?.hazard ?? null;
+  const spokenText = ahead?.text ?? null;
+  useEffect(() => {
+    if (!hazard || !spokenText || announced.current.has(hazard)) return;
+    announced.current.add(hazard);
+    speak(`Météo : ${spokenText.replace('~', 'environ ')}`, false, 'info');
+  }, [hazard, spokenText]);
+  return ahead;
 }
 
 /** Phrase courte pour l'annonce vocale au départ */

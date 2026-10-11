@@ -5,15 +5,16 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
-import { Button } from '@/components/ui';
+import { Button, Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { roleLabel } from '@/lib/convoy';
+import { GAP_CHOICES_KM, roleLabel } from '@/lib/convoy';
 import {
   canStartNow,
   checkInRide,
   fetchRide,
   formatRideDate,
   RIDE_ROLES,
+  setConvoyGap,
   setRideRole,
   type RideDetails,
   type RideParticipant,
@@ -153,6 +154,26 @@ export default function RideCheckInScreen() {
           : 'Avec l’app ouverte, tu es pointé automatiquement en arrivant au RDV.'}
       </Text>
 
+      {isOrganizer && ride.status !== 'ended' && (
+        <View style={styles.gap}>
+          <Text style={styles.gapTitle}>Alerte si un motard est à plus de</Text>
+          <View style={styles.gapRow}>
+            {GAP_CHOICES_KM.map((km) => (
+              <Chip
+                key={km}
+                label={`${km} km`}
+                selected={ride.convoyGapKm === km}
+                onPress={busy ? undefined : () => run(() => setConvoyGap(ride.id, km))}
+              />
+            ))}
+          </View>
+          <Text style={styles.hint}>
+            L’ouvreur et le serre-file sont aussi prévenus si quelqu’un est arrêté plus de 2 min pendant que le groupe roule, ou
+            n’a plus de réseau depuis 3 min.
+          </Text>
+        </View>
+      )}
+
       <View style={styles.list}>
         {joined.map((p) => {
           const role = roleLabel(p);
@@ -202,6 +223,9 @@ const useStyles = makeStyles((Colors) => ({
   done: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successSoft, borderRadius: 12, padding: 12 },
   doneText: { flex: 1, color: Colors.successDark, fontWeight: '700' },
   hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  gap: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, gap: 8 },
+  gapTitle: { fontSize: 15, fontWeight: '800', color: Colors.text },
+  gapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   list: { backgroundColor: Colors.surface, borderRadius: 18, padding: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, minHeight: 60 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },

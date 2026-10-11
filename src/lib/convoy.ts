@@ -14,11 +14,14 @@ import {
 import { speak } from '@/lib/voice';
 
 // Mode convoi pendant une balade en cours : chaque participant est suivi (positions visibles
-// grâce à la balade, règle can_view_location côté serveur). Un motard qui décroche (trop loin
-// du groupe, ou arrêté alors que le groupe roule) est signalé ; l'organisateur, l'ouvreur et le
-// serre-file reçoivent une alerte vocale. Le jour J, check-in automatique en arrivant au RDV.
+// grâce à la balade, règle can_view_location côté serveur). Un motard qui décroche (plus loin que
+// l'écart réglé par l'organisateur, arrêté > 2 min alors que le groupe roule, ou sans réseau
+// depuis > 3 min) est signalé : bandeau + alerte vocale pour l'organisateur, l'ouvreur et le
+// serre-file. Le serveur fait le même calcul chaque minute (check_convoys) et leur envoie une
+// notification push, même app en arrière-plan. Un membre « en pause » n'est pas signalé.
+// Le jour J, check-in automatique en arrivant au RDV.
 
-export type ConvoyState = 'ok' | 'stopped' | 'far' | 'lost';
+export type ConvoyState = 'ok' | 'paused' | 'stopped' | 'far' | 'lost';
 
 export type ConvoyMember = RideParticipant & {
   isMe: boolean;
@@ -35,12 +38,19 @@ export type Convoy = {
   watcher: boolean;
   /** Motards qui ont décroché (hors moi) */
   dropped: ConvoyMember[];
+  /** Moi dans la balade (pause en cours…) */
+  mine: RideParticipant | null;
+  /** Je peux poser le point de regroupement (ouvreur ou organisateur) */
+  canRegroup: boolean;
+  /** Recharger la balade après une action (pause, regroupement) */
+  refresh: () => void;
 };
 
-/** Plus loin que ça du motard le plus proche : décroché */
-const FAR_M = 1500;
-/** Immobile depuis 3 min alors que d'autres roulent : décroché */
-const STOPPED_MS = 3 * 60_000;
+/** Écart par défaut avec le motard le plus proche avant alerte (réglable par l'organisateur) */
+export const DEFAULT_GAP_KM = 2;
+export const GAP_CHOICES_KM = [1, 2, 3, 5];
+/** Immobile depuis 2 min alors que d'autres roulent : décroché */
+const STOPPED_MS = 2 * 60_000;
 /** Bouger de moins de 80 m = rester sur place (bruit GPS, parking) */
 const ANCHOR_M = 80;
 /** Pas de position depuis 3 min : signal perdu (app fermée, plus de réseau) */
@@ -59,11 +69,16 @@ function km(m: number) {
   return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
 }
 
-/** État de chaque participant (fonction pure, testable) */
+function clock(ms: number) {
+  return new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** État de chaque participant (fonction pure, testable) ; gapM = écart toléré */
 export function analyzeConvoy(
   participants: (RideParticipant & { isMe: boolean; position: LatLng | null; updatedAt: number | null })[],
   anchors: Map<string, Anchor>,
   now: number,
+  gapM = DEFAULT_GAP_KM * 1000,
 ): ConvoyMember[] {
   const fresh = participants.filter((p) => p.position && p.updatedAt !== null && now - p.updatedAt < LOST_MS);
   // Mise à jour des points d'immobilité
@@ -77,9 +92,16 @@ export function analyzeConvoy(
   };
 
   return participants.map(({ updatedAt, ...p }) => {
+    if (p.pausedUntil && new Date(p.pausedUntil).getTime() > now) {
+      return { ...p, state: 'paused' as const, detail: `en pause jusqu’à ${clock(new Date(p.pausedUntil).getTime())}` };
+    }
     if (!p.position || updatedAt === null) return { ...p, state: 'lost' as const, detail: 'pas de position' };
     if (now - updatedAt >= LOST_MS) {
-      return { ...p, state: 'lost' as const, detail: `signal perdu depuis ${Math.round((now - updatedAt) / 60_000)} min` };
+      return {
+        ...p,
+        state: 'lost' as const,
+        detail: `plus de réseau depuis ${Math.round((now - updatedAt) / 60_000)} min · dernière position à ${clock(updatedAt)}`,
+      };
     }
     const others = fresh.filter((o) => o.id !== p.id);
     if (!others.length) return { ...p, state: 'ok' as const, detail: '' };
@@ -91,9 +113,14 @@ export function analyzeConvoy(
     if (stoppedMs >= STOPPED_MS && groupLeft) {
       return { ...p, state: 'stopped' as const, detail: `arrêté depuis ${Math.floor(stoppedMs / 60_000)} min` };
     }
-    if (nearest > FAR_M) return { ...p, state: 'far' as const, detail: `à ${km(nearest)} du groupe` };
+    if (nearest > gapM) return { ...p, state: 'far' as const, detail: `à ${km(nearest)} derrière le groupe` };
     return { ...p, state: 'ok' as const, detail: '' };
   });
+}
+
+/** Décroché : à signaler à l'ouvreur et au serre-file (réseau perdu seulement si on l'a déjà vu pendant la balade) */
+export function isDropped(m: ConvoyMember) {
+  return !m.isMe && (m.state === 'stopped' || m.state === 'far' || (m.state === 'lost' && !!m.position));
 }
 
 export function roleLabel(p: Pick<RideParticipant, 'role'>) {
@@ -124,6 +151,7 @@ export function useConvoy({
   const rideId = today?.id ?? null;
 
   const [ride, setRide] = useState<RideDetails | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [members, setMembers] = useState<ConvoyMember[]>([]);
   const anchors = useRef(new Map<string, Anchor>());
   const alerted = useRef(new Set<string>());
@@ -148,7 +176,7 @@ export function useConvoy({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [rideId, userId]);
+  }, [rideId, userId, reloadKey]);
 
   // Suivi toutes les 5 s
   useEffect(() => {
@@ -195,13 +223,14 @@ export function useConvoy({
         }),
         anchors.current,
         now,
+        r.convoyGapKm * 1000,
       );
       setMembers(next);
 
       // Alerte vocale (une fois par décrochage) pour l'organisateur, l'ouvreur et le serre-file
       const watcher = r.organizer.id === userId || !!mine?.role;
       for (const m of next) {
-        const out = !m.isMe && (m.state === 'stopped' || m.state === 'far');
+        const out = isDropped(m);
         if (!out) {
           alerted.current.delete(m.id);
           continue;
@@ -211,8 +240,10 @@ export function useConvoy({
         if (watcher) {
           speak(
             m.state === 'stopped'
-              ? `Convoi : ${m.username} est arrêté depuis plus de 3 minutes`
-              : `Convoi : ${m.username} a décroché du groupe`,
+              ? `Convoi : ${m.username} est arrêté depuis plus de 2 minutes`
+              : m.state === 'lost'
+                ? `Convoi : ${m.username} a perdu le réseau`
+                : `Convoi : ${m.username} a décroché du groupe`,
             true,
             'info',
           );
@@ -230,6 +261,9 @@ export function useConvoy({
     ride,
     members: ride.status === 'live' ? members : [],
     watcher: ride.organizer.id === userId || !!mine?.role,
-    dropped: members.filter((m) => !m.isMe && (m.state === 'stopped' || m.state === 'far')),
+    dropped: members.filter(isDropped),
+    mine: mine ?? null,
+    canRegroup: ride.status === 'live' && (ride.organizer.id === userId || mine?.role === 'leader'),
+    refresh: () => setReloadKey((k) => k + 1),
   };
 }

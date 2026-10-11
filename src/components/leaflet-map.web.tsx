@@ -37,6 +37,13 @@ function personIcon(m: MapMarker, selected: boolean) {
   img.src = m.photoUrl;
   img.alt = '';
   el.appendChild(img);
+  if (m.badge) {
+    // Badge du convoi (ouvreur / serre-file)
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = m.badge;
+    el.appendChild(badge);
+  }
   return L.divIcon({ className: 'person-wrap', html: el, iconSize: [44, 44], iconAnchor: [22, 22] });
 }
 

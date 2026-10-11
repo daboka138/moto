@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { makeStyles, useColors } from '@/constants/theme';
-import { weatherInfo, type RouteWeather } from '@/lib/weather';
+import { weatherInfo, type RouteWeather, type WeatherAhead } from '@/lib/weather';
 
 function clock(d: Date) {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -21,8 +21,55 @@ export function WeatherAlerts({ alerts }: { alerts: string[] }) {
   );
 }
 
+/** Navigation : prochain phénomène météo devant moi (« Pluie prévue dans ~40 km ») */
+export function NavWeatherChip({ ahead }: { ahead: WeatherAhead | null }) {
+  const styles = useStyles();
+  if (!ahead) return null;
+  return (
+    <View style={styles.navChip}>
+      <Text style={styles.navChipText} numberOfLines={1}>
+        {ahead.emoji} {ahead.text}
+      </Text>
+    </View>
+  );
+}
+
+/** Balade : météo prévue au départ et à l'arrivée, aux heures prévues */
+function Endpoints({ weather }: { weather: RouteWeather }) {
+  const styles = useStyles();
+  const first = weather.samples[0];
+  const last = weather.samples[weather.samples.length - 1];
+  if (!first || !last || first === last) return null;
+  const line = (label: string, s: typeof first) => {
+    const f = s.forecast;
+    return (
+      <Text style={styles.endpoint}>
+        <Text style={styles.endpointLabel}>{label} {clock(s.at)} : </Text>
+        {f ? `${weatherInfo(f.code).emoji} ${weatherInfo(f.code).label}, ${Math.round(f.tempC)}°, vent ${Math.round(f.windKmh)} km/h` : '–'}
+      </Text>
+    );
+  };
+  return (
+    <View style={styles.endpoints}>
+      {line('Départ', first)}
+      {line('Arrivée', last)}
+    </View>
+  );
+}
+
 /** Météo le long du trajet : un point tous les 15 km environ, à l'heure de passage. */
-export function WeatherStrip({ weather, loading, error }: { weather: RouteWeather | null; loading: boolean; error?: boolean }) {
+export function WeatherStrip({
+  weather,
+  loading,
+  error,
+  showEnds,
+}: {
+  weather: RouteWeather | null;
+  loading: boolean;
+  error?: boolean;
+  /** Afficher la météo au départ et à l'arrivée (fiche balade) */
+  showEnds?: boolean;
+}) {
   const Colors = useColors();
   const styles = useStyles();
   if (loading) {
@@ -38,6 +85,7 @@ export function WeatherStrip({ weather, loading, error }: { weather: RouteWeathe
   if (weather.tooFar) return <Text style={styles.muted}>Prévisions météo disponibles 16 jours avant.</Text>;
   return (
     <View style={styles.wrap}>
+      {showEnds && <Endpoints weather={weather} />}
       <WeatherAlerts alerts={weather.alerts} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
         {weather.samples.map((s, i) => {
@@ -71,6 +119,19 @@ export function WeatherStrip({ weather, loading, error }: { weather: RouteWeathe
 
 const useStyles = makeStyles((Colors) => ({
   wrap: { gap: 8 },
+  endpoints: { gap: 4 },
+  endpoint: { fontSize: 14, color: Colors.text },
+  endpointLabel: { fontWeight: '800' },
+  navChip: {
+    alignSelf: 'center',
+    maxWidth: '100%',
+    backgroundColor: Colors.warning,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+  },
+  navChipText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   muted: { fontSize: 13, color: Colors.textMuted },
   alerts: {

@@ -17,6 +17,7 @@ export function DroppedPinCard({
   onReport,
   onAddPlace,
   onAddEvent,
+  onRegroup,
   onClose,
 }: {
   place: Place;
@@ -29,6 +30,8 @@ export function DroppedPinCard({
   /** Ajouter un lieu motard / créer un événement à cet endroit */
   onAddPlace?: () => void;
   onAddEvent?: () => void;
+  /** Balade en cours (ouvreur ou organisateur) : poser le point de regroupement ici */
+  onRegroup?: () => void;
   onClose: () => void;
 }) {
   const Colors = useColors();
@@ -59,6 +62,13 @@ export function DroppedPinCard({
         <MaterialCommunityIcons name="navigation-variant" size={20} color={Colors.white} />
         <Text style={styles.goText}>Aller ici</Text>
       </Pressable>
+
+      {onRegroup && (
+        <Pressable style={({ pressed }) => [styles.go, styles.regroup, pressed && styles.pressed]} onPress={onRegroup}>
+          <MaterialCommunityIcons name="flag-variant" size={20} color={Colors.white} />
+          <Text style={styles.goText}>Point de regroupement</Text>
+        </Pressable>
+      )}
 
       <Text style={styles.section}>Pour une balade</Text>
       <View style={styles.row}>
@@ -150,4 +160,5 @@ const useStyles = makeStyles((Colors) => ({
   report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6 },
   reportText: { fontSize: 15, fontWeight: '700', color: Colors.danger },
   pressed: { opacity: 0.7 },
+  regroup: { backgroundColor: Colors.success },
 }));

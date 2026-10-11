@@ -360,7 +360,16 @@ function buildHtml(Colors: Palette, dark: boolean) {
     var img = document.createElement('img');
     img.src = m.photoUrl;
     el.appendChild(img);
+    setBadge(el, m.badge);
     return L.divIcon({ className: 'person-wrap', html: el, iconSize: [44, 44], iconAnchor: [22, 22] });
+  }
+
+  // Badge du convoi (ouvreur / serre-file), ajouté, changé ou retiré
+  function setBadge(el, text) {
+    var badge = el.querySelector('.badge');
+    if (!text) { if (badge) el.removeChild(badge); return; }
+    if (!badge) { badge = document.createElement('span'); badge.className = 'badge'; el.appendChild(badge); }
+    if (badge.textContent !== text) badge.textContent = text;
   }
 
   window.setMarkers = function (list, selectedId) {
@@ -379,6 +388,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
       if (el && el.firstChild) {
         var cls = 'person' + (m.tone && m.tone !== 'default' ? ' ' + m.tone : '') + (m.id === selectedId ? ' selected' : '');
         if (el.firstChild.className !== cls) el.firstChild.className = cls;
+        setBadge(el.firstChild, m.badge);
         marker.setZIndexOffset(m.id === selectedId ? 1000 : 0);
       }
     });

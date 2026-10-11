@@ -69,6 +69,10 @@ export type RideDetails = RideSummary & {
   route: [number, number][] | null;
   participants: RideParticipant[];
   startedAt: string | null;
+  /** Convoi : écart toléré avec le motard le plus proche avant alerte (km, réglé par l'organisateur) */
+  convoyGapKm: number;
+  /** Point de regroupement posé par l'ouvreur ou l'organisateur pendant la balade */
+  regroup: (Place & { at: string }) | null;
 };
 
 /** Rôle dans le convoi : ouvreur (devant) ou serre-file (derrière) */
@@ -84,6 +88,8 @@ export type RideParticipant = RidePerson & {
   role: RideRole | null;
   /** Pointé présent au RDV */
   checkedInAt: string | null;
+  /** « Je fais une pause » : pas d'alerte de décrochage jusqu'à cette heure */
+  pausedUntil: string | null;
 };
 
 export type RideDraft = {
@@ -131,6 +137,11 @@ type Row = {
   categories: MotoCategory[];
   pace: Pace | null;
   surface: Surface;
+  convoy_gap_km?: number;
+  regroup_lat?: number | null;
+  regroup_lng?: number | null;
+  regroup_label?: string | null;
+  regroup_at?: string | null;
   organizer: { id: string; username: string; avatar_path: string } | null;
   participants: {
     user_id: string;
@@ -138,6 +149,7 @@ type Row = {
     created_at: string;
     role?: RideRole | null;
     checked_in_at?: string | null;
+    paused_until?: string | null;
     profile?: { id: string; username: string; avatar_path: string } | null;
   }[];
 };
@@ -149,7 +161,7 @@ const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participan
 
 const DETAIL_FIELDS = `*,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, profile:profiles(id, username, avatar_path))`;
+  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, paused_until, profile:profiles(id, username, avatar_path))`;
 
 /** Pendant combien de temps après le RDV une balade non démarrée reste listée */
 const LISTED_AFTER_MEETING_MS = 12 * 3600 * 1000;
@@ -233,10 +245,16 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
         status: p.status,
         role: p.role ?? null,
         checkedInAt: p.checked_in_at ?? null,
+        pausedUntil: p.paused_until ?? null,
       }))
       // Organisateur en premier, puis les inscrits, puis les invités
       .sort((a, b) => Number(b.id === r.created_by) - Number(a.id === r.created_by) || b.status.localeCompare(a.status)),
     startedAt: r.started_at,
+    convoyGapKm: r.convoy_gap_km ?? 2,
+    regroup:
+      r.regroup_lat != null && r.regroup_lng != null && r.regroup_at
+        ? { label: r.regroup_label ?? 'Point de regroupement', latitude: r.regroup_lat, longitude: r.regroup_lng, at: r.regroup_at }
+        : null,
   };
 }
 
@@ -322,6 +340,30 @@ export async function deleteRide(rideId: string) {
 }
 
 /** L'organisateur donne un rôle (ouvreur / serre-file) à un inscrit, ou le retire (null). */
+/** Convoi : écart toléré (organisateur) */
+export async function setConvoyGap(rideId: string, km: number) {
+  const { error } = await supabase.from('group_rides').update({ convoy_gap_km: km }).eq('id', rideId);
+  if (error) throw new Error(error.message);
+}
+
+/** « Je fais une pause » (minutes) ou « Je repars » (0) : renvoie la fin de la pause */
+export async function setRidePause(rideId: string, minutes: number): Promise<string | null> {
+  const { data, error } = await supabase.rpc('set_ride_pause', { p_ride: rideId, p_minutes: minutes });
+  if (error) throw new Error(error.message);
+  return (data as string | null) ?? null;
+}
+
+/** Point de regroupement (ouvreur ou organisateur) : tout le groupe reçoit une notification ; null = retirer */
+export async function setRegroupPoint(rideId: string, place: Place | null) {
+  const { error } = await supabase.rpc('set_regroup_point', {
+    p_ride: rideId,
+    p_lat: place?.latitude ?? null,
+    p_lng: place?.longitude ?? null,
+    p_label: place?.label ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function setRideRole(rideId: string, userId: string, role: RideRole | null) {
   const { error } = await supabase.rpc('set_ride_role', { p_ride: rideId, p_user: userId, p_role: role });
   if (error) throw new Error(error.message);
