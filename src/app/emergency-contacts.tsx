@@ -22,6 +22,7 @@ import {
   removePhoneContact,
   usePhoneContacts,
   type MemberContact,
+  type PhoneContact,
 } from '@/lib/emergency';
 import { canPickPhoneContact, pickPhoneContact } from '@/lib/phone-contacts';
 import { photoUrl } from '@/lib/profile';
@@ -44,11 +45,8 @@ export default function EmergencyContactsScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
+  // SMS de test par contact (clé = id du numéro) : en cours, ou résultat exact
+  const [tests, setTests] = useState<Record<string, TestState>>({});
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -146,17 +144,27 @@ export default function EmergencyContactsScreen() {
       { text: 'Retirer', style: 'destructive', onPress: () => act(remove) },
     ]);
 
-  const firstPhone = phones[0] ?? null;
-  const runTest = async () => {
-    if (!firstPhone) return;
-    setTesting(true);
-    setTestResult(null);
-    try {
-      setTestResult(await sendTestSms(firstPhone.phone));
-    } finally {
-      setTesting(false);
-    }
-  };
+  // « Test PasseRyder » à CE contact uniquement, après confirmation (compte dans les 10 SMS / 24 h)
+  const confirmTest = (p: PhoneContact) =>
+    Alert.alert(
+      'Envoyer un SMS de test ?',
+      `« Test PasseRyder » sera envoyé à ${p.name} (${formatPhone(p.phone)}).
+1 crédit SMS sera utilisé (10 SMS max par jour).`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Envoyer',
+          onPress: async () => {
+            setTests((t) => ({ ...t, [p.id]: 'sending' }));
+            const result = await sendTestSms(p.phone).catch((e) => ({
+              ok: false,
+              message: e instanceof Error ? e.message : String(e),
+            }));
+            setTests((t) => ({ ...t, [p.id]: result }));
+          },
+        },
+      ],
+    );
 
   const candidates = (friends?.friends ?? []).filter((f) => !members?.some((m) => m.id === f.id));
 
@@ -189,6 +197,8 @@ export default function EmergencyContactsScreen() {
             title={p.name}
             subtitle={`${formatPhone(p.phone)} · SMS`}
             invalid={!parseFrenchMobile(p.phone)}
+            test={tests[p.id]}
+            onTest={() => confirmTest(p)}
             onRemove={() => confirmRemove(p.name, () => removePhoneContact(p.id))}
           />
         ))}
@@ -257,25 +267,11 @@ export default function EmergencyContactsScreen() {
         <Button title={full ? 'Liste complète (5 max)' : '+ Ajouter'} onPress={openAdd} disabled={full} />
       )}
 
-      <Text style={styles.section}>Vérifier les SMS</Text>
-      <View style={styles.card}>
+      {phones.length > 0 && (
         <Text style={styles.help}>
-          {firstPhone
-            ? `Envoie « Test PasseRyder » à ${firstPhone.name} (${formatPhone(firstPhone.phone)}). Compte dans la limite de 10 SMS par jour.`
-            : 'Ajoute un numéro pour pouvoir tester l’envoi de SMS.'}
+          Icône bulle sur un numéro : lui envoyer un SMS de test « Test PasseRyder » (1 crédit, 10 SMS max par jour).
         </Text>
-        <Button title="Envoyer un SMS de test" variant="secondary" onPress={runTest} loading={testing} disabled={!firstPhone} />
-        {testResult && (
-          <View style={[styles.result, { borderColor: testResult.ok ? Colors.success : Colors.danger }]}>
-            <Ionicons
-              name={testResult.ok ? 'checkmark-circle' : 'alert-circle'}
-              size={22}
-              color={testResult.ok ? Colors.success : Colors.danger}
-            />
-            <Text style={[styles.resultText, { color: testResult.ok ? Colors.success : Colors.danger }]}>{testResult.message}</Text>
-          </View>
-        )}
-      </View>
+      )}
 
       {contactOf.length > 0 && (
         <>
@@ -310,17 +306,24 @@ export default function EmergencyContactsScreen() {
   );
 }
 
+type TestState = 'sending' | { ok: boolean; message: string };
+
 function ContactRow({
   icon,
   title,
   subtitle,
   invalid,
+  test,
+  onTest,
   onRemove,
 }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   invalid?: boolean;
+  /** Numéros seulement : SMS de test */
+  test?: TestState;
+  onTest?: () => void;
   onRemove: () => void;
 }) {
   const Colors = useColors();
@@ -336,7 +339,28 @@ function ContactRow({
           {subtitle}
         </Text>
         {invalid && <Text style={styles.error}>Numéro non reconnu (06 / 07 attendu) : retire-le et ajoute-le de nouveau.</Text>}
+        {test === 'sending' && <Text style={styles.help}>Envoi du SMS de test…</Text>}
+        {test && test !== 'sending' && (
+          <Text style={[styles.testResult, { color: test.ok ? Colors.success : Colors.danger }]}>
+            {test.ok ? '✓ ' : '✗ '}
+            {test.message}
+          </Text>
+        )}
       </View>
+      {onTest && (
+        <Pressable
+          onPress={onTest}
+          disabled={test === 'sending'}
+          hitSlop={6}
+          style={({ pressed }) => [styles.remove, pressed && styles.pressed]}
+          accessibilityLabel={`Envoyer un SMS de test à ${title}`}>
+          {test === 'sending' ? (
+            <ActivityIndicator color={Colors.accent} />
+          ) : (
+            <Ionicons name="chatbubble-ellipses-outline" size={22} color={Colors.accent} />
+          )}
+        </Pressable>
+      )}
       <Pressable
         onPress={onRemove}
         hitSlop={10}
@@ -412,13 +436,5 @@ const useStyles = makeStyles((Colors) => ({
   },
   actionText: { fontWeight: '800', color: Colors.accent },
   pressed: { opacity: 0.6 },
-  result: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 12,
-  },
-  resultText: { flex: 1, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  testResult: { fontSize: 13, fontWeight: '700', lineHeight: 18, marginTop: 2 },
 }));
