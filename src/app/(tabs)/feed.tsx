@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NotificationBell } from '@/components/notification-bell';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
 import { StoryRow } from '@/components/story-row';
@@ -166,7 +165,6 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Mur</Text>
-        <NotificationBell />
         <Pressable style={styles.findButton} onPress={() => router.push('/riders')} accessibilityLabel="Trouver des motards pour rouler">
           <Ionicons name="people" size={18} color={Colors.white} />
           <Text style={styles.findText}>Rouler ensemble</Text>

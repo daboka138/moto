@@ -4,12 +4,14 @@ import { DEMO_RIDERS } from '@/demo/riders';
 import { DEMO_INITIAL_INVITED, DEMO_INITIAL_JOINED } from '@/demo/rides';
 import { demoSocial, type DemoSocialState } from '@/demo/social';
 
-// Mode démo : faux motards simulés sur la carte. Activé par défaut en dev (__DEV__) seulement :
-// désactivé par défaut dans les APK de test et de prod, activable dans Paramètres.
+// « Afficher les données de démo » : faux motards, balades, signalements, spots, événements,
+// stories et messages fictifs (générés sur le téléphone, rien sur le serveur). DÉSACTIVÉ par défaut
+// partout (dev compris), activable dans Paramètres ou dans les filtres de la carte.
 // Le choix est mémorisé sur l'appareil (localStorage fourni par expo-sqlite).
 // Les amitiés et le trajet de groupe de démo ne vivent qu'en mémoire.
 
-const STORAGE_KEY = 'demoMode';
+// Nouvelle clé : l'ancien réglage « Mode démo » (souvent resté activé) n'est pas repris
+const STORAGE_KEY = 'moto.showDemoData';
 
 type DemoState = DemoSocialState & {
   enabled: boolean;
@@ -35,10 +37,9 @@ const DemoContext = createContext<DemoState | null>(null);
 
 function readStored(): boolean {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value === null ? __DEV__ : value === '1';
+    return localStorage.getItem(STORAGE_KEY) === '1';
   } catch {
-    return __DEV__;
+    return false;
   }
 }
 

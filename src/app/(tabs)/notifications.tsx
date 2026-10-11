@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, Stack, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, PanResponder, Platform, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { makeStyles, useColors } from '@/constants/theme';
 import {
@@ -22,7 +23,7 @@ import { useSession } from '@/lib/session';
 /** Distance de glissement vers la gauche qui supprime la notification */
 const SWIPE_DELETE_PX = 110;
 
-/** Centre de notifications : regroupées par Aujourd'hui / Cette semaine / Plus ancien. */
+/** Onglet Notifs : regroupées par Aujourd'hui / Cette semaine / Plus ancien. */
 export default function NotificationsScreen() {
   const Colors = useColors();
   const styles = useStyles();
@@ -102,17 +103,15 @@ export default function NotificationsScreen() {
   const unread = list?.items.some((n) => !n.readAt) ?? false;
 
   return (
-    <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          headerRight: () =>
-            unread ? (
-              <Pressable onPress={markAll} hitSlop={8} accessibilityLabel="Tout marquer comme lu">
-                <Text style={styles.markAll}>Tout marquer comme lu</Text>
-              </Pressable>
-            ) : null,
-        }}
-      />
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <View style={styles.titleRow}>
+        <Text style={styles.screenTitle}>Notifications</Text>
+        {unread && (
+          <Pressable onPress={markAll} hitSlop={8} accessibilityLabel="Tout marquer comme lu">
+            <Text style={styles.markAll}>Tout marquer comme lu</Text>
+          </Pressable>
+        )}
+      </View>
       {!list ? (
         <View style={styles.center}>
           {error ? <Text style={styles.muted}>Impossible de charger les notifications.</Text> : <ActivityIndicator color={Colors.accent} />}
@@ -153,7 +152,7 @@ export default function NotificationsScreen() {
           }
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -268,6 +267,8 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   list: { padding: 12, gap: 8, paddingBottom: 40 },
   section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 12 },
+  screenTitle: { fontSize: 28, fontWeight: '900', color: Colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   markAll: { color: Colors.accent, fontWeight: '800', fontSize: 14, paddingHorizontal: 8 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   empty: { alignItems: 'center', gap: 8, paddingTop: 64 },

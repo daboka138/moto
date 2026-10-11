@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NotificationBell } from '@/components/notification-bell';
 import { EventsList, PlacesList } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
@@ -103,8 +102,7 @@ export default function RidesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Sorties</Text>
         <View style={styles.headerButtons}>
-          <NotificationBell />
-          {segment === 'rides' && (
+            {segment === 'rides' && (
             <Pressable style={styles.gpx} onPress={importGpx} accessibilityLabel="Importer un fichier GPX">
               <Ionicons name="document-attach-outline" size={18} color={Colors.accent} />
               <Text style={styles.gpxText}>GPX</Text>

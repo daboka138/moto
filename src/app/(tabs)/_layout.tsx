@@ -4,6 +4,7 @@ import { Platform, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/constants/theme';
+import { useNotificationsBadge } from '@/lib/notifications';
 import { useInbox } from '@/lib/use-inbox';
 import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
 
@@ -20,6 +21,9 @@ export default function TabsLayout() {
   const Colors = useColors();
   const insets = useSafeAreaInsets();
   const { unreadTotal } = useInbox();
+  const { unread: unreadNotifs } = useNotificationsBadge();
+  const badgeStyle = { backgroundColor: Colors.danger, color: Colors.white, fontSize: 11, fontWeight: '800' as const };
+  const badge = (n: number) => (n > 0 ? (n > 99 ? '99+' : n) : undefined);
   // Web sur grand écran : onglets en colonne à gauche, contenu centré (sauf la carte, plein écran)
   const wide = useWideLayout();
   return (
@@ -43,7 +47,11 @@ export default function TabsLayout() {
         tabBarHideOnKeyboard: false,
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
+        // 6 onglets : libellés courts en 11 px, sans agrandissement par la taille de police du système
+        // (sinon « Messages » est coupé sur un écran de 360 dp)
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarAllowFontScaling: false,
+        tabBarItemStyle: { paddingHorizontal: 0 },
         tabBarStyle: wide
           ? { backgroundColor: Colors.surface, borderRightColor: Colors.border, width: 100, paddingTop: 16 }
           : {
@@ -62,12 +70,22 @@ export default function TabsLayout() {
       <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
       <Tabs.Screen name="rides" options={{ title: 'Sorties', tabBarIcon: icon('flag', 'flag-outline') }} />
       <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifs',
+          tabBarIcon: icon('notifications', 'notifications-outline'),
+          tabBarBadge: badge(unreadNotifs),
+          tabBarBadgeStyle: badgeStyle,
+          tabBarAccessibilityLabel: unreadNotifs ? `Notifications, ${unreadNotifs} non lues` : 'Notifications',
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: 'Messages',
           tabBarIcon: icon('chatbubbles', 'chatbubbles-outline'),
-          tabBarBadge: unreadTotal > 0 ? (unreadTotal > 99 ? '99+' : unreadTotal) : undefined,
-          tabBarBadgeStyle: { backgroundColor: Colors.danger, color: Colors.white, fontSize: 11, fontWeight: '800' },
+          tabBarBadge: badge(unreadTotal),
+          tabBarBadgeStyle: badgeStyle,
         }}
       />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: icon('person', 'person-outline') }} />

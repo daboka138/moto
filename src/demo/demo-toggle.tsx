@@ -12,8 +12,11 @@ export function DemoToggle() {
     <Card title="Démonstration">
       <View style={styles.row}>
         <View style={styles.text}>
-          <Text style={styles.label}>Mode démo</Text>
-          <Text style={styles.hint}>18 faux motards simulés autour de toi (carte, Mur, balades, stories, messages). Désactivé par défaut.</Text>
+          <Text style={styles.label}>Afficher les données de démo</Text>
+          <Text style={styles.hint}>
+            Motards, balades, signalements, spots et événements fictifs autour de toi (carte, Mur, Sorties, recherche, stories,
+            messages). Désactivé par défaut.
+          </Text>
         </View>
         <Switch
           value={enabled}

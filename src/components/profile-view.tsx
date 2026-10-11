@@ -4,7 +4,6 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NotificationBell } from '@/components/notification-bell';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -90,11 +89,6 @@ export function ProfileView({
               accessibilityLabel="Paramètres">
               <Ionicons name="settings-sharp" size={22} color={Colors.white} />
             </Pressable>
-          )}
-          {onOpenSettings && (
-            <View style={[styles.settingsButton, styles.bellButton, { top: (underStatusBar ? insets.top : 0) + 12 }]}>
-              <NotificationBell light />
-            </View>
           )}
           {onEditCover && (
             <Pressable style={[styles.coverButton, { top: (underStatusBar ? insets.top : 0) + 12 }]} onPress={onEditCover}>
@@ -353,7 +347,6 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     backgroundColor: Colors.overlayLight,
   },
-  bellButton: { left: 62 },
   coverButtonText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
   identity: { alignItems: 'center', paddingHorizontal: 24, marginTop: -AVATAR_SIZE / 2, gap: 6 },
   avatar: {

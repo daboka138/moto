@@ -20,7 +20,6 @@ import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
 import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
-import { NotificationBell } from '@/components/notification-bell';
 import { NavWeatherChip } from '@/components/weather-strip';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
@@ -807,7 +806,6 @@ export default function MapScreen() {
               )}
             </View>
             <View style={styles.right} pointerEvents="box-none">
-              {!navigating && <NotificationBell floating />}
               {demo.enabled && !navigating && (
                 <DemoCounter /* DEMO */
                   visible={demoRiders.length}
@@ -857,7 +855,7 @@ export default function MapScreen() {
                 <LayerButton
                   active={layers.showPlaces}
                   icon="cafe"
-                  label="Spots sur la carte (catégories)"
+                  label="Filtres de la carte : spots et données de démo"
                   onPress={() => setPlaceFilter(true)}
                 />
               )}

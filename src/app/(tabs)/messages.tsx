@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NotificationBell } from '@/components/notification-bell';
 import { makeStyles, useColors } from '@/constants/theme';
 import { messagePreview, messageTime, type Conversation } from '@/lib/messages';
 import { useMessages } from '@/lib/messages-context';
@@ -74,7 +73,6 @@ export default function MessagesScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.titleRow}>
         <Text style={styles.screenTitle}>Messages</Text>
-        <NotificationBell />
         <Pressable style={styles.newButton} onPress={() => router.push('/messages/new')}>
           <Ionicons name="create-outline" size={18} color={Colors.white} />
           <Text style={styles.newText}>Nouveau message</Text>
