@@ -2,8 +2,8 @@
 //
 // Deux façons de l'appeler :
 // 1. Depuis l'app, avec le jeton de session (vérifié ici avec auth.getUser) :
-//    { type: 'sos' | 'chute' | 'je_rentre', phones: string[], latitude?, longitude?, eta? }
-//    (je_rentre = SMS de départ, eta = heure d'arrivée prévue)
+//    { type: 'sos' | 'chute' | 'je_rentre' | 'test', phones: string[], latitude?, longitude?, eta? }
+//    (je_rentre = SMS de départ, eta = heure d'arrivée prévue ; test = « Test PasseRyder » à 1 numéro)
 // 2. Par pg_cron (check_homecomings), pour un « Je rentre » en retard : { homecoming_id }.
 //    Les numéros et la position sont relus en base (claim_homecoming_sms), une seule fois et
 //    seulement pour un « Je rentre » passé en alerte : l'appel n'expose rien.
@@ -15,7 +15,7 @@
 // verify_jwt = false (config.toml) : jeton vérifié dans la fonction. Clé Brevo : secret BREVO_API_KEY.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-type SmsType = 'sos' | 'chute' | 'je_rentre';
+type SmsType = 'sos' | 'chute' | 'je_rentre' | 'test';
 type Variant = SmsType | 'je_rentre_retard';
 
 const MAX_PHONES = 5;
@@ -50,6 +50,8 @@ function toGsm(text: string) {
 function buildText(v: Variant, who: string, pos: { lat: number; lng: number; at: Date } | null, eta: Date | null) {
   const where = pos ? `Position (${clock(pos.at)}) : ${mapLink(pos.lat, pos.lng)}` : 'Position inconnue.';
   switch (v) {
+    case 'test':
+      return 'Test PasseRyder';
     case 'sos':
       return `SOS PasseRyder : ${who} demande de l'aide. ${where}`;
     case 'chute':
@@ -61,6 +63,19 @@ function buildText(v: Variant, who: string, pos: { lat: number; lng: number; at:
   }
 }
 
+/** Erreur Brevo en français clair (message d'origine entre parenthèses) */
+function explainBrevo(status: number, message: string) {
+  const m = message.toLowerCase();
+  const raw = message ? ` (Brevo ${status} : ${message})` : ` (Brevo ${status})`;
+  if (status === 401 || m.includes('key not found') || m.includes('unauthorized')) return `Clé Brevo invalide ou désactivée${raw}`;
+  if (status === 402 || m.includes('credit')) return `Plus assez de crédits SMS sur le compte Brevo${raw}`;
+  if (m.includes('sender')) return `Expéditeur « PasseRyder » refusé par Brevo${raw}`;
+  if (m.includes('recipient') || m.includes('phone') || m.includes('number')) return `Numéro refusé par Brevo (format)${raw}`;
+  if (m.includes('ip') && m.includes('authori')) return `Adresse IP du serveur non autorisée dans Brevo (Sécurité › IP autorisées)${raw}`;
+  if (status === 403) return `Envoi de SMS non autorisé sur ce compte Brevo${raw}`;
+  return `Erreur Brevo${raw}`;
+}
+
 async function sendOne(apiKey: string, recipient: string, content: string): Promise<string | null> {
   try {
     const res = await fetch(BREVO_URL, {
@@ -70,7 +85,7 @@ async function sendOne(apiKey: string, recipient: string, content: string): Prom
     });
     if (res.ok) return null;
     const body = await res.json().catch(() => ({}));
-    return `Brevo ${res.status} : ${body.message ?? body.code ?? 'erreur'}`.slice(0, 300);
+    return explainBrevo(res.status, String(body.message ?? body.code ?? '')).slice(0, 300);
   } catch (e) {
     return `Brevo injoignable : ${e instanceof Error ? e.message : String(e)}`.slice(0, 300);
   }
@@ -95,7 +110,7 @@ async function deliver(userId: string, type: SmsType, numbers: string[], content
     numbers.map(async (n, i) => {
       const slot = rows[i];
       if (!slot.allowed) return { recipient: slot.recipient, status: 'refused' as const };
-      const err = apiKey ? await sendOne(apiKey, n, content) : 'Clé Brevo absente';
+      const err = apiKey ? await sendOne(apiKey, n, content) : 'Clé Brevo absente des secrets Supabase (BREVO_API_KEY)';
       await admin
         .from('sms_log')
         .update({ status: err ? 'error' : 'sent', error: err })
@@ -149,7 +164,8 @@ Deno.serve(async (req) => {
     const userId = auth.user.id;
 
     const type = body.type as SmsType;
-    if (!['sos', 'chute', 'je_rentre'].includes(type)) return Response.json({ error: 'Type inconnu' }, { status: 400 });
+    if (!['sos', 'chute', 'je_rentre', 'test'].includes(type)) return Response.json({ error: 'Type inconnu' }, { status: 400 });
+    if (type === 'test' && body.phones?.length !== 1) return Response.json({ error: 'Un seul numéro pour le test' }, { status: 400 });
     if (!Array.isArray(body.phones) || !body.phones.length) return Response.json({ error: 'Aucun numéro' }, { status: 400 });
     if (body.phones.length > MAX_PHONES) return Response.json({ error: `${MAX_PHONES} numéros maximum` }, { status: 400 });
     // Pas de dédoublonnage : les résultats sont renvoyés dans l'ordre des numéros reçus

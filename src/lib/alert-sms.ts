@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import * as SMS from 'expo-sms';
 
 import type { LatLng } from '@/lib/geo';
@@ -38,7 +39,31 @@ function manualText(type: AlertSmsType, position: LatLng | null, eta: Date | nul
   }
 }
 
-type Reply = { sent: number; failed: number; refused: number; results?: { status: string }[] };
+type Reply = { sent: number; failed: number; refused: number; results?: { status: string; error?: string | null }[] };
+
+/** Message d'erreur lisible d'un appel à send-sms (corps JSON { error } si la fonction a répondu) */
+async function invokeError(error: unknown) {
+  if (error instanceof FunctionsHttpError) {
+    const body = await error.context.json().catch(() => null);
+    if (body?.error) return String(body.error);
+    return `Serveur : erreur ${error.context.status}`;
+  }
+  return `Serveur injoignable (${error instanceof Error ? error.message : String(error)})`;
+}
+
+/**
+ * Bouton « Envoyer un SMS de test » : « Test PasseRyder » à un numéro (compte dans les 10 / 24 h).
+ * Renvoie le résultat exact à afficher.
+ */
+export async function sendTestSms(phone: string): Promise<{ ok: boolean; message: string }> {
+  const { data, error } = await supabase.functions.invoke<Reply>('send-sms', { body: { type: 'test', phones: [phone] } });
+  if (error) return { ok: false, message: await invokeError(error) };
+  const r = data?.results?.[0];
+  if (!r) return { ok: false, message: 'Réponse inattendue du serveur' };
+  if (r.status === 'sent') return { ok: true, message: 'SMS envoyé (accepté par Brevo). Il doit arriver dans la minute.' };
+  if (r.status === 'refused') return { ok: false, message: 'Refusé : limite de 10 SMS par 24 h atteinte.' };
+  return { ok: false, message: r.error ?? 'Erreur inconnue' };
+}
 
 export async function sendAlertSms(
   type: AlertSmsType,
@@ -59,7 +84,7 @@ export async function sendAlertSms(
         eta: eta?.toISOString() ?? null,
       },
     });
-    if (error) throw error;
+    if (error) throw new Error(await invokeError(error));
     if (!data?.results || data.results.length !== phones.length) throw new Error('Réponse inattendue');
     sent = data.sent;
     failedPhones = phones.filter((_, i) => data.results![i].status !== 'sent');

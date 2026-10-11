@@ -59,7 +59,8 @@ export async function leaveContactOf(ownerId: string) {
 // ---------- Numéros de téléphone (sur le téléphone uniquement) ----------
 
 const PHONES_KEY = 'moto.emergencyPhones';
-const MAX_PHONES = 5;
+/** Une seule liste de contacts d'urgence : amis de l'app + numéros, 5 au total */
+export const MAX_EMERGENCY_CONTACTS = 5;
 
 function readPhones(): PhoneContact[] {
   try {
@@ -96,18 +97,28 @@ export function getPhoneContacts() {
   return phones;
 }
 
-/** Numéro saisi → format compact (+33612345678 ou 0612345678), null si invalide */
-export function normalizePhone(raw: string): string | null {
-  const compact = raw.replace(/[\s.\-()]/g, '');
-  return /^\+?\d{6,15}$/.test(compact) ? compact : null;
+export const PHONE_ERROR = 'Numéro invalide : un portable français commence par 06 ou 07 (ou +33 6 / +33 7), 10 chiffres.';
+
+/** Portable français (06 / 07, +33 6 / +33 7, 0033…) → +33612345678 ; null si invalide */
+export function parseFrenchMobile(raw: string): string | null {
+  const n = raw.replace(/[\s.\-()]/g, '');
+  const m = /^(?:0|\+33|0033)([67]\d{8})$/.exec(n);
+  return m ? `+33${m[1]}` : null;
 }
 
-export function addPhoneContact(name: string, rawPhone: string) {
-  const phone = normalizePhone(rawPhone);
-  if (!phone) throw new Error('Numéro de téléphone invalide');
+/** +33612345678 → 06 12 34 56 78 (autres formats laissés tels quels) */
+export function formatPhone(phone: string) {
+  const fr = parseFrenchMobile(phone);
+  return fr ? `0${fr.slice(3)}`.replace(/(\d{2})(?=\d)/g, '$1 ') : phone;
+}
+
+/** Ajoute un numéro ; totalContacts = taille actuelle de la liste (amis + numéros) */
+export function addPhoneContact(name: string, rawPhone: string, totalContacts: number) {
+  const phone = parseFrenchMobile(rawPhone);
+  if (!phone) throw new Error(PHONE_ERROR);
   if (!name.trim()) throw new Error('Indique un nom');
-  if (phones.length >= MAX_PHONES) throw new Error(`${MAX_PHONES} numéros maximum`);
-  if (phones.some((p) => p.phone === phone)) throw new Error('Ce numéro est déjà dans la liste');
+  if (totalContacts >= MAX_EMERGENCY_CONTACTS) throw new Error(`${MAX_EMERGENCY_CONTACTS} contacts d’urgence maximum`);
+  if (phones.some((p) => (parseFrenchMobile(p.phone) ?? p.phone) === phone)) throw new Error('Ce numéro est déjà dans la liste');
   writePhones([...phones, { id: `${Date.now()}`, name: name.trim().slice(0, 60), phone }]);
 }
 

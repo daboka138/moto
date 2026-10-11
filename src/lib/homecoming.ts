@@ -77,6 +77,8 @@ export async function startHomecoming(
   deadline: Date,
   me: LatLng | null,
   phones: string[],
+  /** Amis prévenus en cas de retard (null = tous mes contacts d'urgence) */
+  notifyMembers: string[] | null,
 ): Promise<AlertSmsResult | null> {
   const { data, error } = await supabase
     .from('homecomings')
@@ -88,6 +90,7 @@ export async function startHomecoming(
       deadline: deadline.toISOString(),
       last_latitude: me?.latitude ?? null,
       last_longitude: me?.longitude ?? null,
+      notify_members: notifyMembers,
     })
     .select(FIELDS)
     .single();

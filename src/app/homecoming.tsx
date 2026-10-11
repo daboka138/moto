@@ -6,10 +6,10 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DateTimeField } from '@/components/form-fields';
 import { SearchBar } from '@/components/nav/search-bar';
-import { Button, Chip } from '@/components/ui';
+import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { alertSmsLabel } from '@/lib/alert-sms';
-import { fetchMemberContacts, usePhoneContacts } from '@/lib/emergency';
+import { fetchMemberContacts, formatPhone, parseFrenchMobile, PHONE_ERROR, usePhoneContacts, type MemberContact } from '@/lib/emergency';
 import { useFavorites } from '@/lib/favorites';
 import type { LatLng } from '@/lib/geo';
 import { extendHomecoming, finishHomecoming, HOMECOMING_MARGIN_MIN, startHomecoming, useHomecoming } from '@/lib/homecoming';
@@ -95,17 +95,37 @@ function NewHomecoming() {
   const [dest, setDest] = useState<SearchResult | null>(home);
   const [deadline, setDeadline] = useState(() => new Date(Date.now() + 60 * 60_000));
   const [me, setMe] = useState<LatLng | null>(null);
-  const [contacts, setContacts] = useState<number | null>(null);
+  const [members, setMembers] = useState<MemberContact[] | null>(null);
   const phones = usePhoneContacts();
-  const nobody = contacts === 0 && phones.length === 0;
+  // Contacts décochés (par défaut, tous sont prévenus) : « p:<id> » numéro, « m:<id> » ami
+  const [unchecked, setUnchecked] = useState<string[]>([]);
+  // Numéros ponctuels, pour ce trajet seulement (pas enregistrés)
+  const [extra, setExtra] = useState<string[]>([]);
+  const [extraInput, setExtraInput] = useState('');
+  const [extraError, setExtraError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const checkedPhones = [...phones.filter((p) => !unchecked.includes(`p:${p.id}`)).map((p) => p.phone), ...extra];
+  const checkedMembers = (members ?? []).filter((m) => !unchecked.includes(`m:${m.id}`));
+  const nobody = members !== null && checkedPhones.length === 0 && checkedMembers.length === 0;
+  const toggle = (key: string) => setUnchecked((u) => (u.includes(key) ? u.filter((k) => k !== key) : [...u, key]));
+
+  const addExtra = () => {
+    const n = parseFrenchMobile(extraInput);
+    if (!n) return setExtraError(PHONE_ERROR);
+    if (extra.includes(n) || phones.some((p) => parseFrenchMobile(p.phone) === n)) return setExtraError('Ce numéro est déjà dans la liste');
+    if (checkedPhones.length >= 5) return setExtraError('5 numéros maximum');
+    setExtra([...extra, n]);
+    setExtraInput('');
+    setExtraError(null);
+  };
 
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
       fetchMemberContacts(userId)
-        .then((l) => setContacts(l.length))
-        .catch(() => setContacts(null));
+        .then(setMembers)
+        .catch(() => setMembers([]));
       Location.getLastKnownPositionAsync()
         .then((p) => p && setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude }))
         .catch(() => {});
@@ -129,7 +149,8 @@ function NewHomecoming() {
         dest,
         deadline,
         me,
-        phones.map((p) => p.phone),
+        checkedPhones,
+        checkedMembers.length === (members ?? []).length ? null : checkedMembers.map((m) => m.id),
       );
       router.back();
       if (sms) Alert.alert('« Je rentre » démarré', alertSmsLabel(sms));
@@ -143,15 +164,15 @@ function NewHomecoming() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.muted}>
-        Indique où tu rentres et l’heure d’arrivée prévue. Tes numéros d’urgence reçoivent un SMS au départ. Si tu n’es pas
-        arrivé(e) {HOMECOMING_MARGIN_MIN} min après et que tu n’as pas prolongé, tes contacts d’urgence (amis de l’app et
-        numéros de téléphone par SMS) sont alertés avec ta dernière position.
+        Indique où tu rentres et l’heure d’arrivée prévue. Les numéros cochés reçoivent un SMS au départ. Si tu n’es pas
+        arrivé(e) {HOMECOMING_MARGIN_MIN} min après et que tu n’as pas prolongé, les contacts cochés sont alertés avec ta
+        dernière position (SMS, ou alerte dans l’app pour un ami PasseRyder).
       </Text>
 
       {nobody && (
         <Pressable style={styles.warning} onPress={() => router.push('/emergency-contacts')}>
           <Ionicons name="warning" size={22} color={Colors.danger} />
-          <Text style={styles.warningText}>Aucun contact d’urgence (ami ou numéro) : personne ne serait alerté. Ajouter →</Text>
+          <Text style={styles.warningText}>Aucun contact coché : personne ne serait alerté. Gérer mes contacts →</Text>
         </Pressable>
       )}
 
@@ -186,12 +207,86 @@ function NewHomecoming() {
         Rappel 10 min avant l’heure prévue pour prolonger.
       </Text>
 
+      <Text style={styles.section}>Qui prévenir</Text>
+      <View style={styles.card}>
+        {members === null ? (
+          <Text style={styles.muted}>Chargement…</Text>
+        ) : (
+          <>
+            {phones.map((p) => (
+              <CheckRow
+                key={p.id}
+                checked={!unchecked.includes(`p:${p.id}`)}
+                title={p.name}
+                subtitle={`${formatPhone(p.phone)} · SMS`}
+                onPress={() => toggle(`p:${p.id}`)}
+              />
+            ))}
+            {members.map((m) => (
+              <CheckRow
+                key={m.id}
+                checked={!unchecked.includes(`m:${m.id}`)}
+                title={`@${m.username}`}
+                subtitle="Ami PasseRyder · alerte dans l’app"
+                onPress={() => toggle(`m:${m.id}`)}
+              />
+            ))}
+            {extra.map((n) => (
+              <CheckRow
+                key={n}
+                checked
+                title="Numéro ponctuel"
+                subtitle={`${formatPhone(n)} · SMS, pour ce trajet seulement`}
+                onPress={() => setExtra(extra.filter((x) => x !== n))}
+              />
+            ))}
+          </>
+        )}
+        <Field
+          label="Ajouter un numéro pour ce trajet"
+          value={extraInput}
+          onChangeText={(t) => {
+            setExtraInput(t);
+            setExtraError(null);
+          }}
+          placeholder="06 12 34 56 78"
+          keyboardType="phone-pad"
+          onSubmitEditing={addExtra}
+        />
+        {extraError && <Text style={styles.error}>{extraError}</Text>}
+        <Button title="Ajouter ce numéro" variant="secondary" onPress={addExtra} disabled={!extraInput.trim()} />
+      </View>
+
       <Button title="Démarrer « Je rentre »" onPress={start} loading={busy} disabled={!dest || nobody} />
     </ScrollView>
   );
 }
 
+function CheckRow({ checked, title, subtitle, onPress }: { checked: boolean; title: string; subtitle: string; onPress: () => void }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.checkRow, pressed && { opacity: 0.6 }]}
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}>
+      <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={26} color={checked ? Colors.accent : Colors.textMuted} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.destText} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={styles.muted} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 const useStyles = makeStyles((Colors) => ({
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
+  error: { fontSize: 13, color: Colors.danger, fontWeight: '600', lineHeight: 18 },
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 8 },

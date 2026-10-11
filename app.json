@@ -31,7 +31,8 @@
         "android.permission.VIBRATE"
       ],
       "blockedPermissions": [
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "web": {
@@ -71,7 +72,13 @@
       ],
       "expo-sqlite",
       "@react-native-community/datetimepicker",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "PasseRyder accède à tes contacts seulement quand tu choisis un contact d'urgence."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -290,7 +290,9 @@ L'app n'utilise **pas** la localisation en arrière-plan ni `READ_MEDIA_IMAGES` 
 aucune déclaration spéciale n'est normalement demandée. Si la Play Console en réclame une après l'import du `.aab`, suivre son message.
 
 Version 1.1.0 : `POST_NOTIFICATIONS` (demandée au lancement, Android 13+), `VIBRATE`, `RECEIVE_BOOT_COMPLETED`,
-`WAKE_LOCK` : permissions normales, aucune déclaration. **Pas** de `SEND_SMS` (SMS automatiques envoyés par le serveur via Brevo ; en
+`WAKE_LOCK` : permissions normales, aucune déclaration. Prochain APK : `READ_CONTACTS` (expo-contacts, choisir un contact d'urgence ; `WRITE_CONTACTS` bloquée dans app.json) :
+permission normale-dangereuse, pas de déclaration spéciale ; « Contacts » est déjà déclaré dans la Sécurité des données.
+**Pas** de `SEND_SMS` (SMS automatiques envoyés par le serveur via Brevo ; en
 secours, SMS prérempli envoyé par l'utilisateur), **pas** de `ACTIVITY_RECOGNITION` (bloquée dans app.json), **pas** de localisation en arrière-plan ni de
 service de premier plan : SOS, chute et « Je rentre » fonctionnent app ouverte, le serveur prend le relais pour « Je rentre ».
 
