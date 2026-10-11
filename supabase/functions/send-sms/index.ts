@@ -73,22 +73,35 @@ function explainBrevo(status: number, message: string) {
   if (m.includes('recipient') || m.includes('phone') || m.includes('number')) return `Numéro refusé par Brevo (format)${raw}`;
   if (m.includes('ip') && m.includes('authori')) return `Adresse IP du serveur non autorisée dans Brevo (Sécurité › IP autorisées)${raw}`;
   if (status === 403) return `Envoi de SMS non autorisé sur ce compte Brevo${raw}`;
+  if (status >= 500) return `Brevo temporairement indisponible, 3 essais sans succès${raw}`;
   return `Erreur Brevo${raw}`;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Délais avant chaque nouvel essai : Brevo répond parfois 500 « Invalid Request » au hasard */
+const RETRY_DELAYS_MS = [1500, 3000];
+
 async function sendOne(apiKey: string, recipient: string, content: string): Promise<string | null> {
-  try {
-    const res = await fetch(BREVO_URL, {
-      method: 'POST',
-      headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ sender: 'PasseRyder', recipient, content, type: 'transactional', tag: 'alerte' }),
-    });
-    if (res.ok) return null;
-    const body = await res.json().catch(() => ({}));
-    return explainBrevo(res.status, String(body.message ?? body.code ?? '')).slice(0, 300);
-  } catch (e) {
-    return `Brevo injoignable : ${e instanceof Error ? e.message : String(e)}`.slice(0, 300);
+  let last = '';
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+    try {
+      const res = await fetch(BREVO_URL, {
+        method: 'POST',
+        headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ sender: 'PasseRyder', recipient, content, type: 'transactional', tag: 'alerte' }),
+      });
+      if (res.ok) return null;
+      const body = await res.json().catch(() => ({}));
+      last = explainBrevo(res.status, String(body.message ?? body.code ?? ''));
+      // 4xx (clé, crédits, expéditeur, numéro) : inutile de réessayer
+      if (res.status < 500 && res.status !== 429) break;
+    } catch (e) {
+      last = `Brevo injoignable : ${e instanceof Error ? e.message : String(e)}`;
+    }
   }
+  return last.slice(0, 300);
 }
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
@@ -106,18 +119,21 @@ async function deliver(userId: string, type: SmsType, numbers: string[], content
   if (error) throw new Error(error.message);
   const rows = slots as { id: string; recipient: string; allowed: boolean }[];
 
-  const results = await Promise.all(
-    numbers.map(async (n, i) => {
-      const slot = rows[i];
-      if (!slot.allowed) return { recipient: slot.recipient, status: 'refused' as const };
-      const err = apiKey ? await sendOne(apiKey, n, content) : 'Clé Brevo absente des secrets Supabase (BREVO_API_KEY)';
-      await admin
-        .from('sms_log')
-        .update({ status: err ? 'error' : 'sent', error: err })
-        .eq('id', slot.id);
-      return { recipient: slot.recipient, status: err ? ('error' as const) : ('sent' as const), error: err };
-    }),
-  );
+  // Un destinataire après l'autre : des envois simultanés font échouer Brevo (500) sur le 2e
+  const results: { recipient: string; status: 'sent' | 'error' | 'refused'; error?: string | null }[] = [];
+  for (const [i, n] of numbers.entries()) {
+    const slot = rows[i];
+    if (!slot.allowed) {
+      results.push({ recipient: slot.recipient, status: 'refused' });
+      continue;
+    }
+    const err = apiKey ? await sendOne(apiKey, n, content) : 'Clé Brevo absente des secrets Supabase (BREVO_API_KEY)';
+    await admin
+      .from('sms_log')
+      .update({ status: err ? 'error' : 'sent', error: err })
+      .eq('id', slot.id);
+    results.push({ recipient: slot.recipient, status: err ? 'error' : 'sent', error: err });
+  }
   return {
     sent: results.filter((r) => r.status === 'sent').length,
     failed: results.filter((r) => r.status === 'error').length,
