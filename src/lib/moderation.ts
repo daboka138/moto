@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 // Un blocage coupe tout, côté serveur : messages privés, position, stories,
 // recherche de motards, demandes d'ami. L'amitié éventuelle est supprimée.
 
-export type ReportTarget = 'message' | 'story' | 'user' | 'comment' | 'ride_comment' | 'place' | 'place_review' | 'event';
+export type ReportTarget = 'message' | 'story' | 'user' | 'comment' | 'ride_comment' | 'place' | 'place_review' | 'event' | 'photo';
 export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'danger' | 'other';
 
 export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -53,9 +53,10 @@ export function askReport(targetType: ReportTarget, targetId: string, onDone?: (
     user: 'Signaler ce motard',
     comment: 'Signaler ce commentaire',
     ride_comment: 'Signaler ce commentaire',
-    place: 'Signaler ce lieu',
+    place: 'Signaler ce spot',
     place_review: 'Signaler cet avis',
     event: 'Signaler cet événement',
+    photo: 'Signaler cette photo',
   }[targetType];
   showActionSheet({
     title,

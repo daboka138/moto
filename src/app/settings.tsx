@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
+import { useIsAdmin } from '@/lib/admin';
 import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
@@ -52,6 +53,8 @@ export default function SettingsScreen() {
   const { settings } = usePrivacy();
   const layers = useMapLayers();
   const { session } = useSession();
+  // Console développeur : visible pour l'admin seulement (rôle vérifié par le serveur)
+  const isAdmin = useIsAdmin(session?.user.id);
   const userId = session?.user.id;
   const [discoverable, setDiscoverableState] = useState<boolean | null>(null);
 
@@ -134,6 +137,12 @@ export default function SettingsScreen() {
       </View>
 
       <DemoToggle /* DEMO */ />
+
+      {isAdmin && (
+        <LinkGroup>
+          <LinkRow icon="construct-outline" label="Console développeur" onPress={() => router.push('/admin')} />
+        </LinkGroup>
+      )}
 
       <Text style={styles.section}>Compte</Text>
       <LinkGroup>

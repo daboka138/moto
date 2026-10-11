@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhotoSocialPanel } from '@/components/photo-comments';
 import { makeStyles, useColors } from '@/constants/theme';
+import { askReport } from '@/lib/moderation';
+import { useSession } from '@/lib/session';
 import type { WallPhoto } from '@/lib/wall';
 
 type Props = {
@@ -19,6 +21,9 @@ type Props = {
 export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) {
   const Colors = useColors();
   const styles = useStyles();
+  const { session } = useSession();
+  // Photo d'un autre membre (pas de démo) : signalable pour la modération
+  const canReport = !!photo && !!photo.path && photo.ownerId !== session?.user.id;
   return (
     <Modal visible={!!photo} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent>
       {photo && (
@@ -35,6 +40,11 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
                   <View />
                 )}
                 <View style={styles.topActions}>
+                  {canReport && (
+                    <Pressable onPress={() => askReport('photo', photo.id)} hitSlop={12} accessibilityLabel="Signaler cette photo">
+                      <Ionicons name="flag-outline" size={24} color={Colors.white} />
+                    </Pressable>
+                  )}
                   {onDelete && (
                     <Pressable onPress={() => onDelete(photo)} hitSlop={12}>
                       <Ionicons name="trash-outline" size={24} color={Colors.white} />
