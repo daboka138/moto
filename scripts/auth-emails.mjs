@@ -2,7 +2,7 @@
 //
 //   node scripts/auth-emails.mjs           → génère supabase/templates/*.html
 //   node scripts/auth-emails.mjs --push    → génère, puis envoie au projet Supabase (API de gestion) :
-//                                            modèles + sujets, Site URL, Redirect URLs.
+//                                            modèles + sujets, Site URL, Redirect URLs, limite d'envoi.
 //   (bash : set -a; . <(sed 's/\r$//' .env.supabase); set +a  → SUPABASE_ACCESS_TOKEN)
 //
 // Ne touche JAMAIS au SMTP, à « Confirm email » (mailer_autoconfirm) ni aux limites d'envoi :
@@ -29,6 +29,8 @@ const BG = '#F4F4F5';
 export const AUTH_URLS = {
   site_url: SITE,
   uri_allow_list: [`${APP}/**`, `${SITE}/**`, 'passeryder://**'],
+  /** Emails d'auth par heure (exige le SMTP personnalisé, 2 par défaut) */
+  rate_limit_email_sent: 30,
 };
 
 const TEMPLATES = {
@@ -131,13 +133,19 @@ if (process.argv.includes('--push')) {
   const res = await fetch(api, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ ...body, site_url: AUTH_URLS.site_url, uri_allow_list: [...allow].join(',') }),
+    body: JSON.stringify({
+      ...body,
+      site_url: AUTH_URLS.site_url,
+      uri_allow_list: [...allow].join(','),
+      rate_limit_email_sent: AUTH_URLS.rate_limit_email_sent,
+    }),
   });
   if (!res.ok) throw new Error(`Supabase ${res.status} : ${await res.text()}`);
   const after = await res.json();
   console.log('Supabase mis à jour :');
   console.log('  site_url        =', after.site_url);
   console.log('  uri_allow_list  =', after.uri_allow_list);
+  console.log('  rate_limit_email_sent =', after.rate_limit_email_sent);
   console.log('  mailer_autoconfirm (Confirm email désactivé si true) =', after.mailer_autoconfirm);
   for (const name of Object.keys(TEMPLATES)) console.log(`  ${name.padEnd(13)} → « ${after[`mailer_subjects_${name}`]} »`);
 }
