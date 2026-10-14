@@ -1,8 +1,17 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, usePathname } from 'expo-router';
+import {
+  DarkTheme,
+  DefaultTheme,
+  router,
+  Stack,
+  ThemeProvider as NavigationThemeProvider,
+  useNavigationContainerRef,
+  usePathname,
+} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionSheetHost } from '@/components/action-sheet';
 import { AlertHost } from '@/components/alert-host';
@@ -13,7 +22,7 @@ import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
 import { DemoMessagesProvider } from '@/demo/messages'; // DEMO
 import { signOut } from '@/lib/auth';
-import { takeAuthNotice } from '@/lib/auth-link';
+import { setAuthNotice, useAuthLinkState } from '@/lib/auth-link';
 import { DrivingLockProvider } from '@/lib/driving-lock';
 import { MapLayersProvider } from '@/lib/map-layers';
 import { MessagesProvider } from '@/lib/messages-context';
@@ -88,11 +97,28 @@ function RootNavigator() {
   // Lien reçu par email : l'écran reste affiché pendant que la session s'ouvre et que le profil se charge
   const pathname = usePathname();
   const onAuthLink = pathname === '/auth-callback';
-  // Lien d'email refusé (déjà ouvert, incomplet) : message une fois, à l'arrivée sur la connexion ou la carte
+  // Accueil affiché (carte, connexion, CGU ou création du profil) : la pile d'écrans est montée
+  const ready = session !== undefined && !(session && (profile === undefined || profileError) && !onAuthLink);
+
+  // Lien d'email reçu par l'app (+native-intent) : son écran s'ouvre PAR-DESSUS l'accueil, jamais à sa place
+  const { pending } = useAuthLinkState();
   useEffect(() => {
-    const notice = takeAuthNotice();
-    if (notice) Alert.alert('Lien', notice);
-  }, [pathname, session]);
+    if (!ready || !pending || onAuthLink) return;
+    const t = setTimeout(() => router.push('/auth-callback'), 300);
+    return () => clearTimeout(t);
+  }, [ready, pending, onAuthLink]);
+
+  // Sécurité : si aucun écran n'est affiché 3 s après le lancement, retour à l'accueil
+  const navigation = useNavigationContainerRef();
+  useEffect(() => {
+    if (!ready) return;
+    const t = setTimeout(() => {
+      if (navigation.isReady() && navigation.getCurrentRoute()) return;
+      router.replace(session ? '/' : '/sign-in');
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
   // Web sur grand écran : les écrans de contenu en colonne centrée (les onglets gèrent la leur)
   const wide = useWideLayout();
   const contentStyle = {
@@ -132,66 +158,99 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle }}>
-      {/* Connecté ou non : lien « mot de passe oublié » / connexion reçu par email */}
-      <Stack.Screen name="auth-callback" />
-      <Stack.Protected guard={!session}>
-        <Stack.Screen name="sign-in" />
-      </Stack.Protected>
-      <Stack.Protected guard={!!session && !termsAccepted}>
-        <Stack.Screen name="terms" />
-      </Stack.Protected>
-      <Stack.Protected guard={!!session && !!termsAccepted && !profile}>
-        <Stack.Screen name="onboarding" />
-      </Stack.Protected>
-      <Stack.Protected guard={!!session && !!termsAccepted && !!profile}>
-        <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: Colors.background } }} />
-        <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
-        <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
-        <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
-        <Stack.Screen name="trips" options={{ headerShown: true, title: 'Mes trajets' }} />
-        <Stack.Screen name="emergency-contacts" options={{ headerShown: true, title: 'Contacts d’urgence' }} />
-        <Stack.Screen name="homecoming" options={{ headerShown: true, title: 'Je rentre' }} />
-        <Stack.Screen name="sos/[id]" options={{ headerShown: true, title: 'Alerte SOS' }} />
-        <Stack.Screen name="riders" options={{ headerShown: true, title: 'Trouver des motards' }} />
-        <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
-        <Stack.Screen name="delete-account" options={{ headerShown: true, title: 'Supprimer mon compte' }} />
-        <Stack.Screen name="user/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="ride/new" options={{ headerShown: true, title: 'Nouvelle balade' }} />
-        <Stack.Screen name="ride/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
-        <Stack.Screen name="event/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
-        <Stack.Screen name="ride/checkin" options={{ headerShown: true, title: 'Qui est au RDV ?' }} />
-        <Stack.Screen name="garage/index" options={{ headerShown: true, title: 'Garage' }} />
-        <Stack.Screen name="garage/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="place/new" options={{ headerShown: true, title: 'Ajouter un lieu motard' }} />
-        <Stack.Screen name="place/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="event/new" options={{ headerShown: true, title: 'Nouvel événement' }} />
-        <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
-        <Stack.Screen name="search" />
-        <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
-        <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />
-        <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
-        <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
-        <Stack.Screen name="help/index" options={{ headerShown: true, title: 'Aide' }} />
-        <Stack.Screen name="help/[id]" options={{ headerShown: true, title: '' }} />
-        <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
-        <Stack.Screen name="chat/[id]" />
-        <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />
-        <Stack.Screen name="story/new" options={{ headerShown: true, title: 'Nouvelle story' }} />
-        <Stack.Screen
-          name="story/[ownerId]"
-          options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: Colors.dark } }}
-        />
-        <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
-        <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
-      </Stack.Protected>
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle }}>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="sign-in" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !termsAccepted}>
+          <Stack.Screen name="terms" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !!termsAccepted && !profile}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !!termsAccepted && !!profile}>
+          <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: Colors.background } }} />
+          <Stack.Screen name="settings" options={{ headerShown: true, title: 'Paramètres' }} />
+          <Stack.Screen name="profile-edit" options={{ headerShown: true, title: 'Modifier mon profil' }} />
+          <Stack.Screen name="friends" options={{ headerShown: true, title: 'Amis' }} />
+          <Stack.Screen name="trips" options={{ headerShown: true, title: 'Mes trajets' }} />
+          <Stack.Screen name="emergency-contacts" options={{ headerShown: true, title: 'Contacts d’urgence' }} />
+          <Stack.Screen name="homecoming" options={{ headerShown: true, title: 'Je rentre' }} />
+          <Stack.Screen name="sos/[id]" options={{ headerShown: true, title: 'Alerte SOS' }} />
+          <Stack.Screen name="riders" options={{ headerShown: true, title: 'Trouver des motards' }} />
+          <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Confidentialité de ma position' }} />
+          <Stack.Screen name="delete-account" options={{ headerShown: true, title: 'Supprimer mon compte' }} />
+          <Stack.Screen name="user/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="ride/new" options={{ headerShown: true, title: 'Nouvelle balade' }} />
+          <Stack.Screen name="ride/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="ride/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
+          <Stack.Screen name="event/invite" options={{ headerShown: true, title: 'Inviter des amis' }} />
+          <Stack.Screen name="ride/checkin" options={{ headerShown: true, title: 'Qui est au RDV ?' }} />
+          <Stack.Screen name="garage/index" options={{ headerShown: true, title: 'Garage' }} />
+          <Stack.Screen name="garage/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="place/new" options={{ headerShown: true, title: 'Ajouter un lieu motard' }} />
+          <Stack.Screen name="place/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="event/new" options={{ headerShown: true, title: 'Nouvel événement' }} />
+          <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
+          <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />
+          <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
+          <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+          <Stack.Screen name="help/index" options={{ headerShown: true, title: 'Aide' }} />
+          <Stack.Screen name="help/[id]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
+          <Stack.Screen name="chat/[id]" />
+          <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />
+          <Stack.Screen name="story/new" options={{ headerShown: true, title: 'Nouvelle story' }} />
+          <Stack.Screen
+            name="story/[ownerId]"
+            options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: Colors.dark } }}
+          />
+          <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
+          <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
+        </Stack.Protected>
+        {/* Lien « mot de passe oublié » / connexion reçu par email, connecté ou non.
+            TOUJOURS EN DERNIER : quand l'écran demandé est protégé, expo-router affiche le premier écran
+            disponible de cette liste ; déclaré en premier, cet écran remplaçait la connexion au lancement. */}
+        <Stack.Screen name="auth-callback" />
+      </Stack>
+    {!onAuthLink && <AuthNoticeBanner />}
+    </View>
+  );
+}
+
+/** Petit bandeau non bloquant (lien d'email refusé), fermé au toucher ou après 6 s */
+function AuthNoticeBanner() {
+  const styles = useStyles();
+  const insets = useSafeAreaInsets();
+  const { notice } = useAuthLinkState();
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setAuthNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+  if (!notice) return null;
+  return (
+    <Pressable style={[styles.banner, { top: insets.top + 8 }]} onPress={() => setAuthNotice(null)} accessibilityRole="alert">
+      <Text style={styles.bannerText}>{notice}</Text>
+    </Pressable>
   );
 }
 
 const useStyles = makeStyles((Colors) => ({
+  banner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    backgroundColor: Colors.overlayStrong,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  bannerText: { color: Colors.white, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   center: {
     flex: 1,
     alignItems: 'stretch',

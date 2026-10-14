@@ -1,4 +1,4 @@
-import { Redirect, useLocalSearchParams, type Href } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { Button, Field } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
 import { openInApp, IS_WEB, webDevice } from '@/lib/app-link';
 import { PASSWORD_MAX, PASSWORD_MIN, updatePassword, verifyEmailLink } from '@/lib/auth';
-import { clearPendingAuthLink, getPendingAuthLink, setAuthNotice, type PendingAuthLink } from '@/lib/auth-link';
+import { clearPendingAuthLink, getPendingAuthLink, type PendingAuthLink } from '@/lib/auth-link';
 import { useSession } from '@/lib/session';
 
 /**
@@ -15,8 +15,9 @@ import { useSession } from '@/lib/session';
  *   /auth-callback?token_hash=…&type=recovery   → choisir un nouveau mot de passe, puis connecté
  *   /auth-callback?token_hash=…&type=magiclink  → connexion
  * Le même écran sert dans l'app (passeryder://auth-callback…) et sur app.passeryder.fr.
- * App : le lien arrive par src/app/+native-intent.tsx (lib/auth-link.ts), une seule fois par lien ;
- * sans lien valable, l'écran ne s'affiche jamais : retour direct à la connexion ou à la carte.
+ * App : le lien est gardé par src/app/+native-intent.tsx (lib/auth-link.ts) et cet écran est ouvert
+ * PAR-DESSUS l'accueil (AuthLinkOpener, _layout.tsx) : « Retour » revient toujours à la carte ou à la
+ * connexion. Sans lien valable, retour immédiat (jamais d'écran bloquant ni vide).
  * Le lien n'est utilisé (verifyOtp) qu'au moment où l'on valide : un aperçu automatique du lien
  * par la messagerie ne le grille pas. Écran accessible connecté ou non (voir _layout.tsx).
  */
@@ -33,8 +34,6 @@ export default function AuthCallbackScreen() {
   });
   const tokenHash = link?.tokenHash;
   const linkType = link?.type ?? null;
-  // Sortie de l'écran : Redirect (fiable même si l'écran est le seul de la pile)
-  const [leaveTo, setLeaveTo] = useState<Href | null>(null);
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -45,12 +44,21 @@ export default function AuthCallbackScreen() {
   // Une fois connecté et le profil chargé : vers l'app
   useEffect(() => {
     if (!done || !session || profile === undefined) return;
-    const t = setTimeout(() => {
-      clearPendingAuthLink();
-      setLeaveTo('/');
-    }, 1500);
+    const t = setTimeout(() => router.replace('/'), 1500);
     return () => clearTimeout(t);
   }, [done, session, profile]);
+
+  // Lien recopié dans l'état de l'écran : on le retire de la mémoire (un retour arrière ne le rouvre pas)
+  useEffect(() => {
+    clearPendingAuthLink();
+  }, []);
+
+  // Pas de lien valable (ouvert sans paramètres, déjà utilisé…) : retour immédiat à l'accueil
+  const noLink = !link;
+  useEffect(() => {
+    if (noLink) leave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noLink]);
 
   const tooShort = password.length > 0 && password.length < PASSWORD_MIN;
   const mismatch = confirm.length > 0 && confirm !== password;
@@ -73,20 +81,24 @@ export default function AuthCallbackScreen() {
     }
   };
 
-  function leave(to?: Href) {
+  /** Retour à l'écran d'en dessous (carte ou connexion), sinon remplacement par l'accueil */
+  function leave() {
     clearPendingAuthLink();
-    setLeaveTo(to ?? (session ? '/' : '/sign-in'));
+    if (router.canGoBack()) router.back();
+    else router.replace(session ? '/' : '/sign-in');
   }
   const backToApp = () => leave();
   // Navigateur sur Android : proposer de continuer dans l'app (même lien, ouvert par l'app)
   const offerApp = IS_WEB && webDevice() === 'android' && !!tokenHash && !!linkType && !done;
 
-  if (leaveTo) return <Redirect href={leaveTo} />;
-
-  // Pas de lien valable (déjà ouvert, incomplet, appli relancée) : jamais d'écran bloquant
   if (!tokenHash || !linkType) {
-    setAuthNotice('Ce lien n’est plus valable. Si besoin, redemande un lien depuis « Mot de passe oublié ? ».');
-    return <Redirect href={session ? '/' : '/sign-in'} />;
+    // Affiché le temps du retour (jamais vide) ; le bouton reste là si le retour automatique échoue
+    return (
+      <Screen>
+        <Text style={styles.text}>Retour à PasseRyder…</Text>
+        <Button title={session ? 'Aller à la carte' : 'Aller à la connexion'} onPress={() => router.replace(session ? '/' : '/sign-in')} />
+      </Screen>
+    );
   }
 
   if (done) {
@@ -97,7 +109,7 @@ export default function AuthCallbackScreen() {
         <Text style={styles.text}>
           {linkType === 'recovery' ? 'C’est fait, tu es connecté. ' : ''}Ouverture de PasseRyder…
         </Text>
-        <Button title="Continuer" onPress={() => leave('/')} disabled={profile === undefined} />
+        <Button title="Continuer" onPress={() => router.replace('/')} disabled={profile === undefined} />
       </Screen>
     );
   }
