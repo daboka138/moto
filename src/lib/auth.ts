@@ -1,5 +1,7 @@
 import type { AuthError } from '@supabase/supabase-js';
 
+import type { EmailLinkType } from '@/lib/auth-link';
+
 import { unregisterPush } from '@/lib/push';
 import { clearHistory } from '@/lib/search';
 import { supabase } from '@/lib/supabase';
@@ -68,7 +70,7 @@ export async function resendConfirmation(email: string) {
   }
 }
 
-export type EmailLinkType = 'recovery' | 'magiclink';
+export type { EmailLinkType };
 
 /** Lien reçu par email (token_hash) : ouvre la session du compte concerné */
 export async function verifyEmailLink(tokenHash: string, type: EmailLinkType) {

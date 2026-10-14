@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvide
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { ActionSheetHost } from '@/components/action-sheet';
 import { AlertHost } from '@/components/alert-host';
@@ -13,6 +13,7 @@ import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { DemoProvider } from '@/demo/demo-context'; // DEMO
 import { DemoMessagesProvider } from '@/demo/messages'; // DEMO
 import { signOut } from '@/lib/auth';
+import { takeAuthNotice } from '@/lib/auth-link';
 import { DrivingLockProvider } from '@/lib/driving-lock';
 import { MapLayersProvider } from '@/lib/map-layers';
 import { MessagesProvider } from '@/lib/messages-context';
@@ -85,7 +86,13 @@ function RootNavigator() {
   const styles = useStyles();
   const { session, profile, termsAccepted, profileError, refreshProfile } = useSession();
   // Lien reçu par email : l'écran reste affiché pendant que la session s'ouvre et que le profil se charge
-  const onAuthLink = usePathname() === '/auth-callback';
+  const pathname = usePathname();
+  const onAuthLink = pathname === '/auth-callback';
+  // Lien d'email refusé (déjà ouvert, incomplet) : message une fois, à l'arrivée sur la connexion ou la carte
+  useEffect(() => {
+    const notice = takeAuthNotice();
+    if (notice) Alert.alert('Lien', notice);
+  }, [pathname, session]);
   // Web sur grand écran : les écrans de contenu en colonne centrée (les onglets gèrent la leur)
   const wide = useWideLayout();
   const contentStyle = {
