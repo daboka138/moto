@@ -11,6 +11,7 @@ import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
 import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constants/theme';
 import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
+import { resetTips } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
@@ -143,6 +144,26 @@ export default function SettingsScreen() {
           <LinkRow icon="construct-outline" label="Console développeur" onPress={() => router.push('/admin')} />
         </LinkGroup>
       )}
+
+      <Text style={styles.section}>Aide</Text>
+      <LinkGroup>
+        <LinkRow icon="help-circle-outline" label="Aide et guide" onPress={() => router.push('/help')} />
+        <LinkSeparator />
+        <LinkRow
+          icon="play-circle-outline"
+          label="Revoir la présentation"
+          onPress={() => router.push({ pathname: '/welcome', params: { replay: '1' } })}
+        />
+        <LinkSeparator />
+        <LinkRow
+          icon="bulb-outline"
+          label="Réafficher les astuces"
+          onPress={() => {
+            resetTips();
+            Alert.alert('Astuces', 'Les bulles d’astuces s’afficheront de nouveau sur les écrans clés.');
+          }}
+        />
+      </LinkGroup>
 
       <Text style={styles.section}>Compte</Text>
       <LinkGroup>

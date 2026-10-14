@@ -7,6 +7,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { DateTimeField } from '@/components/form-fields';
 import { SearchBar } from '@/components/nav/search-bar';
 import { Button, Chip, Field } from '@/components/ui';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { alertSmsLabel } from '@/lib/alert-sms';
 import { fetchMemberContacts, formatPhone, parseFrenchMobile, PHONE_ERROR, usePhoneContacts, type MemberContact } from '@/lib/emergency';
@@ -163,6 +164,7 @@ function NewHomecoming() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <TipBubble id="je-rentre" />
       <Text style={styles.muted}>
         Indique où tu rentres et l’heure d’arrivée prévue. Les numéros cochés reçoivent un SMS au départ. Si tu n’es pas
         arrivé(e) {HOMECOMING_MARGIN_MIN} min après et que tu n’as pas prolongé, les contacts cochés sont alertés avec ta

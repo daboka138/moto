@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } f
 import { LeafletMap } from '@/components/leaflet-map';
 import { OpenInApp } from '@/components/open-in-app';
 import { Button, Chip } from '@/components/ui';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import type { LatLng } from '@/lib/geo';
@@ -111,6 +112,7 @@ export default function LoopScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TipBubble id="boucle" />
       <Text style={styles.section}>Durée ou distance</Text>
       <View style={styles.row}>
         <Chip label="⏱️ Durée" selected={mode === 'duration'} onPress={() => setMode('duration')} />

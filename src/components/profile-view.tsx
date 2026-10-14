@@ -32,6 +32,8 @@ type Props = {
   onEditCover?: () => void;
   /** Mon profil : bouton engrenage vers les paramètres */
   onOpenSettings?: () => void;
+  /** Mon profil : bouton « ? » vers l'aide */
+  onOpenHelp?: () => void;
   /** Photo à ouvrir directement (notification « a liké ta photo ») */
   openPhotoId?: string;
 };
@@ -54,6 +56,7 @@ export function ProfileView({
   onDeletePhoto,
   onEditCover,
   onOpenSettings,
+  onOpenHelp,
   openPhotoId,
 }: Props) {
   const Colors = useColors();
@@ -88,6 +91,15 @@ export function ProfileView({
               hitSlop={8}
               accessibilityLabel="Paramètres">
               <Ionicons name="settings-sharp" size={22} color={Colors.white} />
+            </Pressable>
+          )}
+          {onOpenHelp && (
+            <Pressable
+              style={[styles.settingsButton, styles.helpButton, { top: (underStatusBar ? insets.top : 0) + 12 }]}
+              onPress={onOpenHelp}
+              hitSlop={8}
+              accessibilityLabel="Aide">
+              <Ionicons name="help" size={24} color={Colors.white} />
             </Pressable>
           )}
           {onEditCover && (
@@ -347,6 +359,7 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     backgroundColor: Colors.overlayLight,
   },
+  helpButton: { left: 62 },
   coverButtonText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
   identity: { alignItems: 'center', paddingHorizontal: 24, marginTop: -AVATAR_SIZE / 2, gap: 6 },
   avatar: {

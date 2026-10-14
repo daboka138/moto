@@ -5,6 +5,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Vie
 import { PlaceField } from '@/components/form-fields';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
@@ -65,6 +66,7 @@ export default function NewPlaceScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <TipBubble id="spots" />
         <Section title="Catégorie">
           <ScrollView horizontal={false} contentContainerStyle={styles.chips}>
             {PLACE_KINDS.map((k) => (

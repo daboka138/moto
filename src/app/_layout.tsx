@@ -162,6 +162,9 @@ function RootNavigator() {
         <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
         <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />
         <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
+        <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+        <Stack.Screen name="help/index" options={{ headerShown: true, title: 'Aide' }} />
+        <Stack.Screen name="help/[id]" options={{ headerShown: true, title: '' }} />
         <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />

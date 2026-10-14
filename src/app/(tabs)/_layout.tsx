@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { Platform, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useColors } from '@/constants/theme';
+import { useGuideState } from '@/guide/state';
 import { useNotificationsBadge } from '@/lib/notifications';
 import { useInbox } from '@/lib/use-inbox';
 import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
@@ -26,6 +27,9 @@ export default function TabsLayout() {
   const badge = (n: number) => (n > 0 ? (n > 99 ? '99+' : n) : undefined);
   // Web sur grand écran : onglets en colonne à gauche, contenu centré (sauf la carte, plein écran)
   const wide = useWideLayout();
+  // Premier lancement : présentation de l'app (une seule fois, relançable dans Paramètres › Aide)
+  const { welcomeDone } = useGuideState();
+  if (!welcomeDone) return <Redirect href="/welcome" />;
   return (
     <Tabs
       screenOptions={{

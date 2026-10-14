@@ -81,6 +81,7 @@ export default function ProfileScreen() {
       onDeletePhoto={deletePhoto}
       onEditCover={editCover}
       onOpenSettings={() => router.push('/settings')}
+      onOpenHelp={() => router.push('/help')}
       openPhotoId={openPhotoId}
       badges={<BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />}
       actions={

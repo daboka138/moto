@@ -9,6 +9,7 @@ import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { LeafletMap } from '@/components/leaflet-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import type { LatLng } from '@/lib/geo';
@@ -248,6 +249,7 @@ export default function NewRideScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <TipBubble id="balade" />
         <Field label="Titre" required value={title} onChangeText={setTitle} placeholder="ex. Tour des Calanques" maxLength={80} />
 
         <Section title="Itinéraire">

@@ -39,7 +39,7 @@ header.top { border-bottom: 1px solid var(--border); background: var(--surface);
 header.top .wrap { display: flex; align-items: center; gap: 12px; min-height: 64px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 20px; color: var(--text); text-decoration: none; }
 .brand img { width: 36px; height: 36px; border-radius: 9px; }
-header.top nav { margin-left: auto; display: flex; gap: 16px; font-size: 15px; }
+header.top nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 15px; }
 header.top nav a { text-decoration: none; color: var(--muted); }
 header.top nav a:hover { color: var(--accent-dark); }
 
@@ -79,3 +79,20 @@ ol.steps li { margin: 8px 0; }
 
 footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; padding: 24px 0 40px; }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+
+/* Guide (page générée par scripts/build-guide.mjs) */
+.guide-search { width: 100%; font: inherit; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin: 16px 0 4px; }
+.toc ul { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 8px 0; font-size: 15px; color: var(--muted); }
+.toc li > a:first-child { font-weight: 700; }
+.theme { margin-top: 8px; }
+.fiche { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 4px 20px 12px; margin: 14px 0; scroll-margin-top: 16px; }
+.fiche h3 { font-size: 19px; margin: 14px 0 4px; }
+.fiche h4 { font-size: 15px; margin: 14px 0 2px; }
+.fiche .but { color: var(--muted); margin: 0; }
+.fiche .web-note { font-size: 15px; color: var(--muted); }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; vertical-align: middle; }
+details.faq { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 18px; margin: 10px 0; }
+details.faq summary { font-weight: 700; cursor: pointer; }
+.box.support h2 { margin-top: 4px; }
+[hidden] { display: none !important; }

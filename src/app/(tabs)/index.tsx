@@ -25,6 +25,7 @@ import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
 import { useConvoy } from '@/lib/convoy';
@@ -730,6 +731,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      <TipBubble id="carte" enabled={!navigating} />
       <LeafletMap
         position={position}
         navigating={navigating}

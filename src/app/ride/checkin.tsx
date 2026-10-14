@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
+import { TipBubble } from '@/components/guide/tip-bubble';
 import { Button, Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { GAP_CHOICES_KM, roleLabel } from '@/lib/convoy';
@@ -120,6 +121,7 @@ export default function RideCheckInScreen() {
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}>
+      <TipBubble id="convoi" />
       <View style={styles.header}>
         <Text style={styles.title}>{ride.title}</Text>
         <Text style={styles.muted}>
