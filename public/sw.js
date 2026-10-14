@@ -1,7 +1,7 @@
 // Service worker de la version web (PWA) : rend le site installable et affiche la dernière
 // version connue hors connexion. Les données (Supabase, cartes, recherche) ne sont jamais
 // mises en cache ici : seulement la page et les fichiers de l'app (noms avec empreinte).
-const CACHE = 'passeryder-v1';
+const CACHE = 'passeryder-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/manifest.json', '/icons/icon-192.png'])));

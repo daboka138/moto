@@ -3,32 +3,32 @@
 // Le V (salut motard) : ses deux branches sont les tangentes de la tête d'une épingle GPS ;
 // la pointe du V est la pointe de l'épingle.
 import { writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const OUT = dirname(fileURLToPath(import.meta.url));
-const BLUE = '#0EA5E9'; // ACCENT de src/constants/theme.tsx
-const INK = '#18181B';
-const WHITE = '#FFFFFF';
+export const BLUE = '#0EA5E9'; // ACCENT de src/constants/theme.tsx
+export const INK = '#18181B';
+export const WHITE = '#FFFFFF';
 const FONT = 'Saira'; // Google Fonts, licence SIL Open Font License
 
 // Palettes : arms = branches du V, pin = épingle
-const MODES = {
+export const MODES = {
   clair: { arms: INK, pin: BLUE, text1: INK, text2: BLUE },
   sombre: { arms: WHITE, pin: BLUE, text1: WHITE, text2: BLUE },
   bleu: { arms: WHITE, pin: INK, text1: WHITE, text2: INK }, // sur fond bleu (icône d'app)
 };
 
-const VARIANTS = [
+export const VARIANTS = [
   { id: 'a', name: 'A · Plein', desc: 'Traits épais, V serré, épingle pleine', alpha: 21, R: 16, sw: 11, arm: 64, style: 'solid' },
   { id: 'b', name: 'B · Évidé', desc: 'Traits épais, V serré, épingle évidée', alpha: 21, R: 16, sw: 11, arm: 64, style: 'hollow' },
   { id: 'c', name: 'C · Ouvert', desc: 'Traits fins, V ouvert, épingle évidée', alpha: 27, R: 17, sw: 7.5, arm: 66, style: 'hollow' },
   { id: 'd', name: 'D · Monoline', desc: 'Traits moyens, tête en anneau', alpha: 23, R: 16, sw: 8.5, arm: 64, style: 'ring' },
 ];
 
-const f = (n) => Math.round(n * 100) / 100;
+export const f = (n) => Math.round(n * 100) / 100;
 
-function geometry(v) {
+export function geometry(v) {
   const a = (v.alpha * Math.PI) / 180;
   const s = Math.sin(a), c = Math.cos(a);
   const o = v.sw / 2;
@@ -45,7 +45,7 @@ function geometry(v) {
   return { d, tL, tR, P2, tipL, tipR, minX, maxX, minY, maxY };
 }
 
-function symbolBody(v, mode) {
+export function symbolBody(v, mode) {
   const g = geometry(v);
   const m = MODES[mode];
   const parts = [];
@@ -65,7 +65,7 @@ function symbolBody(v, mode) {
   return { g, body: parts.join('') };
 }
 
-function symbolSvg(v, mode) {
+export function symbolSvg(v, mode) {
   const { g, body } = symbolBody(v, mode);
   const w = g.maxX - g.minX, h = g.maxY - g.minY;
   const side = Math.max(w, h) * 1.12;
@@ -92,6 +92,7 @@ function logoSvg(v, mode) {
     + `<tspan fill="${m.text1}">Passe</tspan><tspan fill="${m.text2}">Ryder</tspan></text></svg>`;
 }
 
+function main() {
 const files = {};
 for (const v of VARIANTS) {
   for (const mode of ['clair', 'sombre']) {
@@ -196,3 +197,7 @@ ${cards}
 `;
 writeFileSync(join(OUT, 'apercu.html'), html);
 console.log(`${Object.keys(files).length} SVG + apercu.html`);
+}
+
+// Exécuté directement (pas importé par export.mjs)
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main();

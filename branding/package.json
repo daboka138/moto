@@ -1,0 +1,15 @@
+{
+  "name": "passeryder-branding",
+  "private": true,
+  "type": "module",
+  "description": "Génération du logo et des icônes (node generate.mjs / node export.mjs). Hors de l'app.",
+  "scripts": {
+    "apercu": "node generate.mjs",
+    "export": "node export.mjs"
+  },
+  "dependencies": {
+    "@fontsource/saira": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "opentype.js": "^2.0.0"
+  }
+}
