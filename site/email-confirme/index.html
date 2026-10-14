@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Email confirmé — PasseRyder</title>
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Page générée par scripts/build-auth-pages.cjs : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero auth-page">
+      <div id="loading">
+        <h1>⏳</h1>
+        <p class="lead">Confirmation de ton adresse…</p>
+      </div>
+      <div id="ok" hidden>
+        <h1>✅ Email confirmé</h1>
+        <p class="lead" id="ok-text">C'est tout bon ! Retourne dans l'app PasseRyder et connecte-toi.</p>
+      </div>
+      <div id="half" hidden>
+        <h1>📬 Encore une étape</h1>
+        <p class="lead">Première confirmation reçue. Clique aussi sur le lien envoyé à ton autre adresse email pour terminer le changement.</p>
+      </div>
+      <div class="cta">
+        <a class="button" href="#" id="open-app">Ouvrir l'app</a>
+        <a class="button secondary" href="https://app.passeryder.fr" id="alt">Ouvrir la version web</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/guide">Guide</a>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
+    </div>
+  </footer>
+
+  <script>
+
+    // Clé publishable Supabase (publique, la même que dans l'app web)
+    var SUPABASE_URL = 'https://yfewldnhnnrzzscmfjsd.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_ndqUZWRvQOd2so6Zla0gtw_r4TP4kQS';
+    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    var android = /android/i.test(navigator.userAgent);
+    // Android : ouvre l'app (sinon Google Play) ; ailleurs : la version web
+    function openApp() {
+      if (android) {
+        location.href = 'intent://#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(PLAY) + ';end';
+      } else {
+        location.href = 'https://app.passeryder.fr/';
+      }
+    }
+    function auth(endpoint, body) {
+      return fetch(SUPABASE_URL + '/auth/v1/' + endpoint, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+    // Android : app + version web ; ailleurs : version web + Google Play
+    if (!android) {
+      document.getElementById('open-app').textContent = 'Ouvrir la version web';
+      var alt = document.getElementById('alt');
+      alt.textContent = 'Télécharger sur Google Play';
+      alt.href = PLAY;
+    }
+    document.getElementById('open-app').addEventListener('click', function (e) { e.preventDefault(); openApp(); });
+
+    var p = new URLSearchParams(location.search);
+    var tokenHash = p.get('token_hash');
+    var type = p.get('type') === 'email_change' ? 'email_change' : 'email';
+    function show(id) {
+      ['loading', 'ok', 'half'].forEach(function (x) { document.getElementById(x).hidden = x !== id; });
+    }
+    if (type === 'email_change') {
+      document.getElementById('ok-text').textContent = 'Ta nouvelle adresse email est enregistrée : utilise-la pour te connecter.';
+    }
+    // Le lien est à usage unique : on le retire de la barre d'adresse
+    history.replaceState(null, '', location.pathname);
+    if (!tokenHash) {
+      show('ok');
+    } else {
+      // La session renvoyée par Supabase n'est pas gardée : la connexion se fait dans l'app
+      auth('verify', { type: type, token_hash: tokenHash })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (!res.ok) throw new Error('lien refusé');
+          show(type === 'email_change' && !res.j.access_token ? 'half' : 'ok');
+        })
+        .catch(function () { location.replace('/lien-expire?type=' + type); });
+    }
+  </script>
+</body>
+</html>

@@ -247,6 +247,23 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# Modèles PasseRyder (générés par scripts/auth-emails.mjs, envoyés au projet avec --push)
+[auth.email.template.confirmation]
+subject = "Confirme ton adresse email PasseRyder"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Réinitialise ton mot de passe PasseRyder"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirme ta nouvelle adresse email"
+content_path = "./supabase/templates/email_change.html"
+
+[auth.email.template.magic_link]
+subject = "Ton lien de connexion PasseRyder"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

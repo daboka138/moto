@@ -102,6 +102,8 @@ png(iconSvg({ size: 180, bg: BLUE, mode: 'bleu', radiusFrac: 0.33 }), 'public/ic
 // ---------- Site passeryder.fr (site/) ----------
 png(iconSvg({ size: 48, bg: BLUE, shape: 'rounded', mode: 'bleu', radiusFrac: 0.36 }), 'site/favicon.png');
 png(iconSvg({ size: 1024, bg: BLUE, mode: 'bleu', radiusFrac: 0.33 }), 'site/icon.png');
+// Emails d'authentification (supabase/templates) : icône 2x, affichée en 56 px
+png(iconSvg({ size: 112, bg: BLUE, shape: 'rounded', mode: 'bleu', radiusFrac: 0.34 }), 'site/email/logo.png');
 
 // ---------- Play Store (store/) ----------
 png(iconSvg({ size: 512, bg: BLUE, mode: 'bleu', radiusFrac: 0.33 }), 'store/icon-512.png');

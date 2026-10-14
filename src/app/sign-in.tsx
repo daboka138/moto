@@ -5,24 +5,49 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TermsCheckbox } from '@/components/terms-checkbox';
 import { Button, Field } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
-import { signInWithEmail, signUpWithEmail } from '@/lib/auth';
+import {
+  AuthFailure,
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  requestPasswordReset,
+  resendConfirmation,
+  signInWithEmail,
+  signUpWithEmail,
+} from '@/lib/auth';
+
+type Mode = 'signIn' | 'signUp' | 'forgot';
 
 // Connexion par email pour l'instant. Pour passer au téléphone : voir src/lib/auth.ts
 export default function SignInScreen() {
   const styles = useStyles();
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // Email pas encore confirmé (connexion refusée, ou inscription qui attend la confirmation)
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resending, setResending] = useState(false);
+  // « Mot de passe oublié » : lien demandé (message neutre affiché)
+  const [resetSent, setResetSent] = useState(false);
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setResetSent(false);
+  };
 
   const submit = async () => {
+    if (mode === 'forgot') return sendReset();
     if (!email.trim() || !password) {
       Alert.alert('Connexion', 'Renseigne ton email et ton mot de passe.');
       return;
     }
     if (mode === 'signUp' && !termsAccepted) {
       Alert.alert('Inscription', "Coche la case pour accepter les conditions d'utilisation et la politique de confidentialité.");
+      return;
+    }
+    if (mode === 'signUp' && (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX)) {
+      Alert.alert('Inscription', `Choisis un mot de passe de ${PASSWORD_MIN} à ${PASSWORD_MAX} caractères.`);
       return;
     }
     setLoading(true);
@@ -33,14 +58,48 @@ export default function SignInScreen() {
         const needsConfirmation = await signUpWithEmail(email, password);
         if (needsConfirmation) {
           Alert.alert('Vérifie tes emails', 'Clique sur le lien de confirmation reçu, puis connecte-toi.');
+          setUnconfirmed(true);
           setMode('signIn');
         }
       }
       // Si une session s'ouvre, la navigation bascule toute seule (voir _layout.tsx)
     } catch (e) {
+      if (e instanceof AuthFailure && e.code === 'email_not_confirmed') setUnconfirmed(true);
       Alert.alert(mode === 'signIn' ? 'Connexion' : 'Inscription', e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const sendReset = async () => {
+    if (!email.trim()) {
+      Alert.alert('Mot de passe oublié', 'Renseigne l’email de ton compte.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await requestPasswordReset(email);
+      setResetSent(true);
+    } catch (e) {
+      Alert.alert('Mot de passe oublié', e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resend = async () => {
+    if (!email.trim()) {
+      Alert.alert('Confirmation', 'Renseigne ton email.');
+      return;
+    }
+    setResending(true);
+    try {
+      await resendConfirmation(email);
+      Alert.alert('Email renvoyé', 'Si ton adresse attend une confirmation, tu vas recevoir un nouvel email. Pense à regarder dans les spams.');
+    } catch (e) {
+      Alert.alert('Confirmation', e instanceof Error ? e.message : String(e));
+    } finally {
+      setResending(false);
     }
   };
 
@@ -50,8 +109,18 @@ export default function SignInScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <Text style={styles.logo}>PasseRyder</Text>
-            <Text style={styles.tagline}>Roule avec ta communauté.</Text>
+            <Text style={styles.tagline}>
+              {mode === 'forgot' ? 'Mot de passe oublié' : 'Roule avec ta communauté.'}
+            </Text>
           </View>
+
+          {mode === 'forgot' && (
+            <Text style={styles.info}>
+              {resetSent
+                ? 'Si un compte existe avec cette adresse, tu vas recevoir un email avec un lien pour choisir un nouveau mot de passe. Pense à regarder dans les spams.'
+                : 'Indique l’email de ton compte : on t’envoie un lien pour choisir un nouveau mot de passe.'}
+            </Text>
+          )}
 
           <Field
             label="Email"
@@ -61,30 +130,48 @@ export default function SignInScreen() {
             autoComplete="email"
             keyboardType="email-address"
             placeholder="toi@exemple.fr"
+            onSubmitEditing={mode === 'forgot' ? submit : undefined}
           />
-          <Field
-            label="Mot de passe"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-            placeholder="6 caractères minimum"
-            onSubmitEditing={submit}
-          />
+          {mode !== 'forgot' && (
+            <Field
+              label="Mot de passe"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+              placeholder={mode === 'signUp' ? `${PASSWORD_MIN} caractères minimum` : undefined}
+              maxLength={PASSWORD_MAX}
+              onSubmitEditing={submit}
+            />
+          )}
 
           {mode === 'signUp' && <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />}
 
-          <Button
-            title={mode === 'signIn' ? 'Se connecter' : 'Créer mon compte'}
-            onPress={submit}
-            loading={loading}
-            disabled={mode === 'signUp' && !termsAccepted}
-          />
-          <Button
-            variant="ghost"
-            title={mode === 'signIn' ? 'Pas encore de compte ? Inscris-toi' : 'Déjà un compte ? Connecte-toi'}
-            onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
-          />
+          {!(mode === 'forgot' && resetSent) && (
+            <Button
+              title={mode === 'signIn' ? 'Se connecter' : mode === 'signUp' ? 'Créer mon compte' : 'Envoyer le lien'}
+              onPress={submit}
+              loading={loading}
+              disabled={mode === 'signUp' && !termsAccepted}
+            />
+          )}
+
+          {mode === 'signIn' && unconfirmed && (
+            <Button variant="secondary" title="Renvoyer l’email de confirmation" onPress={resend} loading={resending} />
+          )}
+
+          {mode === 'signIn' && (
+            <Button variant="ghost" title="Mot de passe oublié ?" onPress={() => switchMode('forgot')} />
+          )}
+          {mode === 'forgot' ? (
+            <Button variant="ghost" title="Retour à la connexion" onPress={() => switchMode('signIn')} />
+          ) : (
+            <Button
+              variant="ghost"
+              title={mode === 'signIn' ? 'Pas encore de compte ? Inscris-toi' : 'Déjà un compte ? Connecte-toi'}
+              onPress={() => switchMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -97,4 +184,5 @@ const useStyles = makeStyles((Colors) => ({
   hero: { alignItems: 'center', marginBottom: 24, gap: 6 },
   logo: { fontSize: 40, fontWeight: '900', letterSpacing: 1, color: Colors.accent },
   tagline: { fontSize: 16, color: Colors.textMuted },
+  info: { fontSize: 15, lineHeight: 21, color: Colors.text, textAlign: 'center' },
 }));

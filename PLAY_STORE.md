@@ -305,27 +305,24 @@ et l'envoyer. Les testeurs ouvrent le lien, acceptent, puis installent PasseRyde
 ## 5. À faire avant la production
 
 ### 5.1 Emails d'authentification : SMTP Brevo + confirmation d'email
-Aujourd'hui, aucun SMTP n'est configuré dans Supabase et la confirmation d'email est **désactivée**
-(`mailer_autoconfirm = true`) : n'importe quelle adresse peut créer un compte, et aucun email n'est envoyé
-(pas de « mot de passe oublié » possible).
+**Déjà prêt (code)** : « Mot de passe oublié ? » et « Renvoyer l'email de confirmation » sur l'écran de connexion,
+écran `/auth-callback` (app via `passeryder://auth-callback…` et web via `https://app.passeryder.fr/auth-callback…`),
+pages `passeryder.fr/email-confirme` et `passeryder.fr/lien-expire`, modèles français dans `supabase/templates/`
+(générés par `scripts/auth-emails.mjs`). Les liens des emails utilisent `{{ .TokenHash }}` vers nos pages (pas
+`{{ .ConfirmationURL }}`) : ils marchent quel que soit l'appareil qui a fait la demande, et ne sont consommés que par nos pages.
 
-1. **Brevo** (brevo.com, offre gratuite : 300 emails/jour) › Expéditeurs, domaines › **ajouter le domaine passeryder.fr**,
-   puis créer chez OVH (Zone DNS de passeryder.fr) les enregistrements TXT/CNAME **DKIM** et **DMARC** que Brevo affiche.
-   Attendre que Brevo indique le domaine « authentifié ».
-2. Brevo › **SMTP et API** › créer une **clé SMTP** (la garder secrète, ne jamais la commiter).
-3. Supabase › Authentication › Emails › **SMTP Settings** › Enable custom SMTP :
-   - Sender email : `noreply@passeryder.fr` — Sender name : `PasseRyder`
-   - Host : `smtp-relay.brevo.com` — Port : `587`
-   - Username : l'identifiant SMTP Brevo — Password : la clé SMTP
-4. Supabase › Authentication › **URL Configuration** › Site URL : `https://passeryder.fr`
-   (aujourd'hui `http://localhost:3000` : les liens des emails pointeraient vers localhost).
-5. Supabase › Authentication › Emails › **Templates** : traduire en français les modèles « Confirm signup » et « Reset password ».
-6. Supabase › Authentication › Rate Limits : relever la limite d'envoi d'emails (2/heure par défaut).
-7. Supabase › Authentication › Sign In / Providers › Email › **réactiver « Confirm email »**.
-8. Tester : créer un compte avec une vraie adresse, vérifier la réception (et pas dans les spams), cliquer sur le lien, se connecter.
-
-À prévoir côté app ensuite : un écran « Mot de passe oublié » (`resetPasswordForEmail`) et une page d'arrivée
-sur passeryder.fr après confirmation (« Email confirmé, retourne dans l'app »).
+1. **Modèles + URL** (une fois) : `node scripts/auth-emails.mjs --push` après avoir chargé `.env.supabase`
+   (règle Site URL = `https://passeryder.fr`, Redirect URLs = `https://app.passeryder.fr/**`, `https://passeryder.fr/**`, `passeryder://**`,
+   sujets et contenus des 4 modèles ; ne touche ni au SMTP, ni à « Confirm email », ni aux limites).
+2. **Brevo** › Expéditeurs, domaines › domaine **passeryder.fr** authentifié (DKIM + DMARC chez OVH).
+3. Brevo › **SMTP et API** › clé SMTP (secrète, jamais dans Git).
+4. Supabase › Authentication › Emails › **SMTP Settings** › Enable custom SMTP :
+   Sender email `noreply@passeryder.fr`, Sender name `PasseRyder`, Host `smtp-relay.brevo.com`, Port `587`,
+   Username = identifiant SMTP Brevo, Password = clé SMTP.
+5. Supabase › Authentication › **Rate Limits** › « Rate limit for sending emails » : 30 / heure (2 par défaut).
+6. **Tester** (mot de passe oublié, avec « Confirm email » encore désactivé) : réception, pas en spam, lien dans l'app et dans un navigateur.
+7. Seulement si tout marche : Authentication › Sign In / Providers › Email › **activer « Confirm email »**
+   (les comptes existants restent confirmés), puis tester une inscription complète.
 
 ### 5.2 Déjà fait
 - ✅ **Conditions d'utilisation** (exigées par Google pour le contenu publié par les membres) : page `/conditions`, case obligatoire

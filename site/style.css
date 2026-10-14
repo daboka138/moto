@@ -96,3 +96,10 @@ details.faq { background: var(--surface); border: 1px solid var(--border); borde
 details.faq summary { font-weight: 700; cursor: pointer; }
 .box.support h2 { margin-top: 4px; }
 [hidden] { display: none !important; }
+
+/* Pages d'arrivée des emails (email-confirme, lien-expire) */
+.auth-page { max-width: 520px; margin: 0 auto; }
+.auth-page h1 { font-size: clamp(28px, 7vw, 38px); }
+.auth-page .box { text-align: left; }
+.auth-page form { display: flex; flex-direction: column; gap: 10px; }
+.auth-page form .button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }

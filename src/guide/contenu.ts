@@ -67,7 +67,9 @@ export const FICHES: Fiche[] = [
     astuces: [
       'Ton prénom et ton nom restent privés : seul ton pseudo est visible.',
       'Tu peux tout modifier plus tard dans Profil › Modifier mon profil.',
+      'Mot de passe oublié ? Lien « Mot de passe oublié ? » sur l’écran de connexion.',
     ],
+    motsCles: ['mot de passe', 'connexion', 'inscription', 'email', 'confirmation'],
   },
   {
     id: 'onglets',
@@ -923,6 +925,18 @@ export const FICHES: Fiche[] = [
 ];
 
 export const FAQ: Question[] = [
+  {
+    id: 'mot-de-passe',
+    q: 'J’ai oublié mon mot de passe',
+    r: [
+      'Sur l’écran de connexion, appuie sur « Mot de passe oublié ? » et indique ton email.',
+      'Ouvre l’email reçu et appuie sur « Choisir un nouveau mot de passe » (lien valable 1 heure).',
+      'Choisis ton nouveau mot de passe (8 caractères minimum) : tu es connecté directement.',
+      'Sur Android, le lien te propose de continuer dans l’app ; sinon, ça marche aussi dans le navigateur.',
+      'Rien reçu ? Regarde dans les spams, ou écris au support.',
+    ],
+    fiches: ['premiers-pas'],
+  },
   {
     id: 'amis-invisibles',
     q: 'Je ne vois pas mes amis sur la carte',

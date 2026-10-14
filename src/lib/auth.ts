@@ -12,9 +12,25 @@ import { TERMS_VERSION } from '@/lib/terms';
 // puis remplacer le formulaire email de sign-in.tsx par un formulaire en deux
 // temps qui appelle sendPhoneCode puis verifyPhoneCode (déjà prêts ci-dessous).
 
+/** Erreur d'authentification lisible, avec le code Supabase (ex. « email_not_confirmed ») */
+export class AuthFailure extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+  ) {
+    super(message);
+  }
+}
+
+const fail = (error: AuthError) => new AuthFailure(authErrorMessage(error), error.code);
+
+/** Longueur des nouveaux mots de passe (le serveur exige 6 minimum, l'app en demande 8) */
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 72;
+
 export async function signInWithEmail(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) throw new Error(authErrorMessage(error));
+  if (error) throw fail(error);
 }
 
 /**
@@ -28,26 +44,59 @@ export async function signUpWithEmail(email: string, password: string): Promise<
     password,
     options: { data: { terms_version: TERMS_VERSION } },
   });
-  if (error) throw new Error(authErrorMessage(error));
+  if (error) throw fail(error);
   return !data.session;
+}
+
+/**
+ * « Mot de passe oublié » : envoie le lien de réinitialisation. Le lien de l'email (modèle
+ * supabase/templates/recovery.html) mène à /auth-callback, dans l'app ou sur app.passeryder.fr.
+ * Ne dit jamais si un compte existe : seules les erreurs de saisie ou de quota remontent.
+ */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+  if (error && (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit' || error.code === 'validation_failed')) {
+    throw fail(error);
+  }
+}
+
+/** Renvoie l'email de confirmation d'inscription (même réponse que le compte existe ou non) */
+export async function resendConfirmation(email: string) {
+  const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+  if (error && (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit' || error.code === 'validation_failed')) {
+    throw fail(error);
+  }
+}
+
+export type EmailLinkType = 'recovery' | 'magiclink';
+
+/** Lien reçu par email (token_hash) : ouvre la session du compte concerné */
+export async function verifyEmailLink(tokenHash: string, type: EmailLinkType) {
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+  if (error) throw fail(error);
+}
+
+export async function updatePassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw fail(error);
 }
 
 /** Envoie un code par SMS. Numéro au format international : +33612345678 */
 export async function sendPhoneCode(phone: string) {
   const { error } = await supabase.auth.signInWithOtp({ phone });
-  if (error) throw new Error(authErrorMessage(error));
+  if (error) throw fail(error);
 }
 
 export async function verifyPhoneCode(phone: string, token: string) {
   const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
-  if (error) throw new Error(authErrorMessage(error));
+  if (error) throw fail(error);
 }
 
 export async function signOut() {
   // Ce téléphone ne reçoit plus les notifications du compte (avant de perdre la session)
   await unregisterPush().catch((e) => console.warn('Désinscription des notifications impossible', e));
   const { error } = await supabase.auth.signOut();
-  if (error) throw new Error(authErrorMessage(error));
+  if (error) throw fail(error);
 }
 
 /**
@@ -76,6 +125,10 @@ function authErrorMessage(error: AuthError): string {
       return 'Un compte existe déjà avec cet email.';
     case 'weak_password':
       return 'Mot de passe trop faible (6 caractères minimum).';
+    case 'same_password':
+      return 'Choisis un mot de passe différent de l’ancien.';
+    case 'otp_expired':
+      return 'Ce lien a expiré ou a déjà servi. Demande un nouveau lien.';
     case 'validation_failed':
       return 'Email invalide.';
     case 'over_request_rate_limit':

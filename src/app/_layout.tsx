@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
@@ -84,6 +84,8 @@ function RootNavigator() {
   const { colors: Colors } = useTheme();
   const styles = useStyles();
   const { session, profile, termsAccepted, profileError, refreshProfile } = useSession();
+  // Lien reçu par email : l'écran reste affiché pendant que la session s'ouvre et que le profil se charge
+  const onAuthLink = usePathname() === '/auth-callback';
   // Web sur grand écran : les écrans de contenu en colonne centrée (les onglets gèrent la leur)
   const wide = useWideLayout();
   const contentStyle = {
@@ -104,7 +106,7 @@ function RootNavigator() {
 
   if (session === undefined) return null;
 
-  if (session && profileError) {
+  if (session && profileError && !onAuthLink) {
     return (
       <View style={styles.center}>
         <Text style={styles.message}>Impossible de charger ton profil. Vérifie ta connexion.</Text>
@@ -114,7 +116,7 @@ function RootNavigator() {
     );
   }
 
-  if (session && profile === undefined) {
+  if (session && profile === undefined && !onAuthLink) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={Colors.accent} />
@@ -124,6 +126,8 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle }}>
+      {/* Connecté ou non : lien « mot de passe oublié » / connexion reçu par email */}
+      <Stack.Screen name="auth-callback" />
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
       </Stack.Protected>
