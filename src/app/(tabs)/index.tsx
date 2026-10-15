@@ -21,6 +21,9 @@ import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { NavWeatherChip } from '@/components/weather-strip';
+import { BreakBanner, FuelCheckBanner, MotoAlertChip } from '@/components/nav/moto-alerts';
+import { useBreakReminder, useCurveAlerts, useSunAlerts } from '@/lib/moto-alerts';
+import { getSimulation, useSimulatedLocation, useSimulation } from '@/lib/simulation';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
@@ -154,6 +157,17 @@ export default function MapScreen() {
   const myMoto = mainMotorcycle(profile);
   const nav = useNavigation(position, kmh, myCategory, userId);
   const navigating = nav.phase === 'navigating';
+  // Mode test admin : position simulée le long de l'itinéraire, jamais publiée ni comptée
+  const sim = useSimulation();
+  const simulating = sim.active && navigating;
+  const simulatedNav = useRef(false);
+  useEffect(() => {
+    if (navigating) simulatedNav.current = getSimulation().active;
+  }, [navigating]);
+  useSimulatedLocation(simulating, nav.route, (loc) => {
+    setLocation(loc);
+    if (loc.coords.heading != null) setHeading(loc.coords.heading);
+  });
   const [stopPicker, setStopPicker] = useState<{ kind: PoiKind | null } | null>(null);
   const [shareSheet, setShareSheet] = useState(false);
 
@@ -163,18 +177,22 @@ export default function MapScreen() {
   const fuelLeftKm = fuelRange(myGarage, nav.tripM / 1000)?.leftKm ?? null;
   const previewFuel =
     fuelLeftKm !== null && nav.route ? { leftKm: fuelLeftKm, needed: needsFuel(fuelLeftKm, nav.route.distanceM / 1000) } : null;
+  // Stations ajoutées par la communauté (spots « station »), proposées avec celles d'OpenStreetMap
+  const { places: communityPlaces } = useCommunityPlaces(position);
+  const fuelSpots = (communityPlaces ?? []).filter((p) => p.kind === 'fuel').map((p) => ({ label: `⛽ ${p.name}`, latitude: p.latitude, longitude: p.longitude }));
   const fuelAlert = useFuelAlert({
     navigating,
     leftKm: fuelLeftKm,
     remainingKm: nav.progress ? nav.progress.remainingM / 1000 : null,
     route: navigating ? nav.route : null,
     alongM: nav.progress?.alongM ?? 0,
+    spots: fuelSpots,
   });
   const countedTrip = useRef<string | null>(null);
   const myMotoId = myMoto?.id ?? null;
   useEffect(() => {
     const trip = nav.summary;
-    if (!trip || countedTrip.current === trip.id) return;
+    if (!trip || countedTrip.current === trip.id || simulatedNav.current) return;
     countedTrip.current = trip.id;
     if (myMotoId) addMotorcycleKm(myMotoId, trip.distanceM / 1000).catch((e) => console.warn('Compteur non mis à jour', e));
     // Badges : km et cols franchis
@@ -198,7 +216,43 @@ export default function MapScreen() {
   );
 
   // Navigation : prochain phénomène météo devant moi (pluie, vent fort, gel…)
-  const navWeather = useNavWeather(navigating ? nav.route : null, nav.progress?.alongM ?? null);
+  const navWeather = useNavWeather(navigating && voice.weatherAlerts ? nav.route : null, nav.progress?.alongM ?? null);
+
+  // ---------- Alertes moto (voix + bandeau, désactivables dans Voix et alertes) ----------
+  const curveAlert = useCurveAlerts(navigating && voice.curveAlerts, nav.route, nav.progress?.alongM ?? null);
+  const sunAlert = useSunAlerts(navigating && voice.sunAlerts, position, nav.progress?.remainingS ?? null);
+  const breakSpots = (communityPlaces ?? [])
+    .filter((p) => p.kind === 'biker_cafe' || p.kind === 'viewpoint')
+    .map((p) => ({ label: `${p.kind === 'biker_cafe' ? '☕' : '🏞️'} ${p.name}`, latitude: p.latitude, longitude: p.longitude }));
+  const breakReminder = useBreakReminder({
+    active: navigating,
+    kmh,
+    intervalMin: voice.breakReminderMin,
+    route: nav.route,
+    alongM: nav.progress?.alongM ?? null,
+    spots: breakSpots,
+  });
+
+  // Départ d'une navigation : « Plein fait ? » (à l'arrêt seulement ; disparaît dès qu'on roule)
+  const [fuelCheck, setFuelCheck] = useState(false);
+  const hasFuelRange = !!fuelRange(myGarage);
+  useEffect(() => {
+    const t = setTimeout(() => setFuelCheck(navigating && hasFuelRange), 0);
+    return () => clearTimeout(t);
+  }, [navigating, hasFuelRange]);
+  useEffect(() => {
+    if (fuelCheck && kmh > DRIVING_LOCK_SPEED_KMH) {
+      const t = setTimeout(() => setFuelCheck(false), 0);
+      return () => clearTimeout(t);
+    }
+  }, [fuelCheck, kmh]);
+  const pickFuelLevel = (level: number) => {
+    setFuelCheck(false);
+    if (!myGarage) return;
+    markFilled(myGarage, nav.tripM / 1000, level)
+      .then(() => showToast(level === 1 ? 'Plein noté' : 'Niveau noté : autonomie mise à jour'))
+      .catch((e) => Alert.alert('Carburant', e instanceof Error ? e.message : String(e)));
+  };
 
   // Écran toujours allumé pendant la navigation
   useEffect(() => {
@@ -218,7 +272,7 @@ export default function MapScreen() {
   const homecoming = useHomecoming();
   const homecomingSent = useRef(0);
   useEffect(() => {
-    if (!homecoming || !position) return;
+    if (!homecoming || !position || simulating) return;
     if (distanceM(position, homecoming) < HOMECOMING_ARRIVED_M) {
       finishHomecoming('arrived')
         .then(() => {
@@ -260,7 +314,7 @@ export default function MapScreen() {
   const pointedTrip = useRef<string | null>(null);
   useEffect(() => {
     const trip = nav.summary;
-    if (!trip || !pointsOn || pointedTrip.current === trip.id) return;
+    if (!trip || !pointsOn || pointedTrip.current === trip.id || simulatedNav.current) return;
     pointedTrip.current = trip.id;
     const { cleanKm, phoneFree } = drivingSnapshot();
     recordTripPoints(trip.id, trip.distanceM / 1000, cleanKm, phoneFree)
@@ -302,7 +356,7 @@ export default function MapScreen() {
   useDangerAnnouncements(dangerAhead(spokenReports, position, heading, kmh, route, alongM));
 
   // ---------- Motards réels : Supabase ne renvoie que ceux que j'ai le droit de voir ----------
-  const liveRiders = useLiveRiders(userId, me, settings?.mode ?? null);
+  const liveRiders = useLiveRiders(userId, simulating ? null : me, settings?.mode ?? null);
   // Nouveau compte sans amis : petite invitation sur la carte (sinon elle paraît vide)
   const { state: friendsState } = useFriends();
   const noFriends = !!friendsState && friendsState.friends.length === 0 && friendsState.incoming.length === 0;
@@ -327,7 +381,6 @@ export default function MapScreen() {
   }));
 
   // ---------- Lieux motards et événements ----------
-  const { places: communityPlaces } = useCommunityPlaces(position);
   const { events } = useEvents();
   const mapPlaces =
     navigating || !layers.showPlaces ? [] : (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind));
@@ -434,6 +487,8 @@ export default function MapScreen() {
           ? { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 500, distanceInterval: 0 }
           : { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 5 },
         (loc) => {
+          // Simulation de trajet (admin) : les vraies positions sont ignorées pendant la navigation
+          if (navigating && getSimulation().active) return;
           setLocation(loc);
           // Le cap GPS n'est fiable qu'en mouvement (> 5 km/h)
           if (loc.coords.heading != null && loc.coords.heading >= 0 && (loc.coords.speed ?? 0) > MOVING_MS) {
@@ -767,6 +822,9 @@ export default function MapScreen() {
             <>
               <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
               <NavWeatherChip ahead={navWeather} />
+              {curveAlert && <MotoAlertChip icon={curveAlert.side === 'left' ? '↰' : '↱'} text={curveAlert.text} />}
+              {sunAlert && <MotoAlertChip icon="🌇" text={sunAlert.text} tone="night" />}
+              {simulating && <MotoAlertChip icon="🧪" text="Simulation de trajet : position non publiée" tone="night" />}
             </>
           ) : (
             <SearchBar
@@ -1027,6 +1085,25 @@ export default function MapScreen() {
               />
             </View>
           )}
+          {navigating && fuelCheck && (
+            <View style={styles.card}>
+              <FuelCheckBanner leftKm={fuelLeftKm} onPick={pickFuelLevel} onClose={() => setFuelCheck(false)} />
+            </View>
+          )}
+          {navigating && breakReminder.reminder && (
+            <View style={styles.card}>
+              <BreakBanner
+                reminder={breakReminder.reminder}
+                stopped={kmh <= DRIVING_LOCK_SPEED_KMH}
+                onAdd={() => {
+                  const spot = breakReminder.reminder?.suggestion;
+                  if (spot) nav.addStop(spot);
+                  breakReminder.dismiss();
+                }}
+                onClose={breakReminder.dismiss}
+              />
+            </View>
+          )}
           {navigating && fuelAlert.suggestion && (
             <View style={styles.card}>
               <FuelSuggestionCard
@@ -1056,7 +1133,7 @@ export default function MapScreen() {
                 onShare={() => setShareSheet(true)}
                 onRemoveStop={nav.removeStop}
                 fuelLeftKm={fuelLeftKm}
-                onFilled={myGarage?.tankL ? fuelFilled : undefined}
+                onFilled={fuelRange(myGarage) ? fuelFilled : undefined}
               />
             </View>
           )}

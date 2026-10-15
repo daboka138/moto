@@ -33,7 +33,8 @@ import { useMapLayers, type MapStyle } from '@/lib/map-layers';
 import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 import { REPORT_TYPES } from '@/lib/reports';
-import { testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
+import { setSimulation, SIMULATION_SPEEDS, useSimulation } from '@/lib/simulation';
+import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
 
 type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -145,6 +146,7 @@ export default function SettingsScreen() {
           <LinkRow icon="construct-outline" label="Console développeur" onPress={() => router.push('/admin')} />
         </LinkGroup>
       )}
+      {isAdmin && !IS_WEB && <SimulationSection />}
 
       <Text style={styles.section}>Aide</Text>
       <LinkGroup>
@@ -192,6 +194,32 @@ export default function SettingsScreen() {
 
       {!IS_WEB && <UpdateCard />}
     </ScrollView>
+  );
+}
+
+/** Mode développeur (admin) : simuler un trajet pour tester la navigation sans rouler */
+function SimulationSection() {
+  const styles = useStyles();
+  const sim = useSimulation();
+  return (
+    <View style={styles.card}>
+      <SwitchRow
+        label="Simulation de trajet (test)"
+        description="Pendant une navigation, la position avance seule le long de l’itinéraire. Jamais publiée (amis, partage, Je rentre) ; le trajet ne compte ni km, ni badges, ni points. Désactivée au redémarrage de l’app."
+        value={sim.active}
+        onChange={(v) => setSimulation({ active: v })}
+      />
+      {sim.active && (
+        <View style={styles.voiceBlock}>
+          <Text style={styles.optionLabel}>Allure simulée</Text>
+          <View style={styles.chips}>
+            {SIMULATION_SPEEDS.map((k) => (
+              <Chip key={k} label={`${k} km/h`} selected={sim.kmh === k} onPress={() => setSimulation({ kmh: k })} />
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -275,6 +303,8 @@ function VoiceSection() {
   const Colors = useColors();
   const styles = useStyles();
   const voice = useVoiceSettings();
+  const { session } = useSession();
+  const isAdmin = useIsAdmin(session?.user.id);
   const toggleType = (type: (typeof REPORT_TYPES)[number]['value']) =>
     updateVoiceSettings({
       mutedDangerTypes: voice.mutedDangerTypes.includes(type)
@@ -332,6 +362,41 @@ function VoiceSection() {
           value={voice.speedAlert}
           onChange={(v) => updateVoiceSettings({ speedAlert: v })}
         />
+        <SwitchRow
+          label="Virages serrés"
+          description="Annoncés environ 200 m avant, d’après la forme de l’itinéraire (hors carrefours)."
+          value={voice.curveAlerts}
+          onChange={(v) => updateVoiceSettings({ curveAlerts: v })}
+        />
+        <SwitchRow
+          label="Coucher du soleil et nuit"
+          description="Coucher du soleil dans 30 min, ou nuit tombée avant ton arrivée."
+          value={voice.sunAlerts}
+          onChange={(v) => updateVoiceSettings({ sunAlerts: v })}
+        />
+        <SwitchRow
+          label="Météo sur le trajet"
+          description="Pluie, vent fort ou gel devant toi pendant la navigation."
+          value={voice.weatherAlerts}
+          onChange={(v) => updateVoiceSettings({ weatherAlerts: v })}
+        />
+        <View style={styles.voiceBlock}>
+          <Text style={styles.optionLabel}>Rappel de pause</Text>
+          <View style={styles.chips}>
+            {[...BREAK_OPTIONS, ...(isAdmin ? [{ value: 2, label: '2 min (test)' }] : [])].map((o) => (
+              <Chip
+                key={o.value}
+                label={o.label}
+                selected={voice.breakReminderMin === o.value}
+                onPress={() => updateVoiceSettings({ breakReminderMin: o.value })}
+              />
+            ))}
+          </View>
+          <Text style={styles.optionDescription}>
+            Après ce temps de route, annonce vocale et café ou point de vue proposé à moins de 10 min. Un arrêt de 10 min
+            remet le compteur à zéro. L’étape s’ajoute à l’arrêt.
+          </Text>
+        </View>
         <View style={styles.voiceBlock}>
           <Text style={styles.optionLabel}>Débit de la voix</Text>
           <View style={styles.chips}>

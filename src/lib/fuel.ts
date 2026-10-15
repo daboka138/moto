@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { NavRoute } from '@/lib/navigation';
-import { poisAlongRoute, type RoutePoi } from '@/lib/pois';
+import type { LatLng } from '@/lib/geo';
+import { poisAlongRoute, spotsAlongRoute, type RoutePoi } from '@/lib/pois';
 import { speak } from '@/lib/voice';
 
 // Autonomie en navigation : si le carburant restant (Garage : réservoir, conso, dernier plein)
-// ne suffit pas pour finir le trajet avec une marge, alerte vocale et station proposée sur le trajet.
+// ne suffit pas pour finir le trajet avec une marge (ou passe sous 50 km), alerte vocale et station
+// proposée sur le trajet : spots « station » de la communauté et stations OpenStreetMap.
 
 /** Marge gardée à l'arrivée */
 export const FUEL_RESERVE_KM = 30;
 /** En dessous, alerte même si la destination est proche */
-const LOW_FUEL_KM = 40;
+export const LOW_FUEL_KM = 50;
 /** Seconde alerte, plus pressante */
 const CRITICAL_FUEL_KM = 15;
 
@@ -32,18 +34,21 @@ export function useFuelAlert({
   remainingKm,
   route,
   alongM,
+  spots = [],
 }: {
   navigating: boolean;
   leftKm: number | null;
   remainingKm: number | null;
   route: NavRoute | null;
   alongM: number;
+  /** Spots « station » de la communauté (carte) */
+  spots?: (LatLng & { label: string })[];
 }) {
   const [suggestion, setSuggestion] = useState<FuelSuggestion | null>(null);
   const stage = useRef<'none' | 'low' | 'critical'>('none');
-  const inputs = useRef({ route, alongM });
+  const inputs = useRef({ route, alongM, spots });
   useEffect(() => {
-    inputs.current = { route, alongM };
+    inputs.current = { route, alongM, spots };
   });
 
   const low = navigating && remainingKm !== null && needsFuel(leftKm, remainingKm);
@@ -71,12 +76,15 @@ export function useFuelAlert({
       true,
       'info',
     );
-    const { route: r, alongM: from } = inputs.current;
+    const { route: r, alongM: from, spots: community } = inputs.current;
     if (!r) return;
     let cancelled = false;
     const timer = setTimeout(() => setSuggestion({ leftKm, station: null, searching: true }), 0);
+    const fromCommunity = spotsAlongRoute(r, community, from);
     poisAlongRoute(r, 'fuel', from)
-      .then((stations) => {
+      .catch(() => [] as RoutePoi[])
+      .then((osm) => {
+        const stations = [...fromCommunity, ...osm].sort((a, b) => a.aheadM - b.aheadM);
         if (cancelled) return;
         // La plus proche devant moi, à moins d'1 km du tracé et atteignable
         const station = stations.find((s) => s.aheadM > 300 && s.aheadM / 1000 < leftKm - 3) ?? stations[0] ?? null;

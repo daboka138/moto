@@ -1,4 +1,5 @@
 import { distanceM, type LatLng } from '@/lib/geo';
+import { canUse } from '@/lib/features';
 import type { RouteOptions } from '@/lib/moto';
 
 // Moteur de navigation : calcul d'itinéraire avec instructions, position sur le
@@ -44,6 +45,8 @@ export type NavRoute = {
   engine: 'osrm' | 'valhalla';
   /** Options réellement appliquées (null = itinéraire standard OSRM) */
   options: RouteOptions | null;
+  /** Autres tracés proposés par Valhalla (itinéraire Plaisir : le plus sinueux est gardé) */
+  alternatives?: NavRoute[];
 };
 
 const TIMEOUT_MS = 12_000;
@@ -83,25 +86,26 @@ export async function fetchNavRoute(stops: LatLng[], options: RouteOptions): Pro
 
 // ---------- Choix d'itinéraire ----------
 
-/** Variantes proposées avant de partir : rapide / sans autoroute / petites routes sinueuses */
+/** Variantes proposées avant de partir : rapide / plaisir (sinueux, sans autoroute) / éviter autoroutes */
 export type RouteVariant = 'fast' | 'noHighway' | 'fun';
 
 export const ROUTE_VARIANTS: { value: RouteVariant; label: string; description: string }[] = [
   { value: 'fast', label: 'Rapide', description: 'Le plus court en temps' },
-  { value: 'noHighway', label: 'Sans autoroute', description: 'Nationales et départementales' },
-  { value: 'fun', label: 'Petites routes', description: 'Routes sinueuses, grands axes évités' },
+  { value: 'fun', label: 'Plaisir', description: 'Sinueux, petites routes, sans autoroute' },
+  { value: 'noHighway', label: 'Éviter autoroutes', description: 'Nationales et départementales' },
 ];
 
 export const variantInfo = (v: RouteVariant) => ROUTE_VARIANTS.find((x) => x.value === v)!;
 
-/** Variantes utiles pour ces options (en 50 cm³, « rapide » évite déjà l'autoroute) */
+/** Variantes utiles pour ces options (en 50 cm³, « rapide » évite déjà l'autoroute) ; Plaisir via canUse */
 export function variantsFor(o: RouteOptions): RouteVariant[] {
-  return o.scooter50 ? ['fast', 'fun'] : ['fast', 'noHighway', 'fun'];
+  const all: RouteVariant[] = o.scooter50 ? ['fast', 'fun'] : ['fast', 'fun', 'noHighway'];
+  return canUse('itineraire_plaisir') ? all : all.filter((v) => v !== 'fun');
 }
 
 /** Variante cochée par défaut, d'après les options préremplies de la moto */
 export function defaultVariant(o: RouteOptions): RouteVariant {
-  if (o.style === 'fun') return 'fun';
+  if (o.style === 'fun' && canUse('itineraire_plaisir')) return 'fun';
   if (o.avoidHighways && !o.scooter50) return 'noHighway';
   return 'fast';
 }
@@ -270,14 +274,26 @@ export async function fetchValhalla(stops: LatLng[], routeOptions: RouteOptions)
     costing,
     costing_options: { [costing]: options },
     directions_options: { language: 'fr-FR', units: 'kilometers' },
+    // Itinéraire Plaisir de A à B : 2 tracés de plus, le plus sinueux sera gardé
+    ...(routeOptions.style === 'fun' && stops.length === 2 ? { alternates: 2 } : {}),
   };
   const { ok, json } = await fetchJson('https://valhalla1.openstreetmap.de/route', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const legs = json.trip?.legs as { shape: string; maneuvers: ValhallaManeuver[] }[] | undefined;
-  if (!ok || !legs?.length) throw new Error(json.error ?? 'Valhalla : pas d’itinéraire');
+  if (!ok || !json.trip?.legs?.length) throw new Error(json.error ?? 'Valhalla : pas d’itinéraire');
+  const main = valhallaTrip(json.trip, routeOptions);
+  const alternatives = ((json.alternates ?? []) as { trip?: ValhallaTrip }[])
+    .filter((a) => a.trip?.legs?.length)
+    .map((a) => valhallaTrip(a.trip!, routeOptions));
+  return alternatives.length ? { ...main, alternatives } : main;
+}
+
+type ValhallaTrip = { legs: { shape: string; maneuvers: ValhallaManeuver[] }[]; summary: { length: number; time: number } };
+
+function valhallaTrip(trip: ValhallaTrip, routeOptions: RouteOptions): NavRoute {
+  const legs = trip.legs;
   // Un tronçon par étape : on les met bout à bout
   const points: LatLng[] = [];
   const legStarts: number[] = [];
@@ -305,8 +321,8 @@ export async function fetchValhalla(stops: LatLng[], routeOptions: RouteOptions)
   return {
     points,
     cumulative,
-    distanceM: json.trip.summary.length * 1000,
-    durationS: json.trip.summary.time,
+    distanceM: trip.summary.length * 1000,
+    durationS: trip.summary.time,
     steps,
     engine: 'valhalla',
     options: routeOptions,
@@ -464,11 +480,4 @@ export function stepSentence(step: NavStep, inM?: number) {
 }
 
 /** Cap en degrés de a vers b (0 = nord, 90 = est). */
-export function bearingDeg(a: LatLng, b: LatLng) {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const y = Math.sin(toRad(b.longitude - a.longitude)) * Math.cos(toRad(b.latitude));
-  const x =
-    Math.cos(toRad(a.latitude)) * Math.sin(toRad(b.latitude)) -
-    Math.sin(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.cos(toRad(b.longitude - a.longitude));
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
+export { bearingDeg } from '@/lib/geo';

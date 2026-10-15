@@ -36,7 +36,19 @@ export type Garage = {
   /** Compteur au dernier plein (null = inconnu) */
   fillOdometerKm: number | null;
   filledAt: string | null;
+  /** Autonomie d'un plein saisie directement (km), prioritaire sur réservoir / conso */
+  rangeKm: number | null;
+  /** Niveau au dernier « plein » noté : 1 = plein, 0,75, 0,5, 0,25 */
+  fillLevel: number;
 };
+
+/** Niveaux proposés au départ d'une navigation */
+export const FUEL_LEVELS: { value: number; label: string }[] = [
+  { value: 1, label: 'Plein' },
+  { value: 0.75, label: '3/4' },
+  { value: 0.5, label: '1/2' },
+  { value: 0.25, label: '1/4' },
+];
 
 export type MaintenancePlan = {
   id: string;
@@ -72,6 +84,8 @@ type GarageRow = {
   consumption_l100: number | null;
   fill_odometer_km: number | null;
   filled_at: string | null;
+  range_km: number | null;
+  fill_level: number | string | null;
 };
 
 const toGarage = (r: GarageRow): Garage => ({
@@ -81,6 +95,8 @@ const toGarage = (r: GarageRow): Garage => ({
   consumptionL100: r.consumption_l100 === null ? null : Number(r.consumption_l100),
   fillOdometerKm: r.fill_odometer_km,
   filledAt: r.filled_at,
+  rangeKm: r.range_km,
+  fillLevel: r.fill_level === null ? 1 : Number(r.fill_level),
 });
 
 // ---------- Lecture / écriture ----------
@@ -125,12 +141,21 @@ export async function fetchMyGarage(userId: string): Promise<Record<string, Moto
 
 export async function saveGarage(
   motorcycleId: string,
-  patch: { odometerKm?: number; tankL?: number | null; consumptionL100?: number | null; fillOdometerKm?: number | null },
+  patch: {
+    odometerKm?: number;
+    tankL?: number | null;
+    consumptionL100?: number | null;
+    fillOdometerKm?: number | null;
+    rangeKm?: number | null;
+    fillLevel?: number;
+  },
 ) {
   const row: Record<string, unknown> = { motorcycle_id: motorcycleId };
   if (patch.odometerKm !== undefined) row.odometer_km = patch.odometerKm;
   if (patch.tankL !== undefined) row.tank_l = patch.tankL;
   if (patch.consumptionL100 !== undefined) row.consumption_l100 = patch.consumptionL100;
+  if (patch.rangeKm !== undefined) row.range_km = patch.rangeKm;
+  if (patch.fillLevel !== undefined) row.fill_level = patch.fillLevel;
   if (patch.fillOdometerKm !== undefined) {
     row.fill_odometer_km = patch.fillOdometerKm;
     row.filled_at = patch.fillOdometerKm === null ? null : new Date().toISOString();
@@ -140,9 +165,9 @@ export async function saveGarage(
   await refreshGarage();
 }
 
-/** Plein fait : la jauge repart du compteur actuel (+ km déjà faits pendant la navigation en cours) */
-export async function markFilled(g: Garage, extraKm = 0) {
-  await saveGarage(g.motorcycleId, { fillOdometerKm: Math.round(g.odometerKm + extraKm) });
+/** Plein fait (ou niveau noté au départ) : la jauge repart du compteur actuel (+ km de la navigation en cours) */
+export async function markFilled(g: Garage, extraKm = 0, level = 1) {
+  await saveGarage(g.motorcycleId, { fillOdometerKm: Math.round(g.odometerKm + extraKm), fillLevel: level });
 }
 
 /** Kilomètres d'un trajet ajoutés au compteur (sans effet si le compteur n'est pas renseigné) */
@@ -231,13 +256,20 @@ export function dueText(s: { kmLeft: number | null; daysLeft: number | null; lev
   return parts.join(' ou ') || '—';
 }
 
-/** Autonomie : plein complet, et restant estimé (null si réservoir, conso ou dernier plein inconnus) */
+/** Autonomie d'un plein : saisie directe, sinon réservoir / conso (null si inconnue) */
+export function fullRangeKm(g: Garage | null): number | null {
+  if (!g) return null;
+  if (g.rangeKm) return g.rangeKm;
+  return g.tankL && g.consumptionL100 ? (g.tankL / g.consumptionL100) * 100 : null;
+}
+
+/** Autonomie : plein complet, et restant estimé (null si autonomie ou dernier plein inconnus) */
 export function fuelRange(g: Garage | null, extraKm = 0): { fullKm: number; leftKm: number | null } | null {
-  if (!g || !g.tankL || !g.consumptionL100) return null;
-  const fullKm = (g.tankL / g.consumptionL100) * 100;
+  const fullKm = fullRangeKm(g);
+  if (!g || !fullKm) return null;
   if (g.fillOdometerKm === null) return { fullKm, leftKm: null };
   const driven = Math.max(0, g.odometerKm + extraKm - g.fillOdometerKm);
-  return { fullKm, leftKm: Math.max(0, fullKm - driven) };
+  return { fullKm, leftKm: Math.max(0, fullKm * g.fillLevel - driven) };
 }
 
 // ---------- Cache partagé (garage, navigation, carte) ----------

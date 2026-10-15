@@ -16,7 +16,9 @@ import {
   type NavStep,
   type RouteVariant,
 } from '@/lib/navigation';
+import { curvature, loopDurationMin } from '@/lib/loop';
 import type { SearchResult } from '@/lib/search';
+import { getSimulation } from '@/lib/simulation';
 import { endTripShares, shareTripWith, updateTripShares } from '@/lib/trip-share';
 import { newTripStats, recordFix, saveTrip, summarize, type TripStats, type TripSummary } from '@/lib/trips';
 import { speak } from '@/lib/voice';
@@ -42,7 +44,30 @@ export type RouteChoice = {
   error: string | null;
   /** Même tracé qu'une variante déjà proposée : pas affichée en double */
   sameAs: RouteVariant | null;
+  /** Sinuosité (degrés de virage par km, même calcul que « Fais-moi une boucle ») */
+  curvy: number | null;
 };
+
+/**
+ * Plaisir : parmi les tracés proposés par Valhalla, le plus sinueux (score de « Fais-moi une
+ * boucle ») tant qu'il ne prend pas plus de 50 % de temps que le plus court d'entre eux.
+ */
+function pickRoute(v: RouteVariant, r: NavRoute): NavRoute {
+  if (v !== 'fun' || r.engine !== 'valhalla') return r;
+  const all = [r, ...(r.alternatives ?? [])].map(plaisirDuration);
+  const quickest = Math.min(...all.map((x) => x.durationS));
+  const best = all
+    .filter((x) => x.durationS <= quickest * 1.5)
+    .map((x) => ({ x, c: curvature(x.points).degPerKm }))
+    .sort((a, b) => b.c - a.c)[0].x;
+  return { ...best, alternatives: undefined };
+}
+
+/** Durées Valhalla trop longues sur petites routes : même estimation que les boucles (selon la sinuosité) */
+function plaisirDuration(r: NavRoute): NavRoute {
+  const estimate = loopDurationMin(r.distanceM, curvature(r.points).score) * 60;
+  return { ...r, durationS: Math.min(r.durationS, estimate) };
+}
 
 /** Heure d'arrivée estimée (hors rendu : Date.now) */
 export function etaFrom(remainingS: number) {
@@ -181,10 +206,10 @@ export function useNavigation(
     const variants = variantsFor(opts);
     const from = meRef.current;
     if (!from) {
-      setChoices(variants.map((v) => ({ variant: v, route: null, loading: false, error: 'Position GPS indisponible', sameAs: null })));
+      setChoices(variants.map((v) => ({ variant: v, route: null, loading: false, error: 'Position GPS indisponible', sameAs: null, curvy: null })));
       return;
     }
-    setChoices(variants.map((v) => ({ variant: v, route: null, loading: true, error: null, sameAs: null })));
+    setChoices(variants.map((v) => ({ variant: v, route: null, loading: true, error: null, sameAs: null, curvy: null })));
     const points = [from, ...via, dest];
     const update = (v: RouteVariant, patch: Partial<RouteChoice>) => {
       if (token !== computeToken.current) return;
@@ -200,11 +225,11 @@ export function useNavigation(
     const run = async (v: RouteVariant) => {
       const vo = variantOptions(opts, v);
       try {
-        const r = await fetchNavRoute(points, vo);
-        // Valhalla indisponible : l'itinéraire standard ne respecte pas « sans autoroute » / « petites routes »
+        const r = pickRoute(v, await fetchNavRoute(points, vo));
+        // Valhalla indisponible : l'itinéraire standard ne respecte pas « sans autoroute » / « Plaisir »
         if (v !== 'fast' && r.engine === 'osrm' && needsValhalla(vo)) {
           update(v, { loading: false, error: 'Indisponible pour le moment' });
-        } else update(v, { route: r, loading: false, error: null });
+        } else update(v, { route: r, loading: false, error: null, curvy: curvature(r.points).degPerKm });
       } catch (e) {
         update(v, { loading: false, error: errorText(e) });
       }
@@ -255,7 +280,7 @@ export function useNavigation(
     if (announce) speak(announce, true, 'guidance');
     fetchNavRoute([from, ...via, dest], variantOptions(opts, v))
       .then((r) => {
-        setNavRoute(r);
+        setNavRoute(pickRoute(v, r));
         setNavError(null);
         spoken.current = new Set();
         offRouteCount.current = 0;
@@ -328,6 +353,7 @@ export function useNavigation(
 
   /** Partage mon trajet en direct avec un ami (fiche dans Messages) */
   const share = async (friend: { id: string; username: string }) => {
+    if (getSimulation().active) throw new Error('Partage impossible en mode simulation (fausse position).');
     if (!userId || !destination || !me || !progress) throw new Error('Itinéraire en cours de calcul, réessaie dans un instant.');
     const id = await shareTripWith(userId, friend.id, destination.label, {
       latitude: me.latitude,
@@ -398,7 +424,7 @@ export function useNavigation(
     }
 
     // Partage en direct : position et heure d'arrivée envoyées régulièrement
-    if (shares.length && now - lastShareUpdate.current > SHARE_EVERY_MS) {
+    if (shares.length && now - lastShareUpdate.current > SHARE_EVERY_MS && !getSimulation().active) {
       lastShareUpdate.current = now;
       updateTripShares(shares.map((x) => x.id), { latitude: me.latitude, longitude: me.longitude, remainingS, remainingM }).catch((e) =>
         console.warn('Mise à jour du partage impossible', e),

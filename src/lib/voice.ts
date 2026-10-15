@@ -26,7 +26,20 @@ export type VoiceSettings = {
   speedLimit: boolean;
   /** Dépassement de la limitation : compteur en rouge + bip */
   speedAlert: boolean;
+  /** Alertes moto en navigation (voix + bandeau), désactivables une par une */
+  curveAlerts: boolean;
+  sunAlerts: boolean;
+  weatherAlerts: boolean;
+  /** Rappel de pause : 0 = désactivé, sinon minutes de route (60, 90, 120 ; 2 = test admin) */
+  breakReminderMin: number;
 };
+
+export const BREAK_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: 'Désactivé' },
+  { value: 60, label: '1 h' },
+  { value: 90, label: '1 h 30' },
+  { value: 120, label: '2 h' },
+];
 
 export const VOICE_RATES: { value: VoiceRate; label: string; rate: number }[] = [
   { value: 'slow', label: 'Lent', rate: 0.85 },
@@ -50,6 +63,10 @@ const DEFAULTS: VoiceSettings = {
   muted: false,
   speedLimit: true,
   speedAlert: true,
+  curveAlerts: true,
+  sunAlerts: true,
+  weatherAlerts: true,
+  breakReminderMin: 0,
 };
 
 function read(): VoiceSettings {

@@ -160,7 +160,13 @@ export function RoutePreviewSheet({
       }>
       <Text style={styles.section}>Itinéraires</Text>
       {visible.map((c) => (
-        <VariantCard key={c.variant} choice={c} selected={c.variant === shownSelected} onPress={() => onSelectVariant(c.variant)} />
+        <VariantCard
+          key={c.variant}
+          choice={c}
+          fast={choices.find((x) => x.variant === 'fast') ?? null}
+          selected={c.variant === shownSelected}
+          onPress={() => onSelectVariant(c.variant)}
+        />
       ))}
       {fallback && <Text style={styles.warning}>Options indisponibles pour le moment : itinéraire standard affiché.</Text>}
 
@@ -201,10 +207,23 @@ export function RoutePreviewSheet({
   );
 }
 
-function VariantCard({ choice, selected, onPress }: { choice: RouteChoice; selected: boolean; onPress: () => void }) {
+/** « +18 min · 3× plus de virages » par rapport au plus rapide */
+function comparedToFast(choice: RouteChoice, fast: RouteChoice | null) {
+  if (!choice.route || !fast?.route || choice.variant === 'fast') return null;
+  const extraMin = Math.round((choice.route.durationS - fast.route.durationS) / 60);
+  const parts = [extraMin > 0 ? `+${formatDuration(extraMin * 60)}` : extraMin < 0 ? `-${formatDuration(-extraMin * 60)}` : 'même durée'];
+  if (choice.curvy && fast.curvy) {
+    const ratio = choice.curvy / Math.max(fast.curvy, 1);
+    if (ratio >= 1.15) parts.push(`${ratio >= 2 ? Math.round(ratio) : ratio.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}× plus de virages`);
+  }
+  return parts.join(' · ');
+}
+
+function VariantCard({ choice, fast, selected, onPress }: { choice: RouteChoice; fast: RouteChoice | null; selected: boolean; onPress: () => void }) {
   const Colors = useColors();
   const styles = useStyles();
   const info = variantInfo(choice.variant);
+  const compared = comparedToFast(choice, fast);
   const unusable = !choice.route && !choice.loading;
   return (
     <Pressable
@@ -216,7 +235,7 @@ function VariantCard({ choice, selected, onPress }: { choice: RouteChoice; selec
       <View style={styles.variantText}>
         <Text style={styles.variantLabel}>{info.label}</Text>
         <Text style={styles.small} numberOfLines={1}>
-          {choice.error ?? info.description}
+          {choice.error ?? compared ?? info.description}
         </Text>
       </View>
       {choice.loading ? (

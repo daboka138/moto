@@ -412,3 +412,15 @@ Ce qu'il faudra pour vendre :
 envoie un webhook → Edge Function `revenuecat-webhook` qui met à jour `premium_until`. Un seul abonnement « Premium »
 (mensuel + annuel), la sécurité (SOS, chute, « Je rentre », dangers) toujours gratuite.
 Sur le web (app.passeryder.fr), un paiement Stripe serait possible plus tard, mais pas nécessaire au départ.
+
+## 7. Build 1.3.0 : ce qui demande un nouveau build natif (rien n'est commencé)
+La note 13 (itinéraire Plaisir, autonomie, rappel de pause, virages serrés, coucher du soleil, simulation de trajet)
+passe entièrement par `eas update`. Ce qui suit demande un build, par ordre de priorité :
+
+| Fonction | Ce qu'il faut | Effort estimé | Recommandation |
+|---|---|---|---|
+| **Navigation écran éteint / app en arrière-plan** (guidage vocal, alertes, « Je rentre ») | `expo-task-manager` (nouveau module natif) + `Location.startLocationUpdatesAsync` avec `foregroundService` (notification permanente « Navigation en cours »), plugin expo-location `isAndroidBackgroundLocationEnabled` / `isAndroidForegroundServiceEnabled`, permissions `ACCESS_BACKGROUND_LOCATION` + `FOREGROUND_SERVICE_LOCATION`. Play Console : déclaration « Localisation en arrière-plan » **et** « Types de service de premier plan » avec **vidéo** de démonstration, politique de confidentialité et Sécurité des données mises à jour. Le guidage, les alertes et la mesure du trajet passent dans la tâche de fond. | 4 à 6 jours de dev + 1 à 3 semaines de revue Google | **À faire en premier** (c'est le vrai manque d'un GPS moto). Seulement pendant une navigation lancée par le motard, jamais en permanence ; tester l'autonomie de la batterie. |
+| **Cartes hors ligne** (zones sans réseau en montagne) | Le plus solide : MapLibre (`@maplibre/maplibre-react-native`, module natif) avec téléchargement de zones, à la place de Leaflet dans une WebView : réécriture de la carte (≈ 2 500 lignes : marqueurs, tracés, rotation, flèche). Variante sans build : MapLibre GL JS + fichier PMTiles auto-hébergé sur le VPS, dans la WebView actuelle (gros chantier aussi). Respecter les conditions des tuiles (OpenStreetMap interdit le téléchargement en masse ; MapTiler selon l'offre). Le calcul d'itinéraire reste en ligne (Valhalla / OSRM). | 2 à 3 semaines | Après la navigation écran éteint. Commencer par « garder la zone du trajet » (tuiles du tracé mises en cache au départ), plus simple qu'une vraie carte hors ligne. |
+| **Android Auto** | Module natif maison (Car App Library, catégorie Navigation) via un config plugin, écrans dédiés limités par Google, validation spécifique de Google pour les apps de navigation. | 4 à 6 semaines | **Pas maintenant** : peu de motos ont un écran Android Auto, le guidage passe par l'intercom. À revoir s'il y a de la demande. |
+
+Rappel : pas de localisation en arrière-plan ni de service de premier plan sans cette déclaration Google (voir CLAUDE.md).

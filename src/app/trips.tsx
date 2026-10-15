@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
@@ -9,6 +10,7 @@ import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { canUse } from '@/lib/features';
 import { saveGpxFile } from '@/lib/gpx-file';
 import { shortDistance } from '@/lib/navigation';
+import { fetchRecentRideOutings } from '@/lib/outings';
 import { clearTrips, deleteTrip, readTrack, useTrips, type TripSummary } from '@/lib/trips';
 
 /** Mes trajets : résumés des navigations terminées (gardés sur le téléphone). */
@@ -30,7 +32,9 @@ export default function TripsScreen() {
       data={trips}
       keyExtractor={(t) => t.id}
       ListHeaderComponent={
-        trips.length > 0 ? (
+        <>
+          <RecentRides />
+          {trips.length > 0 && (
           <View style={styles.header}>
             <Text style={styles.total}>
               {trips.length} trajet{trips.length > 1 ? 's' : ''} · {shortDistance(totalM)}
@@ -39,7 +43,8 @@ export default function TripsScreen() {
               <Text style={styles.clear}>Tout effacer</Text>
             </Pressable>
           </View>
-        ) : null
+          )}
+        </>
       }
       ListEmptyComponent={
         <Text style={styles.empty}>
@@ -49,6 +54,47 @@ export default function TripsScreen() {
       }
       renderItem={({ item }) => <TripRow trip={item} />}
     />
+  );
+}
+
+/** Balades des 7 derniers jours : récap gardé par le serveur même après la suppression de la balade */
+function RecentRides() {
+  const styles = useStyles();
+  const [rides, setRides] = useState<Awaited<ReturnType<typeof fetchRecentRideOutings>>>([]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      fetchRecentRideOutings()
+        .then((r) => !cancelled && setRides(r))
+        .catch((e) => console.warn('Balades récentes indisponibles', e));
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+  if (!rides.length) return null;
+  return (
+    <View style={styles.recent}>
+      <Text style={styles.recentTitle}>Balades des 7 derniers jours</Text>
+      {rides.map((r) => (
+        <Pressable
+          key={r.rideId}
+          style={styles.recentRow}
+          onPress={() => router.push({ pathname: '/outing', params: { ride: r.rideId } })}>
+          <Text style={styles.recentEmoji}>🏁</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.recentLabel} numberOfLines={1}>
+              {r.title}
+            </Text>
+            <Text style={styles.recentMeta}>
+              {new Date(r.startedAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
+              {shortDistance(r.distanceM)}
+              {r.participants ? ` · ${r.participants} motards` : ''}
+            </Text>
+          </View>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -107,6 +153,12 @@ function TripRow({ trip }: { trip: TripSummary }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
+  recent: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, gap: 8, marginBottom: 12 },
+  recentTitle: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  recentEmoji: { fontSize: 22 },
+  recentLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  recentMeta: { fontSize: 12, color: Colors.textMuted },
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

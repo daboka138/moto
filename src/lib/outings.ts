@@ -91,8 +91,10 @@ export function outingFromTrip(trip: TripSummary): OutingDraft | null {
 
 /** Sortie à partir d'une balade (tracé prévu, inscrits, heures de départ / fin) */
 export async function outingFromRide(rideId: string, userId: string): Promise<OutingDraft | null> {
-  const ride = await fetchRide(rideId, userId);
-  if (!ride?.route || ride.route.length < 2) return null;
+  const ride = await fetchRide(rideId, userId).catch(() => null);
+  // Balade déjà supprimée (1 h après la fin) : récap gardé 7 jours par le serveur
+  if (!ride) return fetchSavedOuting(`ride:${rideId}`);
+  if (!ride.route || ride.route.length < 2) return null;
   const joined = ride.participants.filter((p) => p.status === 'joined');
   const started = ride.startedAt ?? ride.meetingAt;
   const durationS =
@@ -170,6 +172,51 @@ export function openOutingImage(id: string, format: 'story' | 'square') {
   const url = outingUrl(id, format);
   if (Platform.OS === 'web') window.open(url, '_blank');
   else Linking.openURL(url);
+}
+
+// ---------- Récaps de balades gardés 7 jours par le serveur ----------
+
+type OutingRow = {
+  source: string;
+  kind: OutingKind;
+  title: string;
+  started_at: string;
+  distance_m: number;
+  duration_s: number;
+  participants: number | null;
+  track: [number, number][];
+};
+
+const toDraft = (r: OutingRow): OutingDraft => ({
+  source: r.source,
+  kind: r.kind,
+  title: r.title,
+  startedAt: r.started_at,
+  distanceM: r.distance_m,
+  durationS: r.duration_s,
+  participants: r.participants,
+  participantNames: [],
+  track: r.track.map(([latitude, longitude]) => ({ latitude, longitude })),
+});
+
+const OUTING_FIELDS = 'source, kind, title, started_at, distance_m, duration_s, participants, track';
+
+export async function fetchSavedOuting(source: string): Promise<OutingDraft | null> {
+  const { data, error } = await supabase.from('outings').select(OUTING_FIELDS).eq('source', source).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? toDraft(data as OutingRow) : null;
+}
+
+/** Mes balades des 7 derniers jours (Mes trajets) */
+export async function fetchRecentRideOutings(): Promise<(OutingDraft & { rideId: string })[]> {
+  const { data, error } = await supabase
+    .from('outings')
+    .select(OUTING_FIELDS)
+    .eq('kind', 'ride')
+    .order('started_at', { ascending: false })
+    .limit(20);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as OutingRow[]).map((r) => ({ ...toDraft(r), rideId: r.source.replace(/^ride:/, '') }));
 }
 
 // ---------- Points et badges gagnés à la fin d'une navigation (pour « Ta sortie ») ----------

@@ -82,6 +82,7 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
   const [odometer, setOdometer] = useState(garage ? String(garage.odometerKm) : '');
   const [tank, setTank] = useState(garage?.tankL ? String(garage.tankL).replace('.', ',') : '');
   const [conso, setConso] = useState(garage?.consumptionL100 ? String(garage.consumptionL100).replace('.', ',') : '');
+  const [rangeKm, setRangeKm] = useState(garage?.rangeKm ? String(garage.rangeKm) : '');
   const [saving, setSaving] = useState(false);
   const range = fuelRange(garage);
 
@@ -89,7 +90,9 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
     const o = num(odometer);
     const t = num(tank);
     const c = num(conso);
+    const r = num(rangeKm);
     const errors: string[] = [];
+    if (r !== null && (Number.isNaN(r) || r < 20 || r > 1500)) errors.push('Autonomie : entre 20 et 1 500 km.');
     if (o === null || Number.isNaN(o) || o < 0 || o > 2_000_000) errors.push('Kilométrage invalide.');
     if (t !== null && (Number.isNaN(t) || t <= 0 || t > 60)) errors.push('Réservoir : entre 1 et 60 litres.');
     if (c !== null && (Number.isNaN(c) || c <= 0 || c > 30)) errors.push('Consommation : entre 1 et 30 L/100 km.');
@@ -103,8 +106,9 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
         odometerKm: Math.round(o!),
         tankL: t === null ? null : Math.round(t * 10) / 10,
         consumptionL100: c === null ? null : Math.round(c * 10) / 10,
+        rangeKm: r === null ? null : Math.round(r),
         // Premier enregistrement : on considère le plein fait maintenant
-        ...(garage?.fillOdometerKm == null && t !== null ? { fillOdometerKm: Math.round(o!) } : {}),
+        ...(garage?.fillOdometerKm == null && (t !== null || r !== null) ? { fillOdometerKm: Math.round(o!), fillLevel: 1 } : {}),
       });
     } catch (e) {
       Alert.alert('Enregistrement impossible', e instanceof Error ? e.message : String(e));
@@ -133,6 +137,14 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
           <Field label="Conso (L/100 km)" value={conso} onChangeText={setConso} keyboardType="decimal-pad" maxLength={4} placeholder="4,5" />
         </View>
       </View>
+      <Field
+        label="Ou directement : autonomie d’un plein (km)"
+        value={rangeKm}
+        onChangeText={setRangeKm}
+        keyboardType="number-pad"
+        maxLength={4}
+        placeholder="ex. 250"
+      />
       <Button title="Enregistrer" variant="secondary" loading={saving} onPress={save} />
       {range && (
         <View style={styles.fuel}>
@@ -148,10 +160,10 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
           </View>
         </View>
       )}
-      {garage?.tankL && <Button title="⛽ J’ai fait le plein" onPress={filled} />}
+      {range && <Button title="⛽ J’ai fait le plein" onPress={filled} />}
       <Text style={styles.hint}>
-        En navigation avec ta moto principale, l’app te prévient si l’autonomie devient juste et te propose une station sur
-        le trajet.
+        Au départ d’une navigation avec ta moto principale, l’app te demande ton niveau (plein, 3/4, 1/2, 1/4) ; elle te
+        prévient si l’autonomie ne suffit pas ou passe sous 50 km et te propose une station sur le trajet.
       </Text>
     </Section>
   );

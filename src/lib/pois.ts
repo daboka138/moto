@@ -123,3 +123,23 @@ export async function poisAlongRoute(route: NavRoute, kind: PoiKind, fromM: numb
   const unique = pois.filter((p, i) => !pois.slice(0, i).some((q) => q.label === p.label && distanceM(p, q) < 150));
   return unique.sort((a, b) => a.aheadM - b.aheadM).slice(0, MAX_RESULTS);
 }
+
+/**
+ * Spots de la communauté (table places) le long du trajet : devant moi, à moins de `corridorM`
+ * du tracé, sur les `lookaheadM` prochains mètres. Triés du plus proche au plus loin.
+ */
+export function spotsAlongRoute(
+  route: NavRoute,
+  spots: (LatLng & { label: string; detail?: string })[],
+  fromM: number,
+  lookaheadM = LOOKAHEAD_M,
+  corridorM = CORRIDOR_M,
+): RoutePoi[] {
+  return spots
+    .map((s) => {
+      const p = projectOnRoute(route, s);
+      return { ...s, source: 'lieu' as const, aheadM: p.alongM - fromM, offRouteM: p.offRouteM };
+    })
+    .filter((s) => s.aheadM > 200 && s.aheadM <= lookaheadM && s.offRouteM <= corridorM)
+    .sort((a, b) => a.aheadM - b.aheadM);
+}
