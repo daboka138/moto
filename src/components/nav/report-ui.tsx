@@ -84,7 +84,7 @@ export function ReportCard({
           </Text>
           {report.confirmations > 0 && (
             <Text style={styles.meta}>
-              Confirmé {report.confirmations} fois{report.isDemo ? ' (démo)' : ''}
+              Confirmé {report.confirmations} fois
             </Text>
           )}
         </View>

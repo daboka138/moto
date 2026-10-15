@@ -19,11 +19,6 @@ import { useSession } from '@/lib/session';
 import { useStories } from '@/lib/stories-context';
 import { confirmJoinRide } from '@/lib/join-ride';
 import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
-// DEMO
-import { useDemoMode } from '@/demo/demo-context';
-import { demoPhotosOf } from '@/demo/photos';
-import { DEMO_RIDERS } from '@/demo/riders';
-import { demoRides } from '@/demo/rides';
 
 type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; rides: RideSummary[] };
 
@@ -68,54 +63,26 @@ export default function FeedScreen() {
     }, [load]),
   );
 
-  // DEMO : amis, photos et balades des faux motards
-  const demo = useDemoMode();
-  const demoFriends: FeedPerson[] = demo.enabled
-    ? DEMO_RIDERS.filter((r) => demo.friendIds.includes(r.id)).map((r) => ({
-        id: r.id,
-        username: r.username,
-        avatarUrl: r.avatar_path,
-        isDemo: true,
-      }))
-    : [];
-  const me = { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: profile ? photoUrl(profile.avatar_path) : '' };
-  const demoItems = demo.enabled
-    ? [
-        ...photoItems(demoFriends.flatMap((f) => demoPhotosOf(f.username)), demoFriends),
-        ...rideItems(demoRides(demo, me), demoFriends),
-      ]
-    : [];
-
   const current = real && real.userId === userId ? real : null;
-  const friends = [...(current?.friends ?? []), ...demoFriends];
-  const items = current
-    ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends), ...demoItems])
-    : null;
+  const friends = current?.friends ?? [];
+  const items = current ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends)]) : null;
 
-  const openPerson = (p: FeedPerson) =>
-    p.isDemo
-      ? router.push({ pathname: '/demo-rider/[id]', params: { id: p.id } })
-      : router.push({ pathname: '/user/[id]', params: { id: p.id } });
-
-  const openRide = (r: RideSummary) =>
-    r.isDemo
-      ? router.push({ pathname: '/demo-ride/[id]', params: { id: r.id } })
-      : router.push({ pathname: '/ride/[id]', params: { id: r.id } });
+  const openPerson = (p: FeedPerson) => router.push({ pathname: '/user/[id]', params: { id: p.id } });
+  const openRide = (r: RideSummary) => router.push({ pathname: '/ride/[id]', params: { id: r.id } });
 
   const join = (r: RideSummary) =>
     confirmJoinRide(r.categories, myCategory, async () => {
-            if (r.isDemo) return demo.joinRide(r.id);
-            if (!userId) return;
-            setJoiningId(r.id);
-            try {
-              await joinRide(r.id, userId, r.invited);
-              await load();
-            } catch (e) {
-              Alert.alert('Oups', e instanceof Error ? e.message : String(e));
-            } finally {
-              setJoiningId(null);
-            }
-          });
+      if (!userId) return;
+      setJoiningId(r.id);
+      try {
+        await joinRide(r.id, userId, r.invited);
+        await load();
+      } catch (e) {
+        Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+      } finally {
+        setJoiningId(null);
+      }
+    });
 
   const renderItem = ({ item }: { item: FeedItem }) => {
     if (item.kind === 'photo') {
@@ -199,10 +166,19 @@ export default function FeedScreen() {
           ListHeaderComponent={<StoryRow />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="newspaper-outline" size={40} color={Colors.textMuted} />
+              <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Ton Mur est encore vide'}</Text>
               <Text style={styles.muted}>
-                Rien pour l’instant. Ajoute des amis pour voir leurs photos et leurs balades ici.
+                {friends.length
+                  ? 'Les photos et balades de tes amis apparaîtront ici. Publie la première !'
+                  : 'Invite tes potes motards ou trouve des motards près de chez toi : leurs photos et leurs balades apparaîtront ici.'}
               </Text>
+              <Button title="Trouver des motards" onPress={() => router.push('/riders')} />
+              <Button
+                title={friends.length ? 'Publier une story' : 'Ajouter des amis'}
+                variant="secondary"
+                onPress={() => router.push(friends.length ? '/story/new' : '/friends')}
+              />
             </View>
           }
         />
@@ -284,7 +260,8 @@ const useStyles = makeStyles((Colors) => ({
   list: { paddingBottom: 32, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
-  empty: { alignItems: 'center', gap: 8, padding: 32 },
+  empty: { alignItems: 'stretch', gap: 10, padding: 32 },
+  emptyTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   card: { backgroundColor: Colors.surface, paddingVertical: 12, gap: 10 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12 },
   avatars: { flexDirection: 'row' },

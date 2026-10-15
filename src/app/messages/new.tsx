@@ -3,43 +3,26 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Text, View } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
+import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { openDirectConversation } from '@/lib/messages';
 import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
-// DEMO
-import { useDemoMode } from '@/demo/demo-context';
-import { useDemoMessages } from '@/demo/messages';
-import { DEMO_RIDERS } from '@/demo/riders';
 
-type Friend = { id: string; username: string; avatarUrl: string; isDemo?: boolean };
+type Friend = { id: string; username: string; avatarUrl: string };
 
 /** Choix d'un ami pour démarrer une conversation. */
 export default function NewMessageScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { state, error } = useFriends();
-  const demo = useDemoMode();
-  const demoMessages = useDemoMessages();
   const [opening, setOpening] = useState<string | null>(null);
 
-  const friends: Friend[] = [
-    ...(state?.friends ?? []).map((f) => ({ id: f.id, username: f.username, avatarUrl: photoUrl(f.avatar_path) })),
-    ...(demo.enabled
-      ? DEMO_RIDERS.filter((r) => demo.friendIds.includes(r.id)).map((r) => ({
-          id: r.id,
-          username: r.username,
-          avatarUrl: r.avatar_path,
-          isDemo: true,
-        }))
-      : []),
-  ].sort((a, b) => a.username.localeCompare(b.username));
+  const friends: Friend[] = (state?.friends ?? [])
+    .map((f) => ({ id: f.id, username: f.username, avatarUrl: photoUrl(f.avatar_path) }))
+    .sort((a, b) => a.username.localeCompare(b.username));
 
   const open = async (f: Friend) => {
-    if (f.isDemo) {
-      router.replace({ pathname: '/chat/[id]', params: { id: demoMessages.openDirect(f.id) } });
-      return;
-    }
     setOpening(f.id);
     try {
       const id = await openDirectConversation(f.id);
@@ -75,9 +58,15 @@ export default function NewMessageScreen() {
         />
       )}
       ListEmptyComponent={
-        <Text style={styles.muted}>
-          {error ? 'Impossible de charger tes amis.' : 'Tu n’as pas encore d’amis. Ajoute des motards depuis le Mur.'}
-        </Text>
+        error ? (
+          <Text style={styles.muted}>Impossible de charger tes amis.</Text>
+        ) : (
+          <View style={styles.empty}>
+            <Text style={styles.muted}>Tu n’as pas encore d’amis à qui écrire. Invite tes potes ou trouve des motards près de chez toi.</Text>
+            <Button title="Ajouter des amis" onPress={() => router.replace('/friends')} />
+            <Button title="Trouver des motards" variant="secondary" onPress={() => router.replace('/riders')} />
+          </View>
+        )
       }
     />
   );
@@ -88,5 +77,6 @@ const useStyles = makeStyles((Colors) => ({
   list: { padding: 16, gap: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   hint: { color: Colors.textMuted, marginBottom: 8 },
+  empty: { gap: 10, paddingTop: 16 },
   muted: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
 }));

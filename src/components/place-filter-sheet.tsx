@@ -3,17 +3,15 @@ import { Modal, Pressable, Switch, Text, View } from 'react-native';
 
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { useDemoMode } from '@/demo/demo-context';
 import { useMapLayers } from '@/lib/map-layers';
 import { PLACE_KINDS } from '@/lib/places';
 
-/** Filtres de la carte : spots (tout / par catégorie) et données de démo (mémorisés). */
+/** Filtres de la carte : spots (tout / par catégorie), mémorisés. */
 export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const Colors = useColors();
   const styles = useStyles();
   const layers = useMapLayers();
   const hidden = layers.hiddenPlaceKinds;
-  const demo = useDemoMode();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -50,19 +48,6 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
               </View>
             </>
           )}
-          <View style={styles.separator} />
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>Afficher les données de démo</Text>
-              <Text style={styles.hint}>Motards, balades et événements fictifs, pour essayer l’app.</Text>
-            </View>
-            <Switch
-              value={demo.enabled}
-              onValueChange={demo.setEnabled}
-              trackColor={{ true: Colors.accent, false: Colors.border }}
-              thumbColor={Colors.white}
-            />
-          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -77,6 +62,5 @@ const useStyles = makeStyles((Colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: 16, fontWeight: '700', color: Colors.text },
   hint: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
-  separator: { height: 1, backgroundColor: Colors.border, marginVertical: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 }));

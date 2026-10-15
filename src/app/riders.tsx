@@ -11,7 +11,6 @@ import {
   EMPTY_FILTERS,
   fetchDiscoverable,
   findRiders,
-  matchesFilters,
   setDiscoverable,
   type RiderFilters,
   type RiderResult,
@@ -22,9 +21,6 @@ import type { LatLng } from '@/lib/geo';
 import { AVAILABILITIES, categoryInfo, MOTO_CATEGORIES, PACES, paceInfo } from '@/lib/moto';
 import { photoUrl, RIDING_STYLES } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
-// DEMO
-import { useDemoMode } from '@/demo/demo-context';
-import { demoRiderResults } from '@/demo/discovery';
 
 const DISTANCES: (number | null)[] = [10, 25, 50, 100, null];
 const LICENSE_YEARS: (number | null)[] = [null, 1, 3, 5, 10];
@@ -38,7 +34,6 @@ export default function RidersScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { state: friends, refresh: refreshFriends, userId } = useFriends();
-  const demo = useDemoMode();
   const [me, setMe] = useState<LatLng | null>(null);
   const [filters, setFilters] = useState<RiderFilters>(EMPTY_FILTERS);
   const [results, setResults] = useState<{ key: string; riders: RiderResult[] } | null>(null);
@@ -87,12 +82,7 @@ export default function RidersScreen() {
 
   const set = <K extends keyof RiderFilters>(k: K, v: RiderFilters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
-  const currentYear = new Date().getFullYear();
-  const demoResults = demo.enabled ? demoRiderResults().filter((r) => matchesFilters(r, filters, currentYear)) : [];
-  const shown =
-    results && results.key === key
-      ? [...results.riders, ...demoResults].sort((a, b) => a.distanceKm - b.distanceKm)
-      : null;
+  const shown = results && results.key === key ? [...results.riders].sort((a, b) => a.distanceKm - b.distanceKm) : null;
 
   const enableDiscovery = async () => {
     if (!userId) return;
@@ -104,16 +94,9 @@ export default function RidersScreen() {
     }
   };
 
-  const open = (r: RiderResult) =>
-    r.isDemo
-      ? router.push({ pathname: '/demo-rider/[id]', params: { id: r.id } })
-      : router.push({ pathname: '/user/[id]', params: { id: r.id } });
+  const open = (r: RiderResult) => router.push({ pathname: '/user/[id]', params: { id: r.id } });
 
   const friendButton = (r: RiderResult) => {
-    if (r.isDemo) {
-      if (demo.friendIds.includes(r.id)) return <SmallButton title="Ami ✓" variant="secondary" />;
-      return <SmallButton title="Ajouter en ami" onPress={() => demo.addFriend(r.id)} />;
-    }
     if (!userId) return null;
     const relation = relationWith(friends, userId, r.id);
     if (relation === 'friend') return <SmallButton title="Ami ✓" variant="secondary" />;
@@ -248,7 +231,6 @@ export default function RidersScreen() {
               <Text style={styles.username} numberOfLines={1}>
                 @{r.username}
               </Text>
-              {r.isDemo && <Text style={styles.demo}>démo</Text>}
             </View>
             {r.moto && (
               <View style={styles.metaRow}>
@@ -319,7 +301,6 @@ const useStyles = makeStyles((Colors) => ({
   cardBody: { flex: 1, gap: 3 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   username: { fontSize: 18, fontWeight: '900', color: Colors.text, flexShrink: 1 },
-  demo: { fontSize: 11, fontWeight: '700', color: Colors.textMuted },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   meta: { fontSize: 14, fontWeight: '600', color: Colors.text, flexShrink: 1 },
   categoryBadge: { backgroundColor: Colors.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },

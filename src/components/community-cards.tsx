@@ -58,7 +58,6 @@ export function PlaceCard({
         <Text style={styles.meta} numberOfLines={1}>
           {kind.emoji} {kind.short}
           {distanceM != null ? ` · à ${formatDistance(distanceM)}` : ''}
-          {place.isDemo ? ' · démo' : ''}
         </Text>
         <View style={styles.ratingRow}>
           {place.rating !== null ? (
@@ -121,7 +120,6 @@ export function EventCard({
           {event.myStatus === 'going' ? '✓ J’y vais · ' : event.myStatus === 'interested' ? '☆ Intéressé · ' : ''}
           {event.going} participant{event.going > 1 ? 's' : ''}
           {event.interested ? ` · ${event.interested} intéressé${event.interested > 1 ? 's' : ''}` : ''}
-          {event.isDemo ? ' · démo' : ''}
         </Text>
       </View>
       {onClose ? (

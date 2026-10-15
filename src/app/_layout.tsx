@@ -19,8 +19,6 @@ import { MessageToast } from '@/components/message-toast';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
 import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
-import { DemoProvider } from '@/demo/demo-context'; // DEMO
-import { DemoMessagesProvider } from '@/demo/messages'; // DEMO
 import { signOut } from '@/lib/auth';
 import { setAuthNotice, useAuthLinkState } from '@/lib/auth-link';
 import { DrivingLockProvider } from '@/lib/driving-lock';
@@ -34,6 +32,13 @@ import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
 
 SplashScreen.preventAutoHideAsync();
 
+// Ancien réglage « Afficher les données de démo » (démo retirée en 1.2.0) : effacé des téléphones
+try {
+  localStorage.removeItem('moto.showDemoData');
+} catch {
+  // stockage indisponible : rien à effacer
+}
+
 export default function RootLayout() {
   return (
     <ThemeProvider>
@@ -42,21 +47,17 @@ export default function RootLayout() {
           <PrivacyProvider>
             <DrivingLockProvider>
               <MapLayersProvider>
-                <DemoProvider /* DEMO */>
-                  <StoriesProvider>
-                    <MessagesProvider>
-                      <NotificationsProvider>
-                        <DemoMessagesProvider /* DEMO */>
-                          <RootNavigator />
-                          <MessageToast />
-                          <PushRegistrar />
-                          <ActionSheetHost />
-                          <AlertHost />
-                        </DemoMessagesProvider>
-                      </NotificationsProvider>
-                    </MessagesProvider>
-                  </StoriesProvider>
-                </DemoProvider>
+                <StoriesProvider>
+                  <MessagesProvider>
+                    <NotificationsProvider>
+                      <RootNavigator />
+                      <MessageToast />
+                      <PushRegistrar />
+                      <ActionSheetHost />
+                      <AlertHost />
+                    </NotificationsProvider>
+                  </MessagesProvider>
+                </StoriesProvider>
               </MapLayersProvider>
             </DrivingLockProvider>
           </PrivacyProvider>
@@ -209,8 +210,6 @@ function RootNavigator() {
             name="story/[ownerId]"
             options={{ presentation: 'fullScreenModal', animation: 'fade', contentStyle: { backgroundColor: Colors.dark } }}
           />
-          <Stack.Screen name="demo-rider/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
-          <Stack.Screen name="demo-ride/[id]" options={{ headerShown: true, title: '' }} /* DEMO */ />
         </Stack.Protected>
         {/* Lien « mot de passe oublié » / connexion reçu par email, connecté ou non.
             TOUJOURS EN DERNIER : quand l'écran demandé est protégé, expo-router affiche le premier écran

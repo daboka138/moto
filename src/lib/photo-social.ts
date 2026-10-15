@@ -2,7 +2,7 @@ import { photoUrl } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
 // « J'aime » et commentaires des photos du mur. Lecture filtrée par le serveur (RLS) :
-// rien entre deux membres qui se sont bloqués. Photos de démo (id « demo-… ») : rien côté serveur.
+// rien entre deux membres qui se sont bloqués.
 
 export type PhotoSocial = { likes: number; likedByMe: boolean; comments: number };
 
@@ -17,10 +17,7 @@ export type PhotoComment = {
 
 export const COMMENT_MAX_LENGTH = 500;
 
-const isDemo = (photoId: string) => photoId.startsWith('demo-');
-
 export async function fetchPhotoSocial(photoId: string, userId: string): Promise<PhotoSocial> {
-  if (isDemo(photoId)) return { likes: 0, likedByMe: false, comments: 0 };
   const [likes, comments] = await Promise.all([
     supabase.from('wall_photo_likes').select('user_id').eq('photo_id', photoId),
     supabase.from('wall_photo_comments').select('id', { count: 'exact', head: true }).eq('photo_id', photoId),
@@ -35,7 +32,6 @@ export async function fetchPhotoSocial(photoId: string, userId: string): Promise
 }
 
 export async function setPhotoLike(photoId: string, userId: string, liked: boolean) {
-  if (isDemo(photoId)) return;
   const { error } = liked
     ? await supabase.from('wall_photo_likes').insert({ photo_id: photoId, user_id: userId })
     : await supabase.from('wall_photo_likes').delete().eq('photo_id', photoId).eq('user_id', userId);
@@ -52,7 +48,6 @@ type CommentRow = {
 };
 
 export async function fetchComments(photoId: string): Promise<PhotoComment[]> {
-  if (isDemo(photoId)) return [];
   const { data, error } = await supabase
     .from('wall_photo_comments')
     .select('id, author_id, body, created_at, author:profiles(username, avatar_path)')
@@ -73,7 +68,6 @@ export async function fetchComments(photoId: string): Promise<PhotoComment[]> {
 export async function addComment(photoId: string, userId: string, body: string) {
   const text = body.trim();
   if (!text) return;
-  if (isDemo(photoId)) throw new Error('Pas de commentaire sur les photos de démonstration.');
   const { error } = await supabase
     .from('wall_photo_comments')
     .insert({ photo_id: photoId, author_id: userId, body: text.slice(0, COMMENT_MAX_LENGTH) });

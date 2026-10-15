@@ -39,7 +39,6 @@ export type RoadReport = LatLng & {
   authorId: string;
   confirmations: number;
   removals: number;
-  isDemo?: boolean;
 };
 
 export type Vote = 'still_there' | 'gone';

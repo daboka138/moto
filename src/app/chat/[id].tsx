@@ -19,11 +19,8 @@ import { askBlock, askReport } from '@/lib/moderation';
 import type { PickedImage } from '@/lib/pick-image';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
-// DEMO
-import { DEMO_ME, useDemoMessages } from '@/demo/messages';
-import { findDemoRider } from '@/demo/riders';
 
-/** Une conversation (privée ou de balade). Les conversations de démo ont un id « demo-conv-… ». */
+/** Une conversation (privée ou de balade). */
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { setActiveConversation } = useMessages();
@@ -36,7 +33,7 @@ export default function ChatScreen() {
     }, [id, setActiveConversation]),
   );
 
-  return id.startsWith('demo-conv-') ? <DemoChat id={id} /> : <RealChat id={id} />;
+  return <RealChat id={id} />;
 }
 
 /** Ajoute des messages sans doublon, du plus récent au plus ancien */
@@ -177,60 +174,6 @@ function RealChat({ id }: { id: string }) {
         showActionSheet({ options: [{ label: 'Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) }] })
       }
       disabledReason={conv?.blocked ? 'Tu ne peux plus écrire dans cette conversation (motard bloqué).' : null}
-    />
-  );
-}
-
-// DEMO : conversation avec les faux motards, qui répondent automatiquement
-function DemoChat({ id }: { id: string }) {
-  const demo = useDemoMessages();
-  const conv = demo.conversations.find((c) => c.id === id);
-  const messages = demo.messagesOf(id);
-  const riderIds = demo.riderIdsOf(id);
-  const { markRead } = demo;
-
-  // Tout ce qui arrive pendant que la conversation est ouverte est lu
-  useEffect(() => {
-    markRead(id);
-  }, [id, messages.length, markRead]);
-
-  const people = new Map<string, ChatPerson>();
-  for (const rid of riderIds) {
-    const r = findDemoRider(rid);
-    if (r) people.set(rid, { username: r.username, avatarUrl: r.avatar_path });
-  }
-
-  const openTitle = () => {
-    if (conv?.kind === 'direct' && conv.otherId) router.push({ pathname: '/demo-rider/[id]', params: { id: conv.otherId } });
-    if (conv?.kind === 'ride' && conv.rideId) router.push({ pathname: '/demo-ride/[id]', params: { id: conv.rideId } });
-  };
-
-  return (
-    <ChatView
-      title={conv?.title ?? ''}
-      avatarUrl={conv?.avatarUrl ?? null}
-      isGroup={conv?.kind === 'ride'}
-      onTitlePress={openTitle}
-      onMenu={() =>
-        showActionSheet({
-          options: [
-            { label: conv?.kind === 'ride' ? 'Voir la balade' : 'Voir le profil', onPress: openTitle },
-            ...(conv?.kind === 'direct' && conv.otherId
-              ? [{ label: 'Signaler ce motard', onPress: () => askReport('user', conv.otherId!) }]
-              : []),
-          ],
-        })
-      }
-      messages={conv ? messages : []}
-      meId={DEMO_ME}
-      people={people}
-      // Les faux motards lisent tout de suite (sauf mon tout dernier message, le temps qu'ils répondent)
-      readers={riderIds.map((rid) => ({ id: rid, lastReadAt: messages[0]?.senderId === DEMO_ME ? '' : new Date().toISOString() }))}
-      imageUrl={(path) => path}
-      onSend={async (text, image) => demo.send(id, text, image?.uri)}
-      onMessageLongPress={(m) =>
-        showActionSheet({ options: [{ label: 'Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) }] })
-      }
     />
   );
 }

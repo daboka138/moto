@@ -4,7 +4,7 @@ import { fetchConversations, type Conversation } from '@/lib/messages';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
-export type Toast = { id: number; title: string; body: string; conversationId: string; isDemo?: boolean };
+export type Toast = { id: number; title: string; body: string; conversationId: string };
 
 type MessagesState = {
   conversations: Conversation[];

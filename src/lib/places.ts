@@ -31,7 +31,6 @@ export type CommunityPlace = LatLng & {
   creatorName: string;
   rating: number | null;
   reviewsCount: number;
-  isDemo?: boolean;
 };
 
 export type PlaceReview = {

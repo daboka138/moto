@@ -1,9 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { useSession } from '@/lib/session';
-// DEMO
-import { useDemoMode } from '@/demo/demo-context';
-import { demoStories } from '@/demo/stories';
 import { fetchStories, fetchViewedIds, markStoryViewed, type Story } from '@/lib/stories';
 
 type StoriesState = {
@@ -17,7 +14,7 @@ const StoriesContext = createContext<StoriesState | null>(null);
 
 const REFRESH_MS = 60_000;
 
-/** Stories actives visibles par moi (+ celles des faux motards en démo), et celles que j'ai déjà vues. */
+/** Stories actives visibles par moi, et celles que j'ai déjà vues. */
 export function StoriesProvider({ children }: { children: ReactNode }) {
   const { session, profile } = useSession();
   const userId = profile ? session?.user.id : undefined;
@@ -29,7 +26,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
     try {
       const [stories, viewedIds] = await Promise.all([fetchStories(), fetchViewedIds(userId)]);
       setLoaded({ userId, stories });
-      // On garde les vues locales (démo, ou pas encore renvoyées par le serveur)
+      // On garde les vues locales (pas encore renvoyées par le serveur)
       setViewed((v) => new Set([...v, ...viewedIds]));
     } catch (e) {
       console.warn('Chargement des stories impossible', e);
@@ -51,16 +48,12 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   const markViewed = (story: Story) => {
     if (viewed.has(story.id)) return;
     setViewed((v) => new Set(v).add(story.id));
-    if (!story.isDemo && userId && story.ownerId !== userId) {
+    if (userId && story.ownerId !== userId) {
       markStoryViewed(userId, story.id).catch((e) => console.warn('Vue non enregistrée', e));
     }
   };
 
-  const demo = useDemoMode();
-  const stories = [
-    ...(loaded && loaded.userId === userId ? loaded.stories : []),
-    ...(demo.enabled ? demoStories(demo.friendIds) : []),
-  ];
+  const stories = loaded && loaded.userId === userId ? loaded.stories : [];
   return <StoriesContext.Provider value={{ stories, viewed, refresh, markViewed }}>{children}</StoriesContext.Provider>;
 }
 

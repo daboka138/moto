@@ -1,9 +1,5 @@
 import { useSyncExternalStore } from 'react';
 
-import { demoEvents, demoPlaces } from '@/demo/community';
-import type { useDemoMode } from '@/demo/demo-context';
-import { DEMO_RIDERS } from '@/demo/riders';
-import { demoRides } from '@/demo/rides';
 import { fetchEventsByIds, type MotoEvent } from '@/lib/events';
 import { fetchPlacesByIds, type CommunityPlace } from '@/lib/places';
 import { photoUrl } from '@/lib/profile';
@@ -37,7 +33,6 @@ export type RiderHit = {
   relation: FriendRelation;
   /** Motards près de moi : distance arrondie (jamais la position) */
   distanceKm?: number;
-  isDemo?: boolean;
 };
 
 /** Minuscules sans accents (même règle que fold_text côté serveur) */
@@ -50,8 +45,6 @@ export function fold(text: string) {
     .toLowerCase()
     .trim();
 }
-
-const matches = (q: string, ...texts: (string | null | undefined)[]) => texts.some((t) => !!t && fold(t).includes(q));
 
 type RiderRow = {
   id: string;
@@ -97,37 +90,6 @@ export async function searchPlaces(query: string): Promise<CommunityPlace[]> {
 export async function searchEvents(query: string, userId: string): Promise<MotoEvent[]> {
   if (fold(query).length < MIN_QUERY) return [];
   return fetchEventsByIds(await ids('search_events', query), userId);
-}
-
-// ---------- Démo : mêmes recherches en local ----------
-
-type DemoState = ReturnType<typeof useDemoMode>;
-type Me = { id: string; username: string; avatarUrl: string };
-
-export function demoSearch(tab: SearchTab, query: string, demo: DemoState, me: Me) {
-  const q = fold(query);
-  if (q.length < MIN_QUERY) return [];
-  switch (tab) {
-    case 'riders':
-      return DEMO_RIDERS.filter((r) => matches(q, r.username)).map<RiderHit>((r) => {
-        const m = r.motorcycles[0];
-        return {
-          id: r.id,
-          username: r.username,
-          avatarUrl: r.avatar_path,
-          city: r.city,
-          moto: m ? `${m.brand} ${m.model}` : null,
-          relation: demo.friendIds.includes(r.id) ? 'friend' : demo.incomingIds.includes(r.id) ? 'incoming' : 'none',
-          isDemo: true,
-        };
-      });
-    case 'rides':
-      return demoRides(demo, me).filter((r) => matches(q, r.title, r.meeting.label));
-    case 'places':
-      return demoPlaces().filter((p) => matches(q, p.name, p.description));
-    case 'events':
-      return demoEvents(demo.eventStatus, me).filter((e) => matches(q, e.title, e.place.label));
-  }
 }
 
 // ---------- Historique des recherches (sur l'appareil) ----------

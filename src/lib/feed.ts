@@ -3,7 +3,7 @@ import type { WallPhoto } from '@/lib/wall';
 
 // Fil d'actualité : photos de mes amis + balades qu'ils organisent ou rejoignent.
 
-export type FeedPerson = { id: string; username: string; avatarUrl: string; isDemo?: boolean };
+export type FeedPerson = { id: string; username: string; avatarUrl: string };
 
 export type FeedItem =
   | { kind: 'photo'; key: string; at: string; author: FeedPerson; photo: WallPhoto }

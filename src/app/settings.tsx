@@ -10,7 +10,6 @@ import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
 import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constants/theme';
-import { DemoToggle } from '@/demo/demo-toggle'; // DEMO
 import { resetTips } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
 import { signOut } from '@/lib/auth';
@@ -136,8 +135,6 @@ export default function SettingsScreen() {
           onChange={toggleDiscoverable}
         />
       </View>
-
-      <DemoToggle /* DEMO */ />
 
       {isAdmin && (
         <LinkGroup>

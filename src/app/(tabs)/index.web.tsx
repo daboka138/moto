@@ -121,7 +121,7 @@ export default function MapScreen() {
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
   const selectedRider = liveRiders.find((r) => REAL_PREFIX + r.userId === selectedId) ?? null;
 
-  // Lieux motards et événements (réels + démo)
+  // Lieux motards et événements
   const { places: communityPlaces } = useCommunityPlaces(center ?? me);
   const { events } = useEvents();
   const mapPlaces = layers.showPlaces ? (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind)) : [];
@@ -346,7 +346,7 @@ export default function MapScreen() {
               <LayerButton
                 active={layers.showPlaces}
                 icon="cafe"
-                label="Filtres de la carte : spots et données de démo"
+                label="Filtres de la carte : spots"
                 onPress={() => setPlaceFilter(true)}
               />
             </View>

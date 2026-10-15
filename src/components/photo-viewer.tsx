@@ -22,7 +22,7 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  // Photo d'un autre membre (pas de démo) : signalable pour la modération
+  // Photo d'un autre membre : signalable pour la modération
   const canReport = !!photo && !!photo.path && photo.ownerId !== session?.user.id;
   return (
     <Modal visible={!!photo} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent>

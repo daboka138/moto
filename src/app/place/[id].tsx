@@ -11,7 +11,6 @@ import { PhotoPicker } from '@/components/photo-picker';
 import { Card } from '@/components/profile-view';
 import { Button, Field } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { demoPlaceReviews, demoPlaces } from '@/demo/community';
 import { goToPlace } from '@/lib/app-link';
 import { timeAgo } from '@/lib/feed';
 import { askReport } from '@/lib/moderation';
@@ -35,7 +34,6 @@ export default function PlaceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
   const userId = session?.user.id;
-  const isDemo = id.startsWith('demo-');
   const [place, setPlace] = useState<CommunityPlace | null | undefined>(undefined);
   const [reviews, setReviews] = useState<PlaceReview[]>([]);
   // Mon avis en cours d'écriture
@@ -46,11 +44,6 @@ export default function PlaceScreen() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (isDemo) {
-      setPlace(demoPlaces().find((p) => p.id === id) ?? null);
-      setReviews((r) => (r.length ? r : demoPlaceReviews(id)));
-      return;
-    }
     try {
       const [p, r] = await Promise.all([fetchPlace(id), fetchReviews(id)]);
       setPlace(p);
@@ -59,7 +52,7 @@ export default function PlaceScreen() {
       console.warn('Lieu indisponible', e);
       setPlace((p) => p ?? null);
     }
-  }, [id, isDemo]);
+  }, [id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,24 +94,8 @@ export default function PlaceScreen() {
     }
     setSaving(true);
     try {
-      if (isDemo) {
-        // Démo : avis gardé sur l'écran seulement
-        const me: PlaceReview = {
-          id: `demo-mine-${id}`,
-          authorId: userId,
-          username: 'moi',
-          avatarUrl: '',
-          rating,
-          body: body.trim() || null,
-          photoUrl: photo.localUri,
-          photoPath: null,
-          createdAt: new Date().toISOString(),
-        };
-        setReviews((list) => [me, ...list.filter((r) => r.authorId !== userId)]);
-      } else {
-        await saveReview(userId, place.id, { rating, body, photo: photo.localUri || photo.path ? photo : null, previousPhotoPath: mine?.photoPath ?? null });
-        await load();
-      }
+      await saveReview(userId, place.id, { rating, body, photo: photo.localUri || photo.path ? photo : null, previousPhotoPath: mine?.photoPath ?? null });
+      await load();
       setEditing(false);
     } catch (e) {
       Alert.alert('Avis', e instanceof Error ? e.message : String(e));
@@ -139,7 +116,7 @@ export default function PlaceScreen() {
                 destructive: true,
                 onPress: async () => {
                   try {
-                    if (!isDemo) await deleteReview(r, userId);
+                    await deleteReview(r, userId);
                     setReviews((list) => list.filter((x) => x.id !== r.id));
                   } catch (e) {
                     Alert.alert('Suppression impossible', String(e));
@@ -204,7 +181,6 @@ export default function PlaceScreen() {
       <View style={styles.body}>
         <Text style={styles.kind}>
           {kind.emoji} {kind.label}
-          {place.isDemo ? ' · démo' : ''}
         </Text>
         <Text style={styles.title}>{place.name}</Text>
         <View style={styles.ratingRow}>

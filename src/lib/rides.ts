@@ -58,7 +58,6 @@ export type RideSummary = {
   joined: boolean;
   /** J'ai une invitation en attente */
   invited: boolean;
-  isDemo?: boolean;
 };
 
 export type RideDetails = RideSummary & {

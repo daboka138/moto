@@ -19,7 +19,6 @@ export type Conversation = {
   lastSenderId: string | null;
   lastAt: string;
   unread: number;
-  isDemo?: boolean;
 };
 
 export type Message = {

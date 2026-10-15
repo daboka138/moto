@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export type WallPhoto = {
   id: string;
   ownerId: string;
-  /** Chemin dans le bucket (null pour les photos de démo, qui ont directement une URL) */
+  /** Chemin dans le bucket photos */
   path: string | null;
   url: string;
   caption: string | null;

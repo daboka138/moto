@@ -22,7 +22,7 @@ import { IS_WEB } from '@/lib/app-link';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { saveGpxFile } from '@/lib/gpx-file';
 import { fetchRouteWeather } from '@/lib/weather';
-import { mainCategory, photoUrl } from '@/lib/profile';
+import { mainCategory } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 import { confirmJoinRide } from '@/lib/join-ride';
 
@@ -216,7 +216,6 @@ export default function RideScreen() {
           <RideSocial
             rideId={ride.id}
             meId={userId}
-            me={{ username: profile?.username ?? 'moi', avatarUrl: profile ? photoUrl(profile.avatar_path) : '' }}
             isOrganizer={isOrganizer}
           />
         }

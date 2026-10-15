@@ -22,8 +22,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { showActionSheet } from '@/components/action-sheet';
 import { PersonRow } from '@/components/person-row';
 import { makeStyles, useColors } from '@/constants/theme';
-import { useDemoMode } from '@/demo/demo-context';
-import { useDemoMessages } from '@/demo/messages';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { timeAgo } from '@/lib/feed';
 import { askBlock, askReport } from '@/lib/moderation';
@@ -71,8 +69,6 @@ export default function StoryViewerScreen() {
   const [viewers, setViewers] = useState<{ id: string; list: StoryViewer[] | null } | null>(null);
   const [showViewers, setShowViewers] = useState(false);
   // J'aime et réponse (message privé à l'auteur)
-  const demo = useDemoMode();
-  const demoMessages = useDemoMessages();
   const { locked } = useDrivingLock();
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [likers, setLikers] = useState<{ id: string; list: string[] } | null>(null);
@@ -112,7 +108,7 @@ export default function StoryViewerScreen() {
 
   // Qui a vu ma story
   useEffect(() => {
-    if (!story || !mine || story.isDemo) return;
+    if (!story || !mine) return;
     let cancelled = false;
     fetchStoryViewers(story.id)
       .then((list) => !cancelled && setViewers({ id: story.id, list }))
@@ -132,7 +128,7 @@ export default function StoryViewerScreen() {
 
   // Ma story : qui l'a aimée
   useEffect(() => {
-    if (!story || !mine || story.isDemo) return;
+    if (!story || !mine) return;
     let cancelled = false;
     fetchStoryLikers(story.id)
       .then((list) => !cancelled && setLikers({ id: story.id, list }))
@@ -212,8 +208,7 @@ export default function StoryViewerScreen() {
 
   const openProfile = () => {
     router.back();
-    if (story.isDemo) router.push({ pathname: '/demo-rider/[id]', params: { id: story.ownerId } });
-    else router.push({ pathname: '/user/[id]', params: { id: story.ownerId } });
+    router.push({ pathname: '/user/[id]', params: { id: story.ownerId } });
   };
 
   const menu = () => {
@@ -223,7 +218,7 @@ export default function StoryViewerScreen() {
       options: [
         { label: 'Voir le profil', onPress: openProfile },
         { label: 'Signaler cette story', onPress: () => askReport('story', story.id) },
-        ...(story.isDemo || !meId
+        ...(!meId
           ? []
           : [
               {
@@ -240,14 +235,10 @@ export default function StoryViewerScreen() {
     });
   };
 
-  const liked = story.isDemo ? demo.liked.includes(story.id) : likedIds.includes(story.id);
+  const liked = likedIds.includes(story.id);
 
   const toggleLike = async () => {
     if (!meId) return;
-    if (story.isDemo) {
-      demo.toggleLike(story.id);
-      return;
-    }
     const next = !liked;
     setLikedIds((ids) => (next ? [...ids, story.id] : ids.filter((x) => x !== story.id)));
     try {
@@ -268,12 +259,7 @@ export default function StoryViewerScreen() {
     if (!text || !meId) return;
     setSendingReply(true);
     try {
-      if (story.isDemo) {
-        const conv = demoMessages.openDirect(story.ownerId);
-        demoMessages.send(conv, `↩️ Réponse à ta story${story.caption ? ` « ${story.caption.slice(0, 60)} »` : ''} : ${text}`);
-      } else {
-        await replyToStory(meId, story, text);
-      }
+      await replyToStory(meId, story, text);
       setReply('');
       setReplying(false);
       showNotice(`Réponse envoyée à @${story.username} en message privé`);
@@ -394,7 +380,7 @@ export default function StoryViewerScreen() {
           </View>
         )}
 
-        {mine && !story.isDemo && (
+        {mine && (
           <View style={[styles.bottom, { paddingBottom: insets.bottom + 12 }]}>
             <Pressable style={styles.bottomButton} onPress={() => setShowViewers(true)}>
               <Ionicons name="eye-outline" size={22} color={Colors.white} />

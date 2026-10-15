@@ -55,21 +55,13 @@ import { useSession } from '@/lib/session';
 import { useSpeedLimit } from '@/lib/speed-limit';
 import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
+import { useFriends } from '@/lib/use-friends';
 import { useLiveRiders } from '@/lib/use-live-riders';
 import { useNavigation } from '@/lib/use-navigation';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
-// DEMO : faux motards simulés (voir src/demo)
-import { useDemoMode } from '@/demo/demo-context';
-import { DemoCounter } from '@/demo/demo-counter';
-import { RiderCard } from '@/demo/rider-card';
-import { useDemoReports } from '@/demo/reports';
-import { demoRide, demoRides } from '@/demo/rides';
-import { isSpeeding } from '@/demo/simulation';
-import { canSeeDemoRider, DEMO_RIDE_TITLE, demoPrivacyLabel, demoSocial } from '@/demo/social';
-import { useDemoRiders } from '@/demo/use-demo-riders';
 
 type Status = 'loading' | 'denied' | 'ready';
 
@@ -263,11 +255,8 @@ export default function MapScreen() {
   }, [locked, setLocked]);
   useEffect(() => () => setLocked(false), [setLocked]);
 
-  // ---------- Signalements (vrais + DEMO) ----------
-  const { reports: realReports, refresh: refreshReports } = useRoadReports(position);
-  const demo = useDemoMode();
-  const demoReports = useDemoReports(demo.enabled, position, profile?.username ?? 'moi');
-  const reports = [...realReports, ...demoReports.reports];
+  // ---------- Signalements ----------
+  const { reports, refresh: refreshReports } = useRoadReports(position);
   const route = navigating ? nav.route : null;
   const alongM = nav.progress?.alongM ?? null;
   const danger = dangerAhead(reports, position, heading, kmh, route, alongM);
@@ -277,6 +266,9 @@ export default function MapScreen() {
 
   // ---------- Motards réels : Supabase ne renvoie que ceux que j'ai le droit de voir ----------
   const liveRiders = useLiveRiders(userId, me, settings?.mode ?? null);
+  // Nouveau compte sans amis : petite invitation sur la carte (sinon elle paraît vide)
+  const { state: friendsState } = useFriends();
+  const noFriends = !!friendsState && friendsState.friends.length === 0 && friendsState.incoming.length === 0;
   // Balade du jour : check-in automatique au RDV, puis convoi (qui décroche ?) pendant la balade
   const convoy = useConvoy({
     rides,
@@ -288,7 +280,7 @@ export default function MapScreen() {
   const droppedIds = new Set(convoy?.dropped.map((m) => m.id) ?? []);
   // Convoi : badge ouvreur / serre-file sur la pastille
   const convoyRoles = new Map((convoy?.ride.participants ?? []).filter((p) => p.role).map((p) => [p.id, RIDE_ROLES[p.role!].emoji]));
-  const realMarkers: MapMarker[] = liveRiders.map((r) => ({
+  const markers: MapMarker[] = liveRiders.map((r) => ({
     id: REAL_PREFIX + r.userId,
     latitude: r.latitude,
     longitude: r.longitude,
@@ -297,20 +289,7 @@ export default function MapScreen() {
     badge: convoyRoles.get(r.userId),
   }));
 
-  // DEMO : même règles de visibilité que côté serveur, rejouées en local
-  const { riders: allDemoRiders, routing } = useDemoRiders(demo.enabled, position);
-  const demoRiders = allDemoRiders.filter((r) => canSeeDemoRider(r.rider, demo));
-  const [renderedCount, setRenderedCount] = useState<number | null>(null);
-  const demoMarkers: MapMarker[] = demoRiders.map((r) => ({
-    id: r.rider.id,
-    latitude: r.position.latitude,
-    longitude: r.position.longitude,
-    photoUrl: r.rider.avatar_path,
-    tone: isSpeeding(r.speedKmh) ? 'alert' : r.speedKmh < 1 ? 'muted' : 'default',
-  }));
-  const markers = [...realMarkers, ...demoMarkers];
-
-  // ---------- Lieux motards et événements (réels + démo) ----------
+  // ---------- Lieux motards et événements ----------
   const { places: communityPlaces } = useCommunityPlaces(position);
   const { events } = useEvents();
   const mapPlaces =
@@ -321,12 +300,9 @@ export default function MapScreen() {
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
 
   // ---------- Repères : RDV de balades, signalements, destination ----------
-  const demoRideList = demo.enabled
-    ? demoRides(demo, { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: '' })
-    : [];
   const mapRides = navigating
     ? []
-    : [...(rides ?? []), ...demoRideList].filter(
+    : (rides ?? []).filter(
         (r) =>
           (r.visibility === 'public' || r.visibility === 'friends' || r.joined) &&
           r.status !== 'ended' &&
@@ -397,7 +373,6 @@ export default function MapScreen() {
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 
   const selectedReal = liveRiders.find((r) => REAL_PREFIX + r.userId === selectedId) ?? null;
-  const selectedDemo = demoRiders.find((r) => r.rider.id === selectedId) ?? null;
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -466,11 +441,7 @@ export default function MapScreen() {
 
   const loadRideRoute = async (ride: RideSummary) => {
     if (rideRoute?.id === ride.id) return;
-    const details = ride.isDemo
-      ? demoRide(ride.id, demo, { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: '' })
-      : userId
-        ? await fetchRide(ride.id, userId)
-        : null;
+    const details = userId ? await fetchRide(ride.id, userId) : null;
     if (!details) return;
     const points =
       details.route ??
@@ -479,8 +450,7 @@ export default function MapScreen() {
   };
 
   const openRide = (ride: RideSummary) => {
-    if (ride.isDemo) router.push({ pathname: '/demo-ride/[id]', params: { id: ride.id } });
-    else router.push({ pathname: '/ride/[id]', params: { id: ride.id } });
+    router.push({ pathname: '/ride/[id]', params: { id: ride.id } });
   };
 
   // ---------- Appui long : point posé, comme Google Maps ----------
@@ -601,11 +571,8 @@ export default function MapScreen() {
   const vote = async (id: string, value: Vote, silent = false) => {
     const target = reports.find((r) => r.id === id);
     if (!target || !userId) return;
-    if (target.isDemo) demoReports.vote(id, value);
-    else {
-      await voteReport(userId, id, value);
-      await refreshReports();
-    }
+    await voteReport(userId, id, value);
+    await refreshReports();
     setVotedIds((v) => [...v, id]);
     if (!silent) showToast(value === 'gone' ? 'Merci, signalement retiré si confirmé par d’autres' : 'Merci pour la confirmation');
   };
@@ -699,11 +666,8 @@ export default function MapScreen() {
     const target = reports.find((r) => r.id === id);
     if (!target) return;
     try {
-      if (target.isDemo) demoReports.remove(id);
-      else {
-        await deleteReport(id);
-        await refreshReports();
-      }
+      await deleteReport(id);
+      await refreshReports();
       setSelectedId(null);
     } catch (e) {
       Alert.alert('Suppression impossible', e instanceof Error ? e.message : String(e));
@@ -751,7 +715,6 @@ export default function MapScreen() {
         }}
         // Pas d'appui long en navigation : on ne manipule pas la carte en roulant
         onMapLongPress={navigating ? undefined : onLongPress}
-        onMarkersRendered={setRenderedCount}
         beepKey={beepKey}
         // Son bloqué par la page : alerte vocale à la place du bip
         onBeepFailed={() => speak('Vitesse', true, 'info')}
@@ -809,17 +772,6 @@ export default function MapScreen() {
               )}
             </View>
             <View style={styles.right} pointerEvents="box-none">
-              {demo.enabled && !navigating && (
-                <DemoCounter /* DEMO */
-                  visible={demoRiders.length}
-                  total={allDemoRiders.length}
-                  rendered={renderedCount === null ? null : renderedCount - realMarkers.length}
-                  routing={routing}
-                  rideTitle={DEMO_RIDE_TITLE}
-                  rideActive={demo.rideActive}
-                  onToggleRide={() => demo.setRideActive(!demo.rideActive)}
-                />
-              )}
               {/* Afficher / masquer les calques (choix mémorisé) */}
               <LayerButton
                 active={layers.showReports}
@@ -858,7 +810,7 @@ export default function MapScreen() {
                 <LayerButton
                   active={layers.showPlaces}
                   icon="cafe"
-                  label="Filtres de la carte : spots et données de démo"
+                  label="Filtres de la carte : spots"
                   onPress={() => setPlaceFilter(true)}
                 />
               )}
@@ -870,6 +822,12 @@ export default function MapScreen() {
               <MaterialCommunityIcons name="ghost" size={18} color={Colors.white} />
               <Text style={styles.ghostBannerText}>Mode fantôme · tu es masqué</Text>
             </View>
+          )}
+          {noFriends && !navigating && nav.phase === 'idle' && !ghost && (
+            <Pressable style={styles.inviteChip} onPress={() => router.push('/friends')}>
+              <Ionicons name="people" size={18} color={Colors.accent} />
+              <Text style={styles.inviteChipText}>Aucun pote sur la carte · Ajoute des amis</Text>
+            </Pressable>
           )}
           {convoy && (
             <ConvoyPanel
@@ -987,16 +945,6 @@ export default function MapScreen() {
                 speedKmh={selectedReal.speedKmh}
                 distanceM={position ? distanceM(position, selectedReal) : null}
                 onViewProfile={() => router.push({ pathname: '/user/[id]', params: { id: selectedReal.userId } })}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedDemo && (
-            <View style={styles.card}>
-              <RiderCard
-                state={selectedDemo}
-                userPosition={position}
-                badge={demoBadge(selectedDemo.rider, demo.friendIds, demo.rideActive)}
                 onClose={() => setSelectedId(null)}
               />
             </View>
@@ -1177,14 +1125,6 @@ function rideLabel(r: RideSummary) {
   return `🏍 ${today ? '' : d.toLocaleDateString('fr-FR', { weekday: 'short' }) + ' '}${time}`;
 }
 
-// DEMO : explique pourquoi ce faux motard est visible
-function demoBadge(rider: Parameters<typeof demoSocial>[0], friendIds: string[], rideActive: boolean) {
-  const social = demoSocial(rider);
-  const parts = [friendIds.includes(rider.id) ? 'Ami' : 'Pas ami', demoPrivacyLabel(social.privacy)];
-  if (rideActive && social.inRideWithMe) parts.push('dans ton trajet de groupe');
-  return parts.join(' · ');
-}
-
 const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
@@ -1277,6 +1217,22 @@ const useStyles = makeStyles((Colors) => ({
     elevation: 4,
   },
   ghostBannerText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  inviteChip: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  inviteChipText: { color: Colors.text, fontWeight: '700', fontSize: 14 },
   homecomingChip: {
     alignSelf: 'center',
     flexDirection: 'row',

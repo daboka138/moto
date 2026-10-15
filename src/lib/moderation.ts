@@ -44,7 +44,6 @@ export async function reportContent(targetType: ReportTarget, targetId: string, 
 
 /**
  * Demande le motif puis envoie le signalement. `onDone` est appelé après l'envoi.
- * Les contenus de démo (id « demo-… ») ne sont pas envoyés au serveur.
  */
 export function askReport(targetType: ReportTarget, targetId: string, onDone?: () => void) {
   const title = {
@@ -65,7 +64,7 @@ export function askReport(targetType: ReportTarget, targetId: string, onDone?: (
       label: r.label,
       onPress: async () => {
         try {
-          if (!targetId.startsWith('demo-')) await reportContent(targetType, targetId, r.value);
+          await reportContent(targetType, targetId, r.value);
           Alert.alert('Merci', 'Ton signalement a été envoyé. Nous allons l’examiner.');
           onDone?.();
         } catch (e) {

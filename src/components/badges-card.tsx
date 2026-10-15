@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { makeStyles, useColors } from '@/constants/theme';
 import { fetchRiderStats, unlockedBadges, type RiderStats } from '@/lib/badges';
 
-/** Statistiques d'un motard : fournies (démo) ou chargées depuis le serveur */
+/** Statistiques d'un motard : fournies par l'appelant, sinon chargées depuis le serveur */
 export function useRiderStats(userId: string | undefined, given?: RiderStats) {
   const [stats, setStats] = useState<{ id: string; stats: RiderStats } | null>(null);
   useEffect(() => {

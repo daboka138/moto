@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, PanResponder, Platform, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import {
   answerNotification,
@@ -139,7 +140,10 @@ export default function NotificationsScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="notifications-outline" size={44} color={Colors.textMuted} />
-              <Text style={styles.muted}>Aucune notification pour le moment.</Text>
+              <Text style={styles.muted}>
+                Rien de neuf pour le moment. Tu verras ici les demandes d’ami, les invitations aux balades et aux événements, les J’aime et les commentaires.
+              </Text>
+              <Chip label="👥 Ajouter des amis" selected onPress={() => router.push('/friends')} />
             </View>
           }
           ListFooterComponent={
@@ -271,7 +275,7 @@ const useStyles = makeStyles((Colors) => ({
   screenTitle: { fontSize: 28, fontWeight: '900', color: Colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   markAll: { color: Colors.accent, fontWeight: '800', fontSize: 14, paddingHorizontal: 8 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
-  empty: { alignItems: 'center', gap: 8, paddingTop: 64 },
+  empty: { alignItems: 'center', gap: 10, paddingTop: 64, paddingHorizontal: 24 },
   footer: { fontSize: 12, color: Colors.textMuted, textAlign: 'center', marginTop: 16 },
   swipeWrap: { borderRadius: 16, overflow: 'hidden', marginBottom: 8 },
   swipeBehind: {

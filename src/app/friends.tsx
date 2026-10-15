@@ -6,7 +6,6 @@ import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { Field, SmallButton } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { DemoFriendsSection } from '@/demo/demo-friends-section'; // DEMO
 import {
   acceptFriendRequest,
   relationWith,
@@ -171,7 +170,6 @@ export default function FriendsScreen() {
             </Card>
           )}
 
-          <DemoFriendsSection /* DEMO */ />
         </>
       )}
     </ScrollView>

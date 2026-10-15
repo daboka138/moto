@@ -5,12 +5,12 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { messagePreview, messageTime, type Conversation } from '@/lib/messages';
 import { useMessages } from '@/lib/messages-context';
 import { useSession } from '@/lib/session';
 import { useInbox } from '@/lib/use-inbox';
-import { DEMO_ME } from '@/demo/messages'; // DEMO
 
 /** Onglet Messages : mes conversations privées et de balade. */
 export default function MessagesScreen() {
@@ -35,7 +35,7 @@ export default function MessagesScreen() {
 
   const renderItem = ({ item }: { item: Conversation }) => {
     const unread = item.unread > 0 && !item.blocked;
-    const mine = item.lastSenderId === session?.user.id || item.lastSenderId === DEMO_ME;
+    const mine = item.lastSenderId === session?.user.id;
     return (
       <Pressable
         style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -90,6 +90,8 @@ export default function MessagesScreen() {
             <Text style={styles.muted}>
               Aucune conversation. Écris à un ami, ou rejoins une balade pour discuter avec le groupe.
             </Text>
+            <Chip label="✍️ Écrire à un ami" selected onPress={() => router.push('/messages/new')} />
+            <Chip label="👥 Trouver des motards" onPress={() => router.push('/riders')} />
           </View>
         }
       />
@@ -134,6 +136,6 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
   },
   badgeText: { color: Colors.white, fontSize: 12, fontWeight: '800' },
-  empty: { alignItems: 'center', gap: 8, padding: 32 },
+  empty: { alignItems: 'center', gap: 10, padding: 32 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
 }));

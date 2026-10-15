@@ -10,8 +10,6 @@ import { EventCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, useColors } from '@/constants/theme';
-import { demoRiderResults } from '@/demo/discovery';
-import { useDemoMode } from '@/demo/demo-context';
 import { findRiders, EMPTY_FILTERS } from '@/lib/discovery';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { acceptFriendRequest, relationWith, removeFriendship, sendFriendRequest } from '@/lib/friends';
@@ -20,7 +18,6 @@ import type { LatLng } from '@/lib/geo';
 import {
   addToHistory,
   clearHistory,
-  demoSearch,
   fold,
   MIN_QUERY,
   removeFromHistory,
@@ -57,9 +54,8 @@ export default function SearchScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const params = useLocalSearchParams<{ tab?: SearchTab }>();
-  const { session, profile } = useSession();
+  const { session } = useSession();
   const userId = session?.user.id;
-  const demo = useDemoMode();
   const { locked } = useDrivingLock();
   const { state: friends, refresh: refreshFriends } = useFriends();
   const history = useSearchHistory();
@@ -74,7 +70,6 @@ export default function SearchScreen() {
 
   const q = fold(query);
   const key = `${tab}:${q}`;
-  const me = { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: profile ? photoUrl(profile.avatar_path) : '' };
 
   // Recherche pendant la frappe (après une courte pause)
   useEffect(() => {
@@ -82,12 +77,11 @@ export default function SearchScreen() {
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const local = demo.enabled ? demoSearch(tab, query, demo, me) : [];
         let r: Results;
-        if (tab === 'riders') r = { tab, items: [...(await searchRiders(query)), ...(local as RiderHit[])] };
-        else if (tab === 'rides') r = { tab, items: [...(await searchRides(query, userId)), ...(local as RideSummary[])] };
-        else if (tab === 'places') r = { tab, items: [...(await searchPlaces(query)), ...(local as CommunityPlace[])] };
-        else r = { tab, items: [...(await searchEvents(query, userId)), ...(local as MotoEvent[])] };
+        if (tab === 'riders') r = { tab, items: await searchRiders(query) };
+        else if (tab === 'rides') r = { tab, items: await searchRides(query, userId) };
+        else if (tab === 'places') r = { tab, items: await searchPlaces(query) };
+        else r = { tab, items: await searchEvents(query, userId) };
         if (!cancelled) setResults({ key, results: r, error: false });
       } catch (e) {
         console.warn('Recherche impossible', e);
@@ -99,7 +93,7 @@ export default function SearchScreen() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, userId, demo.enabled]);
+  }, [key, userId]);
 
   // Motards près de moi (opt-in « Trouver des motards » ; distance arrondie, jamais de position)
   useEffect(() => {
@@ -116,14 +110,13 @@ export default function SearchScreen() {
       } catch {
         near = null;
       }
-      const demoList = demo.enabled ? demoRiderResults() : [];
-      if (!near && !demoList.length) {
+      if (!near) {
         if (!cancelled) setNearbyState('no-location');
         return;
       }
-      const real = near ? await findRiders(near, EMPTY_FILTERS, photoUrl).catch(() => []) : [];
+      const real = await findRiders(near, EMPTY_FILTERS, photoUrl).catch(() => []);
       if (cancelled) return;
-      const list = [...real, ...demoList]
+      const list = real
         .filter((r) => r.id !== userId)
         .sort((a, b) => a.distanceKm - b.distanceKm)
         .slice(0, NEARBY_MAX)
@@ -134,7 +127,6 @@ export default function SearchScreen() {
           city: r.city,
           moto: r.moto ? `${r.moto.brand} ${r.moto.model}`.trim() : null,
           relation: 'none',
-          isDemo: r.isDemo,
           distanceKm: r.distanceKm,
         }));
       setNearby(list);
@@ -143,13 +135,10 @@ export default function SearchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [demo.enabled, userId]);
+  }, [userId]);
 
   const relationOf = (r: RiderHit): FriendRelation => {
     if (relations[r.id]) return relations[r.id];
-    if (r.isDemo) {
-      return demo.friendIds.includes(r.id) ? 'friend' : demo.incomingIds.includes(r.id) ? 'incoming' : r.relation;
-    }
     const known = userId ? relationWith(friends, userId, r.id) : 'none';
     return known === 'none' || known === 'self' ? r.relation : known;
   };
@@ -158,12 +147,6 @@ export default function SearchScreen() {
     if (!userId) return;
     const rel = relationOf(r);
     if (rel === 'friend') return;
-    if (r.isDemo) {
-      // Démo : la demande est acceptée tout de suite
-      if (rel === 'incoming') demo.acceptRequest(r.id);
-      else demo.addFriend(r.id);
-      return;
-    }
     const run = async (action: () => Promise<void>, next: FriendRelation) => {
       setBusyId(r.id);
       try {
@@ -189,14 +172,12 @@ export default function SearchScreen() {
 
   const openRider = (r: RiderHit) => {
     remember();
-    if (r.isDemo) router.push({ pathname: '/demo-rider/[id]', params: { id: r.id } });
-    else router.push({ pathname: '/user/[id]', params: { id: r.id } });
+    router.push({ pathname: '/user/[id]', params: { id: r.id } });
   };
 
   const openRide = (r: RideSummary) => {
     remember();
-    if (r.isDemo) router.push({ pathname: '/demo-ride/[id]', params: { id: r.id } });
-    else router.push({ pathname: '/ride/[id]', params: { id: r.id } });
+    router.push({ pathname: '/ride/[id]', params: { id: r.id } });
   };
 
   const current = results?.key === key ? results : null;
@@ -352,7 +333,7 @@ function RiderRow({
   const Colors = useColors();
   const styles = useStyles();
   const primary = relation === 'none' || relation === 'incoming';
-  const details = [rider.city, rider.moto, rider.distanceKm !== undefined ? `~${rider.distanceKm} km` : null, rider.isDemo ? 'démo' : null]
+  const details = [rider.city, rider.moto, rider.distanceKm !== undefined ? `~${rider.distanceKm} km` : null]
     .filter(Boolean)
     .join(' · ');
   return (

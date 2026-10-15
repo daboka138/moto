@@ -12,13 +12,10 @@ import { makeStyles, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { importGpx } from '@/lib/gpx-import';
 import { categoryInfo, rideFitsCategory } from '@/lib/moto';
-import { mainCategory, photoUrl } from '@/lib/profile';
+import { mainCategory } from '@/lib/profile';
 import { RIDE_LEVELS, type RideLevel, type RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
 import { useUpcomingRides } from '@/lib/use-rides';
-// DEMO
-import { useDemoMode } from '@/demo/demo-context';
-import { demoRides } from '@/demo/rides';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month';
 const DATE_FILTERS: { value: DateFilter; label: string }[] = [
@@ -52,7 +49,7 @@ function matchesDate(ride: RideSummary, filter: DateFilter) {
 export default function RidesScreen() {
   const Colors = useColors();
   const styles = useStyles();
-  const { session, profile } = useSession();
+  const { profile } = useSession();
   const { rides, error, refreshing, refresh } = useUpcomingRides();
   const [me, setMe] = useState<LatLng | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -69,17 +66,7 @@ export default function RidesScreen() {
       .catch(() => {});
   }, []);
 
-  // DEMO : balades des faux motards mélangées aux vraies
-  const demo = useDemoMode();
-  const demoList = demo.enabled
-    ? demoRides(demo, {
-        id: session?.user.id ?? 'me',
-        username: profile?.username ?? 'moi',
-        avatarUrl: profile ? photoUrl(profile.avatar_path) : '',
-      })
-    : [];
-
-  const all = rides ? [...rides, ...demoList].sort((a, b) => a.meetingAt.localeCompare(b.meetingAt)) : null;
+  const all = rides ? [...rides].sort((a, b) => a.meetingAt.localeCompare(b.meetingAt)) : null;
   const distanceOf = (r: RideSummary) => (me ? distanceM(me, r.meeting) : null);
   const filtered = all?.filter((r) => {
     if (!matchesDate(r, dateFilter)) return false;
@@ -90,10 +77,7 @@ export default function RidesScreen() {
     return true;
   });
 
-  const open = (r: RideSummary) =>
-    r.isDemo
-      ? router.push({ pathname: '/demo-ride/[id]', params: { id: r.id } })
-      : router.push({ pathname: '/ride/[id]', params: { id: r.id } });
+  const open = (r: RideSummary) => router.push({ pathname: '/ride/[id]', params: { id: r.id } });
 
   const toggleLevel = (l: RideLevel) => setLevels((ls) => (ls.includes(l) ? ls.filter((x) => x !== l) : [...ls, l]));
 
@@ -199,9 +183,19 @@ export default function RidesScreen() {
               ListEmptyComponent={
                 <View style={styles.empty}>
                   <Ionicons name="map-outline" size={40} color={Colors.textMuted} />
-                  <Text style={styles.muted}>Aucune balade ne correspond à ces filtres.</Text>
-                  {onlyMine && myCategory && (
-                    <Chip label="Voir aussi les autres balades" onPress={() => setOnlyMine(false)} />
+                  {all?.length ? (
+                    <>
+                      <Text style={styles.muted}>Aucune balade ne correspond à ces filtres.</Text>
+                      {onlyMine && myCategory && (
+                        <Chip label="Voir aussi les autres balades" onPress={() => setOnlyMine(false)} />
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.emptyTitle}>Aucune balade près de toi</Text>
+                      <Text style={styles.muted}>Crée la première et invite tes potes, ou laisse l’app te tracer une boucle.</Text>
+                      <Chip label="➕ Créer une balade" selected onPress={() => router.push('/ride/new')} />
+                    </>
                   )}
                 </View>
               }
@@ -267,6 +261,7 @@ const useStyles = makeStyles((Colors) => ({
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },
   list: { padding: 16, gap: 12, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: { alignItems: 'center', gap: 8, paddingTop: 48 },
+  empty: { alignItems: 'center', gap: 8, paddingTop: 48, paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
 }));

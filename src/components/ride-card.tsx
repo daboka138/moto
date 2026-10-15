@@ -70,7 +70,6 @@ export function RideCard({ ride, distanceFromMeM, fit = null, onPress }: Props) 
           @{ride.organizer.username}
         </Text>
         <View style={styles.badges}>
-          {ride.isDemo && <Badge label="Démo" color={Colors.textMuted} />}
           {ride.status === 'live' && <Badge label="En cours" color={Colors.success} />}
           {ride.joined && <Badge label="Tu participes" color={Colors.accent} />}
           {ride.invited && <Badge label="Invité" color={Colors.ghost} />}

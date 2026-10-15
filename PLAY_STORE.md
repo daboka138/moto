@@ -110,6 +110,25 @@ eas env:list --environment production
 
 ## 3. Commandes à lancer (PowerShell, dans `C:\projets\moto`)
 
+### 3.0 Version 1.2.0 : étapes exactes
+Nouveautés natives depuis l'APK 1.1.0 : nouvelle icône adaptative + monochrome, nouveau splash, expo-contacts
+(« Choisir dans mes contacts »). `runtimeVersion` suit la version (`policy: appVersion`) : le build 1.2.0 ne reçoit
+**que** les mises à jour publiées pour 1.2.0, jamais celles de la 1.1.0 (et inversement).
+1. Vérifier les variables de l'environnement EAS `production` : `eas env:list --environment production` (§ 2.1).
+2. Lancer le build (AAB signé, versionCode incrémenté par EAS ; ne pas toucher au keystore, EAS le garde) :
+   ```powershell
+   eas build --platform android --profile production
+   ```
+3. Build terminé : expo.dev › projet moto › Builds › le build 1.2.0 › **Download** (fichier `.aab`).
+4. Play Console › PasseRyder › Tester et publier › **Tests internes** › **Créer une version** › importer le `.aab`
+   (première version : accepter la **signature d'application par Google Play**).
+5. Notes de version (fr-FR), par exemple : « Nouvelle icône, guide d'utilisation, mot de passe oublié, contact d'urgence choisi dans le répertoire. »
+6. **Enregistrer** › **Examiner la version** › **Lancer le déploiement en test interne**.
+7. Testeurs (§ 4.8) : installer depuis le lien d'inscription, puis vérifier : icône ronde + monochrome (thème Android 13+),
+   splash bleu, Paramètres › Contacts d'urgence › « + Ajouter » › **Choisir dans mes contacts** présent.
+8. Ensuite, les corrections JavaScript passent par `eas update --channel production --environment production --platform android`.
+
+
 ```powershell
 # AAB de production (10 à 20 min) — versionCode incrémenté automatiquement par EAS
 eas build -p android --profile production
@@ -159,7 +178,7 @@ Changement natif (module natif, permissions, icône, nom, SDK) : augmenter `vers
 
 **Description courte** (80 max) :
 ```
-Tes potes motards en direct, balades, dangers sur la route, stories et messages.
+Tes potes en direct, balades en convoi, boucles, SOS et dangers sur la route.
 ```
 
 **Description complète** (4000 max) :
@@ -169,14 +188,26 @@ PasseRyder, c'est l'app des motards qui aiment rouler ensemble.
 🗺️ CARTE EN DIRECT
 Vois où roulent tes potes en temps réel, avec leur vitesse et leur moto. Tu choisis qui te voit : tout le monde, tes amis, seulement certains, ou personne avec le mode fantôme.
 
-🏍️ BALADES
-Planifie une sortie : tracé, point et heure de rendez-vous, niveau, type de route, catégories de motos acceptées. Invite tes amis, discute dans le groupe de la balade et retrouvez-vous sur la carte le jour J.
+🏍️ BALADES ET CONVOI
+Planifie une sortie : tracé, point et heure de rendez-vous, niveau, type de route, motos acceptées. Invite tes amis et discute dans le groupe de la balade. Le jour J, pointe ta présence au RDV, désigne un ouvreur et un serre-file : l'app prévient si quelqu'un décroche, fait une pause ou perd le réseau, et envoie un point de regroupement à tout le groupe.
+
+🌀 FAIS-MOI UNE BOUCLE
+Choisis une durée et le niveau de virages (tranquille, sinueux, très sinueux) : l'app te propose 2 ou 3 boucles au départ de chez toi, avec une note de sinuosité. Pars tout de suite ou crée une balade en un geste. Import et export GPX.
+
+🧭 NAVIGATION PENSÉE POUR LA MOTO
+Itinéraires Rapide, Sans autoroute ou Petites routes, guidage vocal, limitation de vitesse, arrêts essence et café sur ton trajet. Adapté à ta moto (jamais d'autoroute en 50 cm³). Pour ta sécurité, la saisie de texte est bloquée quand tu roules.
+
+🌦️ MÉTÉO SUR LE TRAJET
+Pluie, vent ou froid à l'heure où tu passeras : prévenu avant de partir et pendant la route.
+
+🆘 SÉCURITÉ
+Bouton SOS (appui long 2 secondes), détection de chute qui alerte tes proches si tu ne réponds pas, et « Je rentre » : si tu n'es pas arrivé à l'heure prévue, tes contacts d'urgence reçoivent ta dernière position par SMS.
 
 ⚠️ DANGERS SUR LA ROUTE
 Accident, gravillons, huile, travaux, objet, animal, bouchon, véhicule arrêté : signale-les en un geste et sois prévenu à la voix à l'approche. Les autres motards confirment ou retirent le signalement.
 
-🧭 NAVIGATION PENSÉE POUR LA MOTO
-Itinéraires avec ou sans autoroutes, adaptés à ta moto (jamais d'autoroute en 50 cm³). Pour ta sécurité, la saisie de texte est bloquée quand tu roules.
+☕ SPOTS ET ÉVÉNEMENTS
+Cafés motards, points de vue, belles routes, stations, garages et parkings moto notés par la communauté. Rassos, sorties club, expos et sorties piste près de chez toi, avec rappel la veille.
 
 🤝 TROUVER DES MOTARDS
 Trouve des motards près de chez toi, par catégorie de moto (50, 125, A2, gros cube, trail), rythme et disponibilités. Ta position exacte n'est jamais montrée, seulement une distance approximative.
@@ -184,8 +215,8 @@ Trouve des motards près de chez toi, par catégorie de moto (50, 125, A2, gros 
 📸 STORIES ET MESSAGES
 Partage tes sorties en stories photo ou vidéo qui disparaissent après 24 h, et discute en privé avec tes amis.
 
-👤 TON PROFIL MOTARD
-Tes motos, ton style, ton année de permis, ton mur de photos. Seul ton pseudo est public : ton nom reste privé.
+👤 TON PROFIL ET TON GARAGE
+Tes motos, ton style, ton mur de photos, tes badges et tes cols. Carnet d'entretien avec rappels (vidange, pneus, chaîne). Seul ton pseudo est public : ton nom reste privé.
 
 🔒 RESPECT DE TA VIE PRIVÉE
 Pas de publicité, pas de revente de données, données hébergées en Europe. Blocage et signalement des membres, suppression de ton compte et de toutes tes données à tout moment depuis l'app.
@@ -202,13 +233,15 @@ Ne manipule pas ton téléphone en roulant.
 | Captures tablette 7" / 10" | Facultatives (à passer) |
 | Vidéo YouTube | Facultative |
 
-**Captures à faire** (sur ton téléphone, mode démo activé dans Paramètres pour avoir du monde sur la carte, sans vraie donnée personnelle visible) :
-1. La carte avec des motards en direct
-2. Une balade (détail : tracé + RDV)
-3. La navigation avec un signalement de danger
-4. « Trouver des motards »
-5. Un profil motard (motos + mur)
-6. Les stories / la messagerie
+**Captures à faire** (il n'y a plus de mode démo : utilise 2 ou 3 comptes de test amis entre eux, avec des pseudos,
+photos et motos crédibles, sans vraie donnée personnelle visible ; recadrer en 1080 × 1920) :
+1. La carte avec des potes en direct
+2. Une balade (tracé + RDV) ou le convoi « Qui est au RDV ? »
+3. « Fais-moi une boucle » (2-3 boucles proposées)
+4. La navigation (guidage, limitation, météo)
+5. La sécurité : SOS / « Je rentre »
+6. Spots et événements (onglet Sorties)
+7. Un profil motard (motos + mur + badges)
 
 ### 4.3 Catégorie et coordonnées (Paramètres de la fiche)
 | Champ | Réponse |
@@ -224,7 +257,7 @@ Ne manipule pas ton téléphone en roulant.
 | Section | Réponse |
 |---|---|
 | Règles de confidentialité | `https://passeryder.fr/confidentialite` |
-| Accès à l'application | « Tout ou partie des fonctionnalités sont soumises à des restrictions » → fournir un **compte de test** : email `passeryder+review@gmail.com`, mot de passe au choix (crée-le d'abord dans l'app et complète le profil). Instructions : « Se connecter avec l'email et le mot de passe fournis. Activer le mode démo dans Profil › Paramètres › Démonstration pour voir des motards sur la carte. » |
+| Accès à l'application | « Tout ou partie des fonctionnalités sont soumises à des restrictions » → fournir un **compte de test** : email `passeryder+review@gmail.com`, mot de passe au choix (crée-le d'abord dans l'app et complète le profil). Instructions : « Se connecter avec l'email et le mot de passe fournis. Autoriser la localisation pour la carte et la navigation. Ce compte est ami avec un second compte de test : carte en direct, messages et balades visibles. » (créer aussi ce second compte, ami du premier) |
 | Annonces | Non, mon application ne contient pas d'annonces |
 | Classification du contenu | voir 4.5 |
 | Public cible | Tranches d'âge : **16-17 ans** et **18 ans et plus** (cohérent avec la politique : 16 ans minimum). Pas d'enfants → pas le programme Familles. « L'app pourrait-elle attirer les enfants ? » : Non |
@@ -286,6 +319,20 @@ Informations et performances de l'application (pas d'outil de plantage/analyse),
 (il reste sur le téléphone), Achats, Enregistrements vocaux, Fichiers et documents.
 
 ### 4.7 Autorisations sensibles
+**Version 1.2.0** (manifeste final contrôlé avec `npx expo config --type introspect` et les manifestes des modules) :
+
+| Permission | Pourquoi | Déclaration Play |
+|---|---|---|
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | Carte, navigation, SOS (app ouverte uniquement) | Non (pas d'arrière-plan) |
+| `CAMERA`, `RECORD_AUDIO` | Photos, stories vidéo (avec le son) | Non |
+| `READ_CONTACTS` | « Choisir dans mes contacts » (contacts d'urgence) | Non ; « Contacts » déjà dans la Sécurité des données |
+| `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `VIBRATE` | Notifications push | Non |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | Réseau, mises à jour | Non |
+| `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` | Ajoutées par expo-image-picker / expo-file-system (anciens Android) | Non |
+| `SYSTEM_ALERT_WINDOW` | Ajoutée par le modèle Expo (menu de développement) | Non |
+| Retirées (`blockedPermissions` d'app.json) : `WRITE_CONTACTS`, `ACTIVITY_RECOGNITION` | — | — |
+
+Historique :
 L'app n'utilise **pas** la localisation en arrière-plan ni `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO` (le sélecteur de photos système suffit) :
 aucune déclaration spéciale n'est normalement demandée. Si la Play Console en réclame une après l'import du `.aab`, suivre son message.
 

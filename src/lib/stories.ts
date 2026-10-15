@@ -20,11 +20,10 @@ export type Story = {
   caption: string | null;
   visibility: StoryVisibility;
   createdAt: string;
-  isDemo?: boolean;
 };
 
 /** Stories d'un même motard, dans l'ordre de publication */
-export type StoryGroup = { ownerId: string; username: string; avatarUrl: string; stories: Story[]; isDemo?: boolean };
+export type StoryGroup = { ownerId: string; username: string; avatarUrl: string; stories: Story[] };
 
 const BUCKET = 'stories';
 const SIGNED_URL_TTL_S = 3600;
@@ -80,7 +79,7 @@ export async function fetchStories(): Promise<Story[]> {
 export function groupStories(stories: Story[], meId: string | undefined, viewed: Set<string>): StoryGroup[] {
   const groups = new Map<string, StoryGroup>();
   for (const s of stories) {
-    const g = groups.get(s.ownerId) ?? { ownerId: s.ownerId, username: s.username, avatarUrl: s.avatarUrl, stories: [], isDemo: s.isDemo };
+    const g = groups.get(s.ownerId) ?? { ownerId: s.ownerId, username: s.username, avatarUrl: s.avatarUrl, stories: [] };
     g.stories.push(s);
     groups.set(s.ownerId, g);
   }

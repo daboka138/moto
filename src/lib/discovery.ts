@@ -4,7 +4,7 @@ import type { RidingStyle } from '@/lib/profile';
 import type { RiderFilters, RiderResult } from '@/lib/rider-filters';
 import { supabase } from '@/lib/supabase';
 
-export { EMPTY_FILTERS, matchesFilters, type RiderFilters, type RiderResult } from '@/lib/rider-filters';
+export { EMPTY_FILTERS, type RiderFilters, type RiderResult } from '@/lib/rider-filters';
 
 // Recherche de motards pour rouler ensemble.
 // - Opt-in : on n'apparaît que si on l'a activé (rider_discovery.discoverable).

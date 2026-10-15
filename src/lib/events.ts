@@ -44,7 +44,6 @@ export type MotoEvent = {
   interested: number;
   /** Mon inscription */
   myStatus: AttendStatus | null;
-  isDemo?: boolean;
 };
 
 type Row = {

@@ -9,8 +9,6 @@ import { LeafletMap } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { demoEvents } from '@/demo/community';
-import { useDemoMode } from '@/demo/demo-context';
 import { goToPlace } from '@/lib/app-link';
 import {
   deleteEvent,
@@ -24,7 +22,6 @@ import {
   type MotoEvent,
 } from '@/lib/events';
 import { askReport } from '@/lib/moderation';
-import { photoUrl } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 
 /** Fiche d'un événement : infos, carte, inscription (j'y vais / intéressé), participants. */
@@ -32,22 +29,20 @@ export default function EventScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session, profile } = useSession();
+  const { session } = useSession();
   const userId = session?.user.id;
-  const demo = useDemoMode();
-  const isDemo = id.startsWith('demo-');
   const [loaded, setLoaded] = useState<MotoEvent | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!userId || isDemo) return;
+    if (!userId) return;
     try {
       setLoaded(await fetchEvent(id, userId));
     } catch (e) {
       console.warn('Événement indisponible', e);
       setLoaded((e2) => e2 ?? null);
     }
-  }, [id, userId, isDemo]);
+  }, [id, userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,8 +50,7 @@ export default function EventScreen() {
     }, [load]),
   );
 
-  const me = { id: userId ?? 'me', username: profile?.username ?? 'moi', avatarUrl: profile ? photoUrl(profile.avatar_path) : '' };
-  const event = isDemo ? (demoEvents(demo.eventStatus, me).find((e) => e.id === id) ?? null) : loaded;
+  const event = loaded;
 
   if (event === undefined || !userId) {
     return (
@@ -81,10 +75,6 @@ export default function EventScreen() {
   const interested = event.attendees.filter((a) => a.status === 'interested');
 
   const attend = async (status: AttendStatus | null) => {
-    if (isDemo) {
-      demo.setEventStatus(event.id, status);
-      return;
-    }
     setBusy(true);
     try {
       await setAttendance(event.id, userId, status);
@@ -143,8 +133,7 @@ export default function EventScreen() {
 
   const openPerson = (pid: string) => {
     if (pid === userId) return;
-    if (isDemo) router.push({ pathname: '/demo-rider/[id]', params: { id: pid } });
-    else router.push({ pathname: '/user/[id]', params: { id: pid } });
+    router.push({ pathname: '/user/[id]', params: { id: pid } });
   };
 
   return (
@@ -163,7 +152,6 @@ export default function EventScreen() {
       <View style={styles.body}>
         <Text style={styles.kind}>
           {kind.emoji} {kind.label}
-          {event.isDemo ? ' · démo' : ''}
         </Text>
         <Text style={styles.title}>{event.title}</Text>
         <Info icon="calendar" text={formatEventDates(event)} />
@@ -193,18 +181,16 @@ export default function EventScreen() {
           </View>
         )}
         <Button title="Y aller" variant="ghost" onPress={() => goToPlace(event.place)} />
-        {!event.isDemo && (
-          <View style={styles.buttons}>
-            <Button title="Partager le lien" variant="secondary" onPress={share} />
-            {!ended && (
-              <Button
-                title="Inviter des amis"
-                variant="secondary"
-                onPress={() => router.push({ pathname: '/event/invite', params: { id: event.id } })}
-              />
-            )}
-          </View>
-        )}
+        <View style={styles.buttons}>
+          <Button title="Partager le lien" variant="secondary" onPress={share} />
+          {!ended && (
+            <Button
+              title="Inviter des amis"
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/event/invite', params: { id: event.id } })}
+            />
+          )}
+        </View>
 
         <View style={styles.map}>
           <LeafletMap

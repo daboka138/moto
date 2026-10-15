@@ -83,11 +83,6 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
             />
             <Text style={[styles.chipText, { color: Colors.text }]}>{visibility.label}</Text>
           </View>
-          {ride.isDemo && (
-            <View style={[styles.chip, styles.chipOutline]}>
-              <Text style={[styles.chipText, { color: Colors.textMuted }]}>Démo</Text>
-            </View>
-          )}
         </View>
 
         {actions}
