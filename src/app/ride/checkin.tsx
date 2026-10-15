@@ -22,11 +22,12 @@ import {
   type RideRole,
 } from '@/lib/rides';
 import { useSession } from '@/lib/session';
+import { FeatureGate } from '@/components/feature-gate';
 
 const REFRESH_MS = 10_000;
 
 /** Qui est au RDV ? Pointage des inscrits, rôles ouvreur / serre-file (organisateur). */
-export default function RideCheckInScreen() {
+function RideCheckInScreenContent() {
   const Colors = useColors();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -236,3 +237,11 @@ const useStyles = makeStyles((Colors) => ({
   status: { alignItems: 'center', minWidth: 52 },
   time: { fontSize: 11, color: Colors.textMuted },
 }));
+
+export default function RideCheckInScreen() {
+  return (
+    <FeatureGate feature="convoy_tools">
+      <RideCheckInScreenContent />
+    </FeatureGate>
+  );
+}

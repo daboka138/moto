@@ -5,6 +5,7 @@ import { showActionSheet } from '@/components/action-sheet';
 import { TripStatsGrid } from '@/components/trip-summary';
 import { makeStyles, useColors } from '@/constants/theme';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
+import { canUse } from '@/lib/features';
 import { saveGpxFile } from '@/lib/gpx-file';
 import { shortDistance } from '@/lib/navigation';
 import { clearTrips, deleteTrip, readTrack, useTrips, type TripSummary } from '@/lib/trips';
@@ -71,7 +72,7 @@ function TripRow({ trip }: { trip: TripSummary }) {
     showActionSheet({
       title: trip.destination,
       options: [
-        ...(trip.hasTrack ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
+        ...(trip.hasTrack && canUse('gpx') ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
         { label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) },
       ],
     });

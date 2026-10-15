@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
 import { BadgesCard, useRiderStats } from '@/components/badges-card';
+import { GoodPointsCard } from '@/components/good-points';
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -162,7 +163,13 @@ export default function UserProfileScreen() {
                 ),
         }}
       />
-      <ProfileView profile={profile} stats={stats} photos={photos} actions={actions} badges={<BadgesCard stats={riderStats} />} />
+      <ProfileView profile={profile} stats={stats} photos={photos} actions={actions} badges={
+          <>
+            <BadgesCard stats={riderStats} />
+            <GoodPointsCard userId={id} self={relation === 'self'} />
+          </>
+        }
+      />
     </>
   );
 }

@@ -25,11 +25,12 @@ import {
 import { mainCategory } from '@/lib/profile';
 import { formatDistance } from '@/lib/routing';
 import { useSession } from '@/lib/session';
+import { FeatureGate } from '@/components/feature-gate';
 
 const durationLabel = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}`);
 
 /** « Fais-moi une boucle » : 2-3 boucles au départ de ma position, avec un score de sinuosité. */
-export default function LoopScreen() {
+function LoopScreenContent() {
   const Colors = useColors();
   const styles = useStyles();
   const { profile } = useSession();
@@ -225,3 +226,11 @@ const useStyles = makeStyles((Colors) => ({
   actions: { gap: 8 },
   credit: { fontSize: 11, color: Colors.textMuted, textAlign: 'center' },
 }));
+
+export default function LoopScreen() {
+  return (
+    <FeatureGate feature="loop">
+      <LoopScreenContent />
+    </FeatureGate>
+  );
+}

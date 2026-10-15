@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { distanceM, type LatLng } from '@/lib/geo';
 import { speak } from '@/lib/voice';
+import { useCanUse } from '@/lib/features';
 
 // Météo sur le trajet (API Open-Meteo, gratuite, sans clé) : quelques points répartis le long
 // de l'itinéraire, chacun à son heure de passage estimée (départ + part de la durée).
@@ -230,7 +231,8 @@ const NAV_REFRESH_MS = 30 * 60_000;
  * estimée), rafraîchies toutes les 30 min ou après un recalcul d'itinéraire. Annonce vocale une
  * fois par phénomène.
  */
-export function useNavWeather(route: { points: LatLng[]; durationS: number; distanceM: number } | null, alongM: number | null) {
+export function useNavWeather(input: { points: LatLng[]; durationS: number; distanceM: number } | null, alongM: number | null) {
+  const route = useCanUse('route_weather') ? input : null;
   const [state, setState] = useState<{ key: string; weather: RouteWeather } | null>(null);
   const progress = useRef(alongM ?? 0);
   const announced = useRef(new Set<WeatherHazard>());
@@ -282,7 +284,8 @@ export function spokenWeatherAlert(w: RouteWeather | null) {
 }
 
 /** Météo d'un tracé, recalculée quand le tracé ou l'heure de départ change. */
-export function useRouteWeather(points: LatLng[] | null, durationS: number | null, departAt: Date | null) {
+export function useRouteWeather(input: LatLng[] | null, durationS: number | null, departAt: Date | null) {
+  const points = useCanUse('route_weather') ? input : null;
   const [state, setState] = useState<{ key: string; weather: RouteWeather | null; error: boolean } | null>(null);
   const key =
     points && points.length >= 2 && durationS !== null && departAt

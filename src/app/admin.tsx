@@ -4,10 +4,15 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 
-import { Chip, Field } from '@/components/ui';
+import { showActionSheet } from '@/components/action-sheet';
+import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import {
   ADMIN_PAGE,
+  CHALLENGE_METRICS,
+  deleteChallenge,
+  fetchChallenges,
+  saveChallenge,
   fetchAdminReports,
   fetchAdminStats,
   fetchAdminUsers,
@@ -20,10 +25,13 @@ import {
   type AdminReport,
   type AdminStats,
   type AdminUser,
+  type ChallengeMetric,
+  type ChallengeRow,
 } from '@/lib/admin';
+import { FEATURE_STATUS_LABELS, refreshFeatures, setFeatureStatus, setUserPremium, useFeatures, type FeatureStatus } from '@/lib/features';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'users' | 'moderation';
+type Tab = 'overview' | 'users' | 'moderation' | 'features';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -53,8 +61,9 @@ export default function AdminScreen() {
         <Chip label="Vue d’ensemble" selected={tab === 'overview'} onPress={() => setTab('overview')} />
         <Chip label="Inscrits" selected={tab === 'users'} onPress={() => setTab('users')} />
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
+        <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
       </View>
-      {tab === 'overview' ? <Overview /> : tab === 'users' ? <Users /> : <Moderation />}
+      {tab === 'overview' ? <Overview /> : tab === 'users' ? <Users /> : tab === 'moderation' ? <Moderation /> : <Features />}
     </View>
   );
 }
@@ -222,6 +231,39 @@ function Users() {
     }
   };
 
+  const setPremium = (u: AdminUser) => {
+    const apply = async (mode: 'lifetime' | 'until' | 'free', months?: number) => {
+      try {
+        const until = months ? new Date(Date.now() + months * 30 * 24 * 3600 * 1000) : undefined;
+        await setUserPremium(u.id, mode, until);
+        setResult(
+          (r) =>
+            r && {
+              ...r,
+              users: r.users.map((x) =>
+                x.id === u.id
+                  ? { ...x, lifetimePremium: mode === 'lifetime' || x.isAdmin, premiumUntil: until ? until.toISOString() : null }
+                  : x,
+              ),
+            },
+        );
+      } catch (e) {
+        Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+      }
+    };
+    showActionSheet({
+      title: `Premium pour @${u.username}`,
+      message: 'Offert (testeurs) : aucun paiement. Un admin reste premium à vie.',
+      options: [
+        { label: 'Offrir 1 mois', onPress: () => apply('until', 1) },
+        { label: 'Offrir 3 mois', onPress: () => apply('until', 3) },
+        { label: 'Offrir 1 an', onPress: () => apply('until', 12) },
+        { label: 'Offrir à vie', onPress: () => apply('lifetime') },
+        { label: 'Retirer le premium', destructive: true, onPress: () => apply('free') },
+      ],
+    });
+  };
+
   const toggleSuspend = (u: AdminUser) =>
     Alert.alert(
       u.suspended ? 'Rétablir ce compte ?' : 'Suspendre ce compte ?',
@@ -265,6 +307,7 @@ function Users() {
                 {u.isAdmin ? ' · admin' : ''}
                 {u.suspended ? ' · suspendu' : ''}
               </Text>
+              {premiumLabel(u) && <Text style={styles.premium}>★ {premiumLabel(u)}</Text>}
               <Text style={styles.small} numberOfLines={1}>
                 {u.email ?? '—'}
               </Text>
@@ -275,6 +318,9 @@ function Users() {
                 {[u.city, u.platform].filter(Boolean).join(' · ') || 'Ville et plateforme inconnues'}
               </Text>
             </View>
+            <Pressable onPress={() => setPremium(u)} hitSlop={8} accessibilityLabel="Premium">
+              <Ionicons name={premiumLabel(u) ? 'star' : 'star-outline'} size={24} color={Colors.accent} />
+            </Pressable>
             {!u.isAdmin && (
               <Pressable onPress={() => toggleSuspend(u)} hitSlop={8} accessibilityLabel={u.suspended ? 'Rétablir' : 'Suspendre'}>
                 <Ionicons name={u.suspended ? 'lock-open-outline' : 'ban'} size={24} color={u.suspended ? Colors.success : Colors.danger} />
@@ -290,6 +336,12 @@ function Users() {
       )}
     </ScrollView>
   );
+}
+
+function premiumLabel(u: AdminUser) {
+  if (u.lifetimePremium) return 'Premium à vie';
+  if (u.premiumUntil && new Date(u.premiumUntil) > new Date()) return `Premium jusqu’au ${date(u.premiumUntil)}`;
+  return null;
 }
 
 // ---------- Modération ----------
@@ -413,6 +465,212 @@ function Moderation() {
   );
 }
 
+// ---------- Fonctionnalités (gratuit / premium / désactivé) et défi du mois ----------
+
+const STATUSES: FeatureStatus[] = ['free', 'premium', 'disabled'];
+
+function Features() {
+  const Colors = useColors();
+  const styles = useStyles();
+  const { features } = useFeatures();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshFeatures().catch((e) => console.warn('Fonctionnalités indisponibles', e));
+    }, []),
+  );
+
+  const change = async (key: string, status: FeatureStatus) => {
+    setBusy(key);
+    try {
+      await setFeatureStatus(key, status);
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <Text style={styles.small}>
+        Gratuit = pour tous ; Premium = membres premium seulement ; Désactivé = masqué pour tous. Bêta : tout reste gratuit.
+        Aucun paiement n’existe encore (voir PLAY_STORE.md). « Écran PasseRyder Premium » : Gratuit = bouton visible dans Paramètres.
+      </Text>
+      {!features ? (
+        <ActivityIndicator color={Colors.accent} />
+      ) : (
+        features.map((f) => (
+          <View key={f.key} style={[styles.card, { gap: 8 }]}>
+            <Text style={styles.label}>{f.name}</Text>
+            {!!f.description && <Text style={styles.small}>{f.description}</Text>}
+            {busy === f.key ? (
+              <ActivityIndicator color={Colors.accent} />
+            ) : (
+              <View style={styles.actions}>
+                {STATUSES.map((st) => (
+                  <Chip key={st} label={FEATURE_STATUS_LABELS[st]} selected={f.status === st} onPress={() => f.status !== st && change(f.key, st)} />
+                ))}
+              </View>
+            )}
+          </View>
+        ))
+      )}
+
+      <Text style={styles.section}>Défi du mois</Text>
+      <Challenges />
+    </ScrollView>
+  );
+}
+
+const thisMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const EMPTY_CHALLENGE = (): ChallengeRow => ({
+  month: thisMonth(),
+  emoji: '🎯',
+  title: '',
+  description: '',
+  metric: 'clean_km',
+  goal: 100,
+  bonus: 50,
+});
+
+function Challenges() {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [list, setList] = useState<ChallengeRow[] | null>(null);
+  const [draft, setDraft] = useState<ChallengeRow | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setList(await fetchChallenges());
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const save = async () => {
+    if (!draft) return;
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.month) || draft.title.trim().length < 3 || !(draft.goal > 0)) {
+      Alert.alert('Défi', 'Mois au format AAAA-MM, titre de 3 caractères au moins, objectif supérieur à 0.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await saveChallenge({ ...draft, title: draft.title.trim(), description: draft.description?.trim() || null });
+      setDraft(null);
+      await load();
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (draft) {
+    return (
+      <View style={[styles.card, { gap: 8 }]}>
+        <Field label="Mois (AAAA-MM)" value={draft.month} onChangeText={(v) => setDraft({ ...draft, month: v.trim() })} maxLength={7} />
+        <Field label="Emoji" value={draft.emoji} onChangeText={(v) => setDraft({ ...draft, emoji: v })} maxLength={8} />
+        <Field label="Titre" value={draft.title} onChangeText={(v) => setDraft({ ...draft, title: v })} maxLength={80} />
+        <Field
+          label="Description"
+          value={draft.description ?? ''}
+          onChangeText={(v) => setDraft({ ...draft, description: v })}
+          maxLength={300}
+          multiline
+        />
+        <Text style={styles.label}>Ce qui est compté</Text>
+        <View style={styles.actions}>
+          {CHALLENGE_METRICS.map((m) => (
+            <Chip
+              key={m.value}
+              label={m.label}
+              selected={draft.metric === m.value}
+              onPress={() => setDraft({ ...draft, metric: m.value as ChallengeMetric })}
+            />
+          ))}
+        </View>
+        <Field
+          label={draft.metric === 'clean_km' ? 'Objectif (km)' : 'Objectif'}
+          value={String(draft.goal || '')}
+          onChangeText={(v) => setDraft({ ...draft, goal: parseInt(v.replace(/\D/g, ''), 10) || 0 })}
+          keyboardType="number-pad"
+        />
+        <Field
+          label="Bonus (points, 200 max)"
+          value={String(draft.bonus)}
+          onChangeText={(v) => setDraft({ ...draft, bonus: Math.min(200, parseInt(v.replace(/\D/g, ''), 10) || 0) })}
+          keyboardType="number-pad"
+        />
+        <Button title="Enregistrer le défi" onPress={save} loading={saving} />
+        <Button title="Annuler" variant="ghost" onPress={() => setDraft(null)} />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      {!list ? (
+        <ActivityIndicator color={Colors.accent} />
+      ) : list.length === 0 ? (
+        <Text style={styles.muted}>Aucun défi.</Text>
+      ) : (
+        list.map((c) => (
+          <View key={c.month} style={[styles.card, { gap: 4 }]}>
+            <Text style={styles.reportType}>
+              {c.month}
+              {c.month === thisMonth() ? ' · en cours' : ''}
+            </Text>
+            <Text style={styles.label}>
+              {c.emoji} {c.title}
+            </Text>
+            <Text style={styles.small}>
+              {CHALLENGE_METRICS.find((m) => m.value === c.metric)?.label ?? c.metric} : {c.goal} · bonus {c.bonus} points
+            </Text>
+            <View style={styles.actions}>
+              <Action label="Modifier" onPress={() => setDraft(c)} />
+              <Action
+                label="Supprimer"
+                danger
+                onPress={() =>
+                  Alert.alert('Supprimer ce défi ?', c.title, [
+                    { text: 'Annuler', style: 'cancel' },
+                    {
+                      text: 'Supprimer',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await deleteChallenge(c.month);
+                          await load();
+                        } catch (e) {
+                          Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+                        }
+                      },
+                    },
+                  ])
+                }
+              />
+            </View>
+          </View>
+        ))
+      )}
+      <Button title="Nouveau défi" variant="secondary" onPress={() => setDraft(EMPTY_CHALLENGE())} />
+    </>
+  );
+}
+
 function Action({ label, danger, onPress }: { label: string; danger?: boolean; onPress: () => void }) {
   const styles = useStyles();
   return (
@@ -449,6 +707,7 @@ const useStyles = makeStyles((Colors) => ({
   more: { alignItems: 'center', padding: 12 },
   link: { color: Colors.accent, fontWeight: '800' },
   reportType: { fontSize: 12, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
+  premium: { fontSize: 12, fontWeight: '800', color: Colors.accent },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   action: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.background },
   actionDanger: { backgroundColor: Colors.danger },

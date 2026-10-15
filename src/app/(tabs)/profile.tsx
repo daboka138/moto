@@ -4,10 +4,12 @@ import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { BadgesCard, useRiderStats } from '@/components/badges-card';
+import { GoodPointsCard } from '@/components/good-points';
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
 import { ProfileView } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { useTheme } from '@/constants/theme';
+import { useCanUse } from '@/lib/features';
 import { pickImage } from '@/lib/pick-image';
 import { useSession } from '@/lib/session';
 import { useTrips } from '@/lib/trips';
@@ -23,6 +25,7 @@ export default function ProfileScreen() {
   const { photos, stats, refresh } = useProfileWall(userId);
   const trips = useTrips();
   const riderStats = useRiderStats(userId);
+  const garageOn = useCanUse('garage');
   // ?photo=<id> : depuis une notification (like ou commentaire sur ma photo)
   const { photo: openPhotoId } = useLocalSearchParams<{ photo?: string }>();
 
@@ -83,7 +86,12 @@ export default function ProfileScreen() {
       onOpenSettings={() => router.push('/settings')}
       onOpenHelp={() => router.push('/help')}
       openPhotoId={openPhotoId}
-      badges={<BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />}
+      badges={
+        <>
+          <BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />
+          <GoodPointsCard userId={userId} self onPress={() => router.push('/points')} />
+        </>
+      }
       actions={
         <>
           <Button title="Modifier mon profil" variant="secondary" onPress={() => router.push('/profile-edit')} />
@@ -100,7 +108,7 @@ export default function ProfileScreen() {
             <LinkSeparator />
             <LinkRow icon="speedometer" label="Mes trajets" value={`${trips.length}`} onPress={() => router.push('/trips')} />
             <LinkSeparator />
-            <LinkRow icon="construct" label="Garage et entretien" onPress={() => router.push('/garage')} />
+            {garageOn && <LinkRow icon="construct" label="Garage et entretien" onPress={() => router.push('/garage')} />}
           </LinkGroup>
         </>
       }

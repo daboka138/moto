@@ -15,6 +15,8 @@ import { IS_WEB } from '@/lib/app-link';
 import { signOut } from '@/lib/auth';
 import { fetchDiscoverable, setDiscoverable } from '@/lib/discovery';
 import { FALL_SENSITIVITIES, updateSafetySettings, useSafetySettings } from '@/lib/fall-detection';
+import { useCanUse } from '@/lib/features';
+import { fetchMyGoodPoints, initSeenBadges, saveGoodPointsSettings, useGoodPointsEnabled } from '@/lib/good-points';
 import { useHomecoming } from '@/lib/homecoming';
 import {
   DEFAULT_PREFS,
@@ -136,6 +138,8 @@ export default function SettingsScreen() {
         />
       </View>
 
+      <GoodPointsSection />
+
       {isAdmin && (
         <LinkGroup>
           <LinkRow icon="construct-outline" label="Console développeur" onPress={() => router.push('/admin')} />
@@ -188,6 +192,62 @@ export default function SettingsScreen() {
 
       {!IS_WEB && <UpdateCard />}
     </ScrollView>
+  );
+}
+
+/** Points de bon comportement (opt-in) + bouton Premium (caché tant que l'admin ne l'active pas) */
+function GoodPointsSection() {
+  const styles = useStyles();
+  const allowed = useCanUse('good_points');
+  const premiumOffer = useCanUse('premium_offer');
+  const enabled = useGoodPointsEnabled();
+  const [busy, setBusy] = useState(false);
+
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    try {
+      const mine = await fetchMyGoodPoints();
+      await saveGoodPointsSettings(
+        on
+          ? { ...mine.settings, enabled: true }
+          : { ...mine.settings, enabled: false, showOnProfile: false, friendsRanking: false, departmentRanking: false },
+      );
+      if (on) initSeenBadges(mine.counters);
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!allowed && !premiumOffer) return null;
+  return (
+    <>
+      {allowed && (
+        <>
+          <Text style={styles.section}>Points de bon comportement</Text>
+          <View style={styles.card}>
+            <SwitchRow
+              label="Gagner des points"
+              description="Km propres, trajets sans téléphone, dangers confirmés, balades et spots. Désactivé par défaut ; score privé, jamais lié à la vitesse."
+              value={enabled}
+              onChange={toggle}
+              disabled={busy}
+            />
+          </View>
+          {enabled && (
+            <LinkGroup>
+              <LinkRow icon="ribbon-outline" label="Mes points" onPress={() => router.push('/points')} />
+            </LinkGroup>
+          )}
+        </>
+      )}
+      {premiumOffer && (
+        <LinkGroup>
+          <LinkRow icon="star-outline" label="PasseRyder Premium" onPress={() => router.push('/premium')} />
+        </LinkGroup>
+      )}
+    </>
   );
 }
 

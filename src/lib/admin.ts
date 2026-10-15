@@ -66,6 +66,8 @@ export type AdminUser = {
   platform: string | null;
   suspended: boolean;
   isAdmin: boolean;
+  lifetimePremium: boolean;
+  premiumUntil: string | null;
 };
 
 export const ADMIN_PAGE = 50;
@@ -84,6 +86,8 @@ export async function fetchAdminUsers(query: string, offset = 0): Promise<AdminU
     platform: string | null;
     suspended: boolean;
     is_admin: boolean;
+    lifetime_premium: boolean;
+    premium_until: string | null;
   };
   return ((data ?? []) as Row[]).map((r) => ({
     id: r.id,
@@ -96,6 +100,8 @@ export async function fetchAdminUsers(query: string, offset = 0): Promise<AdminU
     platform: r.platform,
     suspended: r.suspended,
     isAdmin: r.is_admin,
+    lifetimePremium: r.lifetime_premium,
+    premiumUntil: r.premium_until,
   }));
 }
 
@@ -170,5 +176,62 @@ export async function suspendUser(userId: string, suspend: boolean, reason?: str
 
 export async function setSignupNotify(on: boolean) {
   const { error } = await supabase.rpc('admin_set_signup_notify', { p_on: on });
+  if (error) throw new Error(error.message);
+}
+
+
+// ---------- Défi du mois (points de bon comportement) ----------
+
+export type ChallengeMetric =
+  | 'clean_km'
+  | 'phone_free'
+  | 'danger_confirmed'
+  | 'danger_confirm'
+  | 'ride_organized'
+  | 'convoy_done'
+  | 'regroup'
+  | 'spot_rated'
+  | 'points';
+
+export const CHALLENGE_METRICS: { value: ChallengeMetric; label: string }[] = [
+  { value: 'clean_km', label: 'Km propres' },
+  { value: 'phone_free', label: 'Trajets sans téléphone' },
+  { value: 'danger_confirmed', label: 'Dangers signalés confirmés' },
+  { value: 'danger_confirm', label: 'Dangers confirmés pour les autres' },
+  { value: 'ride_organized', label: 'Balades organisées' },
+  { value: 'convoy_done', label: 'Convois menés' },
+  { value: 'regroup', label: 'Regroupements' },
+  { value: 'spot_rated', label: 'Spots bien notés' },
+  { value: 'points', label: 'Points gagnés' },
+];
+
+export type ChallengeRow = {
+  month: string;
+  emoji: string;
+  title: string;
+  description: string | null;
+  metric: ChallengeMetric;
+  goal: number;
+  bonus: number;
+};
+
+export async function fetchChallenges(): Promise<ChallengeRow[]> {
+  const { data, error } = await supabase
+    .from('monthly_challenges')
+    .select('month, emoji, title, description, metric, goal, bonus')
+    .order('month', { ascending: false })
+    .limit(12);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ChallengeRow[];
+}
+
+/** Créer ou modifier le défi d'un mois (RLS : admin seulement) */
+export async function saveChallenge(c: ChallengeRow) {
+  const { error } = await supabase.from('monthly_challenges').upsert(c, { onConflict: 'month' });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteChallenge(month: string) {
+  const { error } = await supabase.from('monthly_challenges').delete().eq('month', month);
   if (error) throw new Error(error.message);
 }

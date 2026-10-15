@@ -12,6 +12,7 @@ import { Button, Chip, Field, Section } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
+import { canUse } from '@/lib/features';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { simplifyTrack, takePendingGpx, trackLengthM, type GpxData } from '@/lib/gpx';
@@ -253,10 +254,12 @@ export default function NewRideScreen() {
         <Field label="Titre" required value={title} onChangeText={setTitle} placeholder="ex. Tour des Calanques" maxLength={80} />
 
         <Section title="Itinéraire">
-          <Pressable style={styles.addStep} onPress={importFile}>
-            <Ionicons name="document-attach-outline" size={20} color={Colors.accent} />
-            <Text style={styles.addStepText}>Importer un tracé GPX</Text>
-          </Pressable>
+          {canUse('gpx') && (
+            <Pressable style={styles.addStep} onPress={importFile}>
+              <Ionicons name="document-attach-outline" size={20} color={Colors.accent} />
+              <Text style={styles.addStepText}>Importer un tracé GPX</Text>
+            </Pressable>
+          )}
           <PlaceField
             label="Départ (A)"
             required

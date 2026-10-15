@@ -20,6 +20,7 @@ import {
 } from '@/lib/rides';
 import { IS_WEB } from '@/lib/app-link';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
+import { canUse } from '@/lib/features';
 import { saveGpxFile } from '@/lib/gpx-file';
 import { fetchRouteWeather } from '@/lib/weather';
 import { mainCategory } from '@/lib/profile';
@@ -157,7 +158,7 @@ export default function RideScreen() {
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
       )}
-      {(isOrganizer || ride.joined) && ride.status !== 'ended' && canStartNow(ride.meetingAt) && (
+      {(isOrganizer || ride.joined) && ride.status !== 'ended' && canStartNow(ride.meetingAt) && canUse('convoy_tools') && (
         <Button
           title={`✅ Qui est au RDV ? (${ride.participants.filter((p) => p.status === 'joined' && p.checkedInAt).length}/${ride.participantsCount})`}
           variant="secondary"
@@ -188,7 +189,7 @@ export default function RideScreen() {
               onPress={() => router.push({ pathname: '/ride/invite', params: { id: ride.id } })}
             />
           )}
-          <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />
+          {canUse('gpx') && <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />}
           <Button title="Supprimer la balade" variant="ghost" onPress={confirmDelete} />
         </>
       ) : ride.joined ? (
@@ -201,7 +202,7 @@ export default function RideScreen() {
           <Button title={ride.invited ? 'Tu es invité · Je participe' : 'Je participe'} loading={busy} onPress={confirmJoin} />
         )
       ) : null}
-      {!isOrganizer && <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />}
+      {!isOrganizer && canUse('gpx') && <Button title="Exporter le tracé (GPX)" variant="ghost" onPress={exportGpx} />}
     </View>
   );
 

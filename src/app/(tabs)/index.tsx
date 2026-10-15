@@ -32,6 +32,8 @@ import { useConvoy } from '@/lib/convoy';
 import { eventKindInfo } from '@/lib/events';
 import { placeKindInfo } from '@/lib/places';
 import { readTrack } from '@/lib/trips';
+import { canUse, useCanUse } from '@/lib/features';
+import { recordTripPoints, refreshBadgesAfterGain, useGoodDrivingTracker, useGoodPointsEnabled } from '@/lib/good-points';
 import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { needsFuel, useFuelAlert } from '@/lib/fuel';
@@ -232,8 +234,13 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homecoming, position?.latitude, position?.longitude]);
 
+  // Points de bon comportement (opt-in) : la limitation sert aussi à compter les km propres
+  const goodPointsEnabled = useGoodPointsEnabled();
+  const goodPointsAllowed = useCanUse('good_points');
+  const pointsOn = goodPointsEnabled && goodPointsAllowed;
+
   // Limitation de vitesse de la route (OSM) ; dépassement : compteur rouge + bip
-  const speedLimit = useSpeedLimit(position, kmh, voice.speedLimit || voice.speedAlert);
+  const speedLimit = useSpeedLimit(position, kmh, voice.speedLimit || voice.speedAlert || (pointsOn && navigating));
   const overLimit = voice.speedAlert && speedLimit !== null && kmh > speedLimit + SPEED_MARGIN_KMH;
   const [beepKey, setBeepKey] = useState(0);
   useEffect(() => {
@@ -246,6 +253,23 @@ export default function MapScreen() {
       clearInterval(timer);
     };
   }, [overLimit]);
+
+  // Km propres et trajet sans téléphone, envoyés à la fin de la navigation (plafonnés par le serveur)
+  const { onTouch: onDrivingTouch, snapshot: drivingSnapshot } = useGoodDrivingTracker(navigating && pointsOn, position, kmh, speedLimit);
+  const pointedTrip = useRef<string | null>(null);
+  useEffect(() => {
+    const trip = nav.summary;
+    if (!trip || !pointsOn || pointedTrip.current === trip.id) return;
+    pointedTrip.current = trip.id;
+    const { cleanKm, phoneFree } = drivingSnapshot();
+    recordTripPoints(trip.id, trip.distanceM / 1000, cleanKm, phoneFree)
+      .then(async (points) => {
+        if (points <= 0) return;
+        setTimeout(() => showToast(`+${points} points de bon comportement`), 3000);
+        await refreshBadgesAfterGain();
+      })
+      .catch((e) => console.warn('Points non enregistrés', e));
+  }, [nav.summary, pointsOn, drivingSnapshot]);
 
   // Sécurité : pas de saisie de texte en navigation au-dessus de 10 km/h
   const { setLocked } = useDrivingLock();
@@ -476,7 +500,7 @@ export default function MapScreen() {
         { label: '⚠️ Signaler un danger', onPress: () => setReportSheet(true) },
         { label: '📍 Ajouter un spot motard', onPress: () => router.push({ pathname: '/place/new', params: here }) },
         { label: '📅 Créer un événement', onPress: () => router.push({ pathname: '/event/new', params: here }) },
-        { label: '🌀 Fais-moi une boucle', onPress: () => router.push('/loop') },
+        ...(canUse('loop') ? [{ label: '🌀 Fais-moi une boucle', onPress: () => router.push('/loop') }] : []),
       ],
     });
   };
@@ -694,7 +718,7 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onTouchStart={onDrivingTouch}>
       <TipBubble id="carte" enabled={!navigating} />
       <LeafletMap
         position={position}

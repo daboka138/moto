@@ -618,6 +618,34 @@ export const FICHES: Fiche[] = [
     limites: ['Seuls les trajets faits avec la navigation de l’app comptent.'],
     motsCles: ['cols', 'stats', 'kilomètres', 'défi'],
   },
+  {
+    id: 'points',
+    theme: 'communaute',
+    emoji: '🛡️',
+    titre: 'Points de bon comportement',
+    but: 'Gagner des points, des niveaux et des badges en roulant proprement et en aidant les autres.',
+    etapes: [
+      'Profil › ⚙️ Paramètres › Points de bon comportement › active « Gagner des points » (désactivé par défaut).',
+      'Ouvre « Mes points » : niveau, défi du mois, badges, classement et historique.',
+      'Km propres : 1 point / 10 km roulés en navigation sans dépasser la limitation connue.',
+      'Trajet sans téléphone : 5 points si tu ne touches pas l’écran en roulant (5 km minimum).',
+      'Danger signalé puis confirmé par un autre motard : 10 points ; confirmer le danger d’un autre : 2 points.',
+      'Balade terminée avec au moins 2 participants présents : 20 points ; ouvreur et serre-file : 15 points ; point de regroupement rejoint : 5 points.',
+      'Spot ajouté et bien noté par les autres (2 avis, 4 ★ de moyenne) : 15 points.',
+      'Niveaux : 🔰 Apprenti, 🏍️ Motard (150), 🧭 Road Captain (750), 👑 Légende (3 000).',
+    ],
+    astuces: [
+      'Ton score est privé : dans « Mes points › Confidentialité », choisis s’il apparaît sur ton profil et dans le classement entre amis ou de ton département.',
+      'Le défi du mois rapporte un bonus une fois réussi.',
+      '« Effacer mon historique » supprime tous tes points ; « Désactiver » arrête les gains.',
+    ],
+    limites: [
+      'Jamais de points liés à la vitesse ou au chrono.',
+      'Plafond de 100 points par jour (40 pour les km).',
+      'Km propres et trajets sans téléphone : seulement pendant une navigation dans l’app Android.',
+    ],
+    motsCles: ['score', 'niveau', 'classement', 'récompense', 'road captain', 'légende', 'défi du mois'],
+  },
 
   // ---------------------------------------------------------------- Sécurité
   {

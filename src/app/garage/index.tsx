@@ -8,9 +8,10 @@ import { makeStyles, useColors } from '@/constants/theme';
 import { dueText, fuelRange, kindInfo, planStatus, useMyGarage } from '@/lib/garage';
 import { photoUrl } from '@/lib/profile';
 import { useSession } from '@/lib/session';
+import { FeatureGate } from '@/components/feature-gate';
 
 /** Garage : mes motos, compteur, autonomie et prochain entretien. */
-export default function GarageScreen() {
+function GarageScreenContent() {
   const Colors = useColors();
   const styles = useStyles();
   const { session, profile } = useSession();
@@ -88,3 +89,11 @@ const useStyles = makeStyles((Colors) => ({
   line: { fontSize: 14, color: Colors.text },
   hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
 }));
+
+export default function GarageScreen() {
+  return (
+    <FeatureGate feature="garage">
+      <GarageScreenContent />
+    </FeatureGate>
+  );
+}

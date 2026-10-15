@@ -10,6 +10,7 @@ import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
+import { useCanUse } from '@/lib/features';
 import { importGpx } from '@/lib/gpx-import';
 import { categoryInfo, rideFitsCategory } from '@/lib/moto';
 import { mainCategory } from '@/lib/profile';
@@ -47,6 +48,8 @@ function matchesDate(ride: RideSummary, filter: DateFilter) {
 }
 
 export default function RidesScreen() {
+  const gpxOn = useCanUse('gpx');
+  const loopOn = useCanUse('loop');
   const Colors = useColors();
   const styles = useStyles();
   const { profile } = useSession();
@@ -86,7 +89,7 @@ export default function RidesScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Sorties</Text>
         <View style={styles.headerButtons}>
-            {segment === 'rides' && (
+            {segment === 'rides' && gpxOn && (
             <Pressable style={styles.gpx} onPress={importGpx} accessibilityLabel="Importer un fichier GPX">
               <Ionicons name="document-attach-outline" size={18} color={Colors.accent} />
               <Text style={styles.gpxText}>GPX</Text>
@@ -163,7 +166,7 @@ export default function RidesScreen() {
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
               ListHeaderComponent={
-                <Pressable style={({ pressed }) => [styles.loopCard, pressed && { opacity: 0.7 }]} onPress={() => router.push('/loop')}>
+                !loopOn ? null : <Pressable style={({ pressed }) => [styles.loopCard, pressed && { opacity: 0.7 }]} onPress={() => router.push('/loop')}>
                   <Ionicons name="infinite" size={28} color={Colors.white} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.loopTitle}>Fais-moi une boucle</Text>

@@ -314,6 +314,10 @@ Collectés = Oui, **Partagés = Oui** (Brevo, prestataire d'envoi des SMS d'aler
 (gardés le temps d'un « Je rentre »), Facultatif, finalité Fonctionnement de l'application. Position exacte : partagée
 aussi avec Brevo (lien de position dans le SMS), déjà « Partagée = Oui ».
 
+Depuis les points de bon comportement (opt-in, désactivés par défaut) : déjà couverts par **Activité dans les
+applications › Autre contenu généré par l'utilisateur** (ajouter « points de bon comportement » à la description,
+Facultatif, Fonctionnement de l'application). Ni position ni vitesse ne sont envoyées pour les points ; pas de partage.
+
 **Ne pas cocher** : Informations financières, Santé et remise en forme, Agenda, Historique de navigation web,
 Informations et performances de l'application (pas d'outil de plantage/analyse), Historique des recherches dans l'app
 (il reste sur le téléphone), Achats, Enregistrements vocaux, Fichiers et documents.
@@ -375,3 +379,28 @@ pages `passeryder.fr/email-confirme` et `passeryder.fr/lien-expire`, modèles fr
 - ✅ **Conditions d'utilisation** (exigées par Google pour le contenu publié par les membres) : page `/conditions`, case obligatoire
   à l'inscription, date d'acceptation enregistrée dans `terms_acceptances`. Les comptes existants doivent les accepter à la prochaine ouverture.
 - ✅ **Mentions légales** : page `/mentions-legales` (éditeur EI, SIRET, adresse, hébergeurs Hostinger et Supabase, crédits).
+
+## 6. Plus tard : encaisser Premium sur Android (rien n'est actif aujourd'hui)
+Déjà prêt (sans paiement) : table `app_features` (gratuit / premium / désactivé, console › Fonctions), plan du membre
+(`user_entitlements` : premium à vie ou jusqu'à une date, offert depuis console › Inscrits › ★), `canUse('clé')` dans l'app,
+écran « PasseRyder Premium » caché (fonction `premium_offer` désactivée). Bêta : tout est gratuit.
+
+Ce qu'il faudra pour vendre :
+- **Google Play Billing obligatoire** pour vendre des fonctions numériques dans une app installée depuis Google Play
+  (abonnement ou achat dans l'app). Interdit de renvoyer vers un paiement externe (Stripe, PayPal…) pour ces fonctions
+  dans l'app Android, sauf programmes spéciaux (choix de facturation alternatif, conditions et frais propres à l'EEE).
+- **Commission Google** : 15 % sur les abonnements (dès la 1re année) et 15 % sur le 1er million de $ de chiffre par an pour
+  les achats ponctuels (programme 15 %), 30 % au-delà. TVA collectée et reversée par Google en France.
+- **Module natif = nouveau build** (pas d'eas update) : `react-native-iap` ou RevenueCat (`react-native-purchases`),
+  nouvelle `version` dans app.json, AAB, test interne. Play Console : compte marchand (profil de paiement, IBAN),
+  produits « Abonnements » (ex. mensuel + annuel), testeurs de licence.
+- **Côté serveur** : vérifier chaque achat (jeton d'achat Google ou webhook RevenueCat) dans une Edge Function, puis
+  écrire `user_entitlements.premium_until` (jamais l'app directement) ; gérer renouvellement, annulation, remboursement.
+- Mettre à jour : CGU (conditions de vente, résiliation), politique de confidentialité, Sécurité des données
+  (« Achats » : historique d'achats), fiche Play (« Contient des achats intégrés »).
+
+**Recommandation la plus simple** : **RevenueCat** (gratuit jusqu’à 2 500 $ de revenus mensuels, tarif à revérifier le moment venu) avec son SDK Expo
+(`react-native-purchases`, config plugin, compatible EAS Build). Il gère Google Play Billing, les renouvellements et
+envoie un webhook → Edge Function `revenuecat-webhook` qui met à jour `premium_until`. Un seul abonnement « Premium »
+(mensuel + annuel), la sécurité (SOS, chute, « Je rentre », dangers) toujours gratuite.
+Sur le web (app.passeryder.fr), un paiement Stripe serait possible plus tard, mais pas nécessaire au départ.

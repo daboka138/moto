@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionSheetHost } from '@/components/action-sheet';
 import { AlertHost } from '@/components/alert-host';
+import { BadgeCelebrationHost } from '@/components/good-points';
 import { MessageToast } from '@/components/message-toast';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
@@ -22,6 +23,8 @@ import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
 import { signOut } from '@/lib/auth';
 import { setAuthNotice, useAuthLinkState } from '@/lib/auth-link';
 import { DrivingLockProvider } from '@/lib/driving-lock';
+import { useFeaturesSync } from '@/lib/features';
+import { useGoodPointsSync } from '@/lib/good-points';
 import { MapLayersProvider } from '@/lib/map-layers';
 import { MessagesProvider } from '@/lib/messages-context';
 import { NotificationsProvider } from '@/lib/notifications';
@@ -55,6 +58,8 @@ export default function RootLayout() {
                       <PushRegistrar />
                       <ActionSheetHost />
                       <AlertHost />
+                      <BadgeCelebrationHost />
+                      <AccountSync />
                     </NotificationsProvider>
                   </MessagesProvider>
                 </StoriesProvider>
@@ -195,6 +200,8 @@ function RootNavigator() {
           <Stack.Screen name="event/new" options={{ headerShown: true, title: 'Nouvel événement' }} />
           <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
+          <Stack.Screen name="points" options={{ headerShown: true, title: 'Mes points' }} />
+          <Stack.Screen name="premium" options={{ headerShown: true, title: 'PasseRyder Premium' }} />
           <Stack.Screen name="search" />
           <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
           <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />
@@ -222,6 +229,14 @@ function RootNavigator() {
 }
 
 /** Petit bandeau non bloquant (lien d'email refusé), fermé au toucher ou après 6 s */
+/** Fonctionnalités (gratuit / premium), plan et réglage des points, rechargés à chaque changement de compte */
+function AccountSync() {
+  const { session } = useSession();
+  useFeaturesSync(session?.user.id);
+  useGoodPointsSync(session?.user.id);
+  return null;
+}
+
 function AuthNoticeBanner() {
   const styles = useStyles();
   const insets = useSafeAreaInsets();

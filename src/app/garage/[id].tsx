@@ -27,6 +27,7 @@ import {
   type PlanKind,
 } from '@/lib/garage';
 import { useSession } from '@/lib/session';
+import { FeatureGate } from '@/components/feature-gate';
 
 /** Nombre saisi (virgule acceptée) ; null si vide, NaN si invalide */
 function num(text: string) {
@@ -41,7 +42,7 @@ const fromIsoDay = (s: string) => new Date(`${s}T12:00:00`);
 const frDay = (s: string) => fromIsoDay(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** Fiche garage d'une moto : compteur, carburant, rappels d'entretien, carnet. */
-export default function MotoGarageScreen() {
+function MotoGarageScreenContent() {
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile } = useSession();
@@ -402,3 +403,11 @@ const useStyles = makeStyles((Colors) => ({
   record: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
   notes: { fontSize: 13, color: Colors.text, marginTop: 2 },
 }));
+
+export default function MotoGarageScreen() {
+  return (
+    <FeatureGate feature="garage">
+      <MotoGarageScreenContent />
+    </FeatureGate>
+  );
+}
