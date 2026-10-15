@@ -646,6 +646,72 @@ export const FICHES: Fiche[] = [
     ],
     motsCles: ['score', 'niveau', 'classement', 'récompense', 'road captain', 'légende', 'défi du mois'],
   },
+  {
+    id: 'inviter',
+    theme: 'communaute',
+    emoji: '📨',
+    titre: 'Inviter des potes',
+    but: 'Faire venir tes potes sur PasseRyder avec ton lien, ton code ou ton QR code.',
+    etapes: [
+      'Profil › « Inviter des potes » (aussi dans Amis, et sur la carte tant que tu n’as pas d’amis).',
+      '« Partager mon lien d’invitation » : message prêt avec ton lien passeryder.fr/i/… et ton code.',
+      'En vrai (au café, au rasso) : fais scanner ton QR code.',
+      'Ton pote s’inscrit avec ton code (déjà rempli s’il passe par la version web) : vous devenez amis tout de suite.',
+    ],
+    astuces: [
+      'Ton filleul peut te retirer de ses amis depuis ton profil s’il le souhaite.',
+      'Points de bon comportement (si activés) : +30 quand ton filleul a terminé son profil et fait une 1re action (rejoindre une balade, ajouter un ami, signaler un danger). Badges Recruteur (3) et Ambassadeur (10).',
+    ],
+    limites: [
+      'Un seul parrain par compte, à l’inscription.',
+      'Points crédités 7 jours après l’inscription du filleul, 10 filleuls récompensés par mois au plus.',
+    ],
+    motsCles: ['parrainage', 'parrain', 'filleul', 'code', 'qr code', 'lien'],
+  },
+  {
+    id: 'ta-sortie',
+    theme: 'ensemble',
+    emoji: '🏁',
+    titre: 'Ta sortie : le récap à partager',
+    but: 'Garder et partager le résumé d’une balade, d’une navigation ou d’une boucle : tracé, km, durée, dénivelé.',
+    etapes: [
+      'À la fin d’une navigation ou d’une boucle de plus de 5 km, l’écran « Ta sortie » s’ouvre tout seul.',
+      'Balade : l’organisateur y arrive en appuyant sur « Terminer la balade » ; les participants, avec « 🏁 Ta sortie » sur la fiche de la balade.',
+      'Sorties passées : Profil › Mes trajets › touche un trajet.',
+      '« Partager ma sortie » envoie un lien passeryder.fr/s/… ; « Image story » ou « Image carrée » ouvre l’image sur passeryder.fr : « Partager l’image » ou « Télécharger ».',
+    ],
+    astuces: [
+      '« Masquer le départ et l’arrivée » est activé par défaut : les 500 premiers et derniers mètres ne sont pas partagés (ton domicile reste secret).',
+    ],
+    limites: [
+      'Jamais de vitesse maximale ni moyenne sur l’image : on ne valorise pas la vitesse.',
+      'Qui a le lien peut voir le récap (tracé, km, durée, ton pseudo).',
+      'Une balade disparaît 1 heure après sa fin : partage son récap avant.',
+    ],
+    motsCles: ['récap', 'strava', 'story', 'instagram', 'image', 'partager', 'dénivelé'],
+  },
+  {
+    id: 'clubs',
+    theme: 'communaute',
+    emoji: '🚩',
+    titre: 'Clubs',
+    but: 'Réunir ton groupe de motards : membres, mur, balades et événements du club.',
+    etapes: [
+      'Sorties › Clubs : tes clubs, puis ceux près de toi ; recherche par nom ou ville.',
+      '« Créer » : nom, logo, description, ville, public (tout le monde peut rejoindre) ou sur demande.',
+      'Page du club : « Rejoindre » (ou « Demander à rejoindre »), Mur, Balades et événements, Membres.',
+      'Admins : « Créer une sortie » au nom du club (balade ou événement) : tous les membres sont invités automatiquement.',
+      'Admins : accepter ou refuser les demandes, retirer un membre ; le fondateur nomme les admins.',
+      'Menu ⋯ › « Partager le club » : lien passeryder.fr/c/… à envoyer.',
+    ],
+    astuces: ['Les demandes d’adhésion arrivent aussi dans l’onglet Notifs, avec Accepter / Refuser.'],
+    limites: [
+      'Le mur du club est réservé à ses membres.',
+      'Le fondateur ne peut pas quitter son club : il le supprime (les balades et événements restent).',
+      'Un club signalé 3 fois est masqué en attendant la modération.',
+    ],
+    motsCles: ['club', 'groupe', 'asso', 'association', 'membres', 'moto club'],
+  },
 
   // ---------------------------------------------------------------- Sécurité
   {

@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
@@ -68,16 +69,18 @@ function TripRow({ trip }: { trip: TripSummary }) {
       Alert.alert('Export GPX impossible', e instanceof Error ? e.message : String(e));
     }
   };
+  const openOuting = () => router.push({ pathname: '/outing', params: { trip: trip.id } });
   const menu = () =>
     showActionSheet({
       title: trip.destination,
       options: [
+        ...(trip.hasTrack !== false ? [{ label: '🏁 Ta sortie (récap à partager)', onPress: openOuting }] : []),
         ...(trip.hasTrack && canUse('gpx') ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
         { label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) },
       ],
     });
   return (
-    <Pressable style={styles.card} onLongPress={menu} delayLongPress={350}>
+    <Pressable style={styles.card} onPress={openOuting} onLongPress={menu} delayLongPress={350}>
       <View style={styles.cardHeader}>
         <MaterialCommunityIcons
           name={trip.arrived ? 'flag-checkered' : 'map-marker-path'}

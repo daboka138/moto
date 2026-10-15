@@ -1,0 +1,387 @@
+// Pages publiques de partage sur passeryder.fr (servies par Caddy, voir PLAY_STORE.md § 1.2) :
+//   site/i/  → /i/CODE  invitation d'un membre (pseudo + photo, Google Play, version web)
+//   site/c/  → /c/SLUG  page publique d'un club
+//   site/s/  → /s/ID    récap de sortie + image story 1080×1920 ou carrée 1080×1080 (canvas),
+//                        « Partager l'image » (Web Share) ou « Télécharger ». JAMAIS de vitesse.
+// Les données viennent de fonctions Supabase publiques (invite_info, club_public, get_outing,
+// app_settings.play_store_url) avec la clé PUBLISHABLE uniquement.
+// Usage : node scripts/build-share-pages.cjs, puis republier le site.
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.join(__dirname, '..');
+const env = Object.fromEntries(
+  fs
+    .readFileSync(path.join(ROOT, '.env'), 'utf8')
+    .split(/\r?\n/)
+    .filter((l) => /^EXPO_PUBLIC_SUPABASE_(URL|PUBLISHABLE_KEY)=/.test(l))
+    .map((l) => [l.split('=')[0], l.slice(l.indexOf('=') + 1).trim()]),
+);
+const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL;
+const KEY = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+if (!SUPABASE_URL || !KEY) throw new Error('.env incomplet');
+if (!KEY.startsWith('sb_publishable_')) throw new Error('Seule une clé publishable peut aller sur le site');
+
+const head = (title, description) => `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>${title}</title>
+  <meta name="description" content="${description}">
+  <meta property="og:title" content="${title}">
+  <meta property="og:description" content="${description}">
+  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <meta property="og:site_name" content="PasseRyder">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .share-page { text-align: center; }
+    .hero .avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: var(--border); }
+    .share-page .points { text-align: left; max-width: 34em; margin: 20px auto; }
+    .share-page .code { font-size: 28px; font-weight: 900; letter-spacing: 4px; color: var(--accent-dark); }
+    .share-page .muted { color: var(--muted); }
+    .formats { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+    .formats button { font: inherit; font-weight: 700; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .formats button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .hero #preview { width: auto; height: auto; max-width: 100%; max-height: 70vh; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+    .share-page h1 { overflow-wrap: anywhere; }
+    .formats { flex-wrap: wrap; }
+    .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!-- Page générée par scripts/build-share-pages.cjs : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+`;
+
+const foot = `
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/guide">Guide</a>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
+    </div>
+  </footer>
+`;
+
+const common = `
+    // Clé publishable Supabase (publique, la même que dans l'app web)
+    var SUPABASE_URL = '${SUPABASE_URL}';
+    var SUPABASE_KEY = '${KEY}';
+    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    var android = /android/i.test(navigator.userAgent);
+    function rpc(name, body) {
+      return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    }
+    function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
+    // Lien Google Play réglable dans la console (pendant le test fermé : lien d'inscription testeur)
+    function playLink() {
+      return fetch(SUPABASE_URL + '/rest/v1/app_settings?key=eq.play_store_url&select=value', { headers: { apikey: SUPABASE_KEY } })
+        .then(function (r) { return r.json(); })
+        .then(function (rows) { return (rows && rows[0] && rows[0].value) || PLAY; })
+        .catch(function () { return PLAY; });
+    }
+    function lastSegment() { return decodeURIComponent(location.pathname.replace(/\\/+$/, '').split('/').pop() || ''); }
+    function el(id) { return document.getElementById(id); }
+    function intentUrl(appPath, fallback) {
+      return 'intent://' + appPath + '#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+    }
+`;
+
+const PITCH = `
+        <ul class="points">
+          <li>🗺️ Tes potes en direct sur la carte (tu choisis qui te voit)</li>
+          <li>🏍️ Balades en convoi : RDV, ouvreur, serre-file, regroupement</li>
+          <li>🌀 « Fais-moi une boucle » : des routes sinueuses au départ de chez toi</li>
+          <li>🆘 SOS, détection de chute et « Je rentre »</li>
+          <li>⚠️ Dangers signalés par les motards, spots et événements</li>
+        </ul>`;
+
+// ---------- /i/CODE ----------
+const invite = `${head('Rejoins-moi sur PasseRyder', 'L’app des motards qui roulent ensemble : potes en direct, balades en convoi, boucles, SOS.')}
+  <main class="wrap">
+    <section class="hero share-page">
+      <img class="avatar" id="avatar" src="/icon.png" alt="">
+      <h1 id="title">Rejoins-moi sur PasseRyder</h1>
+      <p class="lead">L’app des motards qui aiment rouler ensemble.</p>
+      ${PITCH}
+      <p id="code-box" hidden>Ton code d’invitation : <span class="code" id="code"></span><br>
+        <span class="muted">Saisis-le à l’inscription : vous serez amis tout de suite.</span></p>
+      <div class="cta">
+        <a class="button" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+        <a class="button secondary" id="web" href="https://app.passeryder.fr/sign-in">Utiliser la version web</a>
+      </div>
+      <p class="note">Gratuit. Pas de publicité, données hébergées en Europe.</p>
+    </section>
+  </main>
+${foot}
+  <script>
+${common}
+    var code = lastSegment().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    playLink().then(function (u) { el('play').href = u; });
+    if (/^[A-Z0-9]{6,10}$/.test(code)) {
+      el('web').href = 'https://app.passeryder.fr/sign-in?invite=' + code;
+      el('code').textContent = code;
+      el('code-box').hidden = false;
+      rpc('invite_info', { p_code: code }).then(function (i) {
+        if (!i) return;
+        el('title').textContent = '@' + i.username + ' t’invite sur PasseRyder';
+        document.title = '@' + i.username + ' t’invite sur PasseRyder';
+        if (i.avatar_path) el('avatar').src = photo(i.avatar_path);
+      }).catch(function () {});
+    }
+  </script>
+</body>
+</html>
+`;
+
+// ---------- /c/SLUG ----------
+const club = `${head('Club PasseRyder', 'Rejoins ce club de motards sur PasseRyder : balades, événements et sorties ensemble.')}
+  <main class="wrap">
+    <section class="hero share-page">
+      <img class="avatar" id="logo" src="/icon.png" alt="">
+      <h1 id="name">Club PasseRyder</h1>
+      <p class="lead" id="meta"></p>
+      <p id="desc" class="muted" style="white-space: pre-line"></p>
+      <p id="missing" hidden>Ce club n’existe plus ou n’est pas visible.</p>
+      <div class="cta">
+        <a class="button" id="open" href="#">Rejoindre dans l’app</a>
+        <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
+        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+      </div>
+      ${PITCH}
+    </section>
+  </main>
+${foot}
+  <script>
+${common}
+    var slug = lastSegment().toLowerCase();
+    var play = PLAY;
+    playLink().then(function (u) { play = u; el('play').href = u; });
+    if (!android) el('open').hidden = true;
+    rpc('club_public', { p_slug: slug }).then(function (c) {
+      if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
+      el('name').textContent = c.name;
+      document.title = c.name + ' · club PasseRyder';
+      var meta = [c.city, c.members + ' membre' + (c.members > 1 ? 's' : ''), c.join_policy === 'open' ? 'club public' : 'adhésion sur demande'];
+      el('meta').textContent = meta.filter(Boolean).join(' · ');
+      el('desc').textContent = (c.description || '') + (c.founder ? '\\n\\nFondé par @' + c.founder : '');
+      if (c.logo_path) el('logo').src = photo(c.logo_path);
+      el('web').href = 'https://app.passeryder.fr/club/' + c.id;
+      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, play); });
+    }).catch(function () { el('missing').hidden = false; });
+  </script>
+</body>
+</html>
+`;
+
+// ---------- /s/ID ----------
+const outing = `${head('Sortie à moto · PasseRyder', 'Une sortie à moto partagée avec PasseRyder.')}
+  <main class="wrap">
+    <section class="hero share-page">
+      <h1 id="title">Sortie à moto</h1>
+      <p class="lead" id="meta"></p>
+      <p id="missing" hidden>Ce récap n’existe plus.</p>
+      <div id="tools" hidden>
+        <div class="formats">
+          <button type="button" id="f-story" aria-pressed="true">Story (1080×1920)</button>
+          <button type="button" id="f-square" aria-pressed="false">Carré (1080×1080)</button>
+        </div>
+        <img id="preview" alt="Image de la sortie">
+        <div class="cta" style="margin-top: 16px">
+          <button class="button" type="button" id="share" hidden>Partager l’image</button>
+          <a class="button secondary" id="download" download="passeryder-sortie.png" href="#">Télécharger l’image</a>
+        </div>
+        <p class="note">Départ et arrivée masqués si l’auteur l’a choisi. Aucune vitesse n’est affichée.</p>
+      </div>
+      <div class="cta" style="margin-top: 24px">
+        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Découvrir PasseRyder</a>
+      </div>
+    </section>
+  </main>
+${foot}
+  <script>
+${common}
+    var id = lastSegment();
+    var format = new URLSearchParams(location.search).get('format') === 'square' ? 'square' : 'story';
+    var data = null;
+    var logo = new Image();
+    logo.src = '/icon.png';
+    playLink().then(function (u) { el('play').href = u; });
+
+    var ACCENT = '#0ea5e9', LIGHT = '#7dd3fc', WHITE = '#ffffff', MUTED = '#cbd5e1';
+    function km(m) { return (m / 1000).toLocaleString('fr-FR', { maximumFractionDigits: m >= 100000 ? 0 : 1 }); }
+    function duration(s) {
+      var h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+      return h > 0 ? h + ' h ' + String(m).padStart(2, '0') : m + ' min';
+    }
+    function kindLabel(k) { return k === 'ride' ? 'BALADE EN GROUPE' : k === 'loop' ? 'BOUCLE À MOTO' : 'SORTIE À MOTO'; }
+    function dateLabel(iso) { return new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); }
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function wrap(ctx, text, maxW, maxLines) {
+      var words = text.split(' '), lines = [], line = '';
+      words.forEach(function (w) {
+        var t = line ? line + ' ' + w : w;
+        if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
+      });
+      if (line) lines.push(line);
+      if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].replace(/.{0,2}$/, '…'); }
+      return lines;
+    }
+    // Tracé projeté (Mercator) dans un cadre, avec halo bleu et trait blanc
+    function drawTrack(ctx, track, x, y, w, h, hideEnds) {
+      var pts = track.map(function (p) {
+        var lat = p[0] * Math.PI / 180;
+        return [p[1], Math.log(Math.tan(Math.PI / 4 + lat / 2)) * 180 / Math.PI];
+      });
+      var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      pts.forEach(function (p) { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); });
+      var sx = (maxX - minX) || 1e-6, sy = (maxY - minY) || 1e-6, s = Math.min(w / sx, h / sy);
+      var ox = x + (w - sx * s) / 2, oy = y + (h - sy * s) / 2;
+      var xy = pts.map(function (p) { return [ox + (p[0] - minX) * s, oy + (maxY - p[1]) * s]; });
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.save(); ctx.shadowColor = ACCENT; ctx.shadowBlur = 40; ctx.strokeStyle = ACCENT; ctx.lineWidth = 18;
+      ctx.beginPath(); xy.forEach(function (p, i) { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.stroke(); ctx.restore();
+      ctx.strokeStyle = WHITE; ctx.lineWidth = 7;
+      ctx.beginPath(); xy.forEach(function (p, i) { i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); }); ctx.stroke();
+      [xy[0], xy[xy.length - 1]].forEach(function (p, i) {
+        ctx.beginPath(); ctx.arc(p[0], p[1], 16, 0, Math.PI * 2);
+        if (hideEnds) { ctx.strokeStyle = WHITE; ctx.lineWidth = 5; ctx.stroke(); }
+        else { ctx.fillStyle = i ? '#f97316' : '#22c55e'; ctx.fill(); ctx.strokeStyle = WHITE; ctx.lineWidth = 5; ctx.stroke(); }
+      });
+    }
+    function stats(d) {
+      var s = [{ v: km(d.distance_m), l: 'km' }, { v: duration(d.duration_s), l: 'durée' }];
+      if (d.elevation_gain_m != null) s.push({ v: d.elevation_gain_m.toLocaleString('fr-FR') + ' m', l: 'dénivelé +' });
+      if (d.participants) s.push({ v: String(d.participants), l: 'motards' });
+      else if (d.points) s.push({ v: '+' + d.points, l: 'points gagnés' });
+      return s.slice(0, 4);
+    }
+    function background(ctx, w, h) {
+      var g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#0b1120'); g.addColorStop(0.55, '#0c2a45'); g.addColorStop(1, '#075985');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      var r = ctx.createRadialGradient(w * 0.8, h * 0.15, 10, w * 0.8, h * 0.15, w * 0.9);
+      r.addColorStop(0, 'rgba(14,165,233,0.35)'); r.addColorStop(1, 'rgba(14,165,233,0)');
+      ctx.fillStyle = r; ctx.fillRect(0, 0, w, h);
+    }
+    function brand(ctx, x, y, size) {
+      if (logo.complete && logo.naturalWidth) ctx.drawImage(logo, x, y, size, size);
+      ctx.fillStyle = WHITE; ctx.font = '900 ' + Math.round(size * 0.55) + 'px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.fillText('PasseRyder', x + size + 20, y + size / 2);
+    }
+    function extras(d) {
+      var parts = [];
+      if (d.points && d.participants) parts.push('🛡️ +' + d.points + ' points');
+      (d.badges || []).forEach(function (b) { parts.push('🏅 ' + b.replace(/^\\S+\\s/, '')); });
+      return parts.join('   ·   ');
+    }
+    function render() {
+      var d = data, story = format === 'story', W = 1080, H = story ? 1920 : 1080;
+      var c = document.createElement('canvas'); c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      background(ctx, W, H);
+      ctx.textBaseline = 'alphabetic';
+      if (story) {
+        brand(ctx, 80, 80, 96);
+        ctx.textAlign = 'left'; ctx.fillStyle = LIGHT; ctx.font = '800 34px system-ui, sans-serif';
+        ctx.fillText(kindLabel(d.kind), 80, 290);
+        ctx.fillStyle = WHITE; ctx.font = '900 68px system-ui, sans-serif';
+        var lines = wrap(ctx, d.title, W - 160, 2);
+        lines.forEach(function (l, i) { ctx.fillText(l, 80, 372 + i * 78); });
+        ctx.fillStyle = MUTED; ctx.font = '500 34px system-ui, sans-serif';
+        ctx.fillText(dateLabel(d.started_at) + ' · @' + d.username, 80, 372 + lines.length * 78 + 10);
+        drawTrack(ctx, d.track, 110, 600, W - 220, 700, d.hide_ends);
+        var s = stats(d), tw = (W - 160 - 30) / 2, th = 170;
+        s.forEach(function (t, i) {
+          var x = 80 + (i % 2) * (tw + 30), y = 1370 + Math.floor(i / 2) * (th + 30);
+          ctx.fillStyle = 'rgba(255,255,255,0.09)'; roundRect(ctx, x, y, tw, th, 28); ctx.fill();
+          ctx.textAlign = 'center'; ctx.fillStyle = WHITE; ctx.font = '900 70px system-ui, sans-serif'; ctx.fillText(t.v, x + tw / 2, y + 95);
+          ctx.fillStyle = MUTED; ctx.font = '600 28px system-ui, sans-serif'; ctx.fillText(t.l, x + tw / 2, y + 140);
+        });
+        var ex = extras(d);
+        if (ex) { ctx.textAlign = 'center'; ctx.fillStyle = WHITE; ctx.font = '700 32px system-ui, sans-serif'; ctx.fillText(ex, W / 2, 1790); }
+        ctx.textAlign = 'center'; ctx.fillStyle = LIGHT; ctx.font = '900 44px system-ui, sans-serif'; ctx.fillText('passeryder.fr', W / 2, 1860);
+      } else {
+        brand(ctx, 60, 50, 72);
+        ctx.textAlign = 'left'; ctx.fillStyle = LIGHT; ctx.font = '800 28px system-ui, sans-serif'; ctx.fillText(kindLabel(d.kind), 60, 185);
+        ctx.fillStyle = WHITE; ctx.font = '900 52px system-ui, sans-serif';
+        var l2 = wrap(ctx, d.title, W - 120, 1); ctx.fillText(l2[0], 60, 248);
+        ctx.fillStyle = MUTED; ctx.font = '500 28px system-ui, sans-serif'; ctx.fillText(dateLabel(d.started_at) + ' · @' + d.username, 60, 292);
+        drawTrack(ctx, d.track, 70, 340, 560, 620, d.hide_ends);
+        var s2 = stats(d), y0 = 350;
+        s2.forEach(function (t, i) {
+          var y = y0 + i * 150;
+          ctx.fillStyle = 'rgba(255,255,255,0.09)'; roundRect(ctx, 680, y, 340, 130, 24); ctx.fill();
+          ctx.textAlign = 'center'; ctx.fillStyle = WHITE; ctx.font = '900 54px system-ui, sans-serif'; ctx.fillText(t.v, 850, y + 70);
+          ctx.fillStyle = MUTED; ctx.font = '600 24px system-ui, sans-serif'; ctx.fillText(t.l, 850, y + 108);
+        });
+        ctx.textAlign = 'right'; ctx.fillStyle = LIGHT; ctx.font = '900 36px system-ui, sans-serif'; ctx.fillText('passeryder.fr', W - 60, H - 50);
+      }
+      var url = c.toDataURL('image/png');
+      el('preview').src = url;
+      el('download').href = url;
+      el('download').download = 'passeryder-sortie-' + format + '.png';
+      el('share').onclick = function () {
+        c.toBlob(function (blob) {
+          var file = new File([blob], 'passeryder-sortie.png', { type: 'image/png' });
+          navigator.share({ files: [file], title: d.title, text: 'Ma sortie à moto avec PasseRyder · passeryder.fr' }).catch(function () {});
+        }, 'image/png');
+      };
+      try {
+        el('share').hidden = !(navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] }));
+      } catch (e) { el('share').hidden = true; }
+    }
+    function setFormat(f) {
+      format = f;
+      el('f-story').setAttribute('aria-pressed', String(f === 'story'));
+      el('f-square').setAttribute('aria-pressed', String(f === 'square'));
+      if (data) render();
+    }
+    el('f-story').addEventListener('click', function () { setFormat('story'); });
+    el('f-square').addEventListener('click', function () { setFormat('square'); });
+    rpc('get_outing', { p_id: id }).then(function (d) {
+      if (!d) { el('missing').hidden = false; return; }
+      data = d;
+      el('title').textContent = d.title;
+      document.title = d.title + ' · PasseRyder';
+      el('meta').textContent = km(d.distance_m) + ' km · ' + duration(d.duration_s) + ' · par @' + d.username;
+      el('tools').hidden = false;
+      setFormat(format);
+      // Le logo peut arriver après le premier dessin
+      if (!logo.complete) logo.onload = render;
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+    }).catch(function () { el('missing').hidden = false; });
+  </script>
+</body>
+</html>
+`;
+
+for (const [dir, html] of [
+  ['i', invite],
+  ['c', club],
+  ['s', outing],
+]) {
+  fs.mkdirSync(path.join(ROOT, 'site', dir), { recursive: true });
+  fs.writeFileSync(path.join(ROOT, 'site', dir, 'index.html'), html);
+}
+console.log('site/i, site/c, site/s générés');

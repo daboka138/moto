@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,13 +15,18 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '@/lib/auth';
+import { cleanInviteCode, clearPendingInvite, fetchInviter, INVITE_PATTERN, pendingInviteCode } from '@/lib/invite';
 
 type Mode = 'signIn' | 'signUp' | 'forgot';
 
 // Connexion par email pour l'instant. Pour passer au téléphone : voir src/lib/auth.ts
 export default function SignInScreen() {
   const styles = useStyles();
-  const [mode, setMode] = useState<Mode>('signIn');
+  // Lien d'invitation (passeryder.fr/i/CODE › version web : /sign-in?invite=CODE) : inscription pré-remplie
+  const { invite: inviteParam } = useLocalSearchParams<{ invite?: string }>();
+  const [mode, setMode] = useState<Mode>(() => (inviteParam ? 'signUp' : 'signIn'));
+  const [invite, setInvite] = useState(() => cleanInviteCode(inviteParam ?? '') || pendingInviteCode());
+  const inviter = useInviter(invite);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,7 +61,9 @@ export default function SignInScreen() {
       if (mode === 'signIn') {
         await signInWithEmail(email, password);
       } else {
-        const needsConfirmation = await signUpWithEmail(email, password);
+        const code = cleanInviteCode(invite);
+        const needsConfirmation = await signUpWithEmail(email, password, INVITE_PATTERN.test(code) ? code : undefined);
+        clearPendingInvite();
         if (needsConfirmation) {
           Alert.alert('Vérifie tes emails', 'Clique sur le lien de confirmation reçu, puis connecte-toi.');
           setUnconfirmed(true);
@@ -145,7 +153,21 @@ export default function SignInScreen() {
             />
           )}
 
-          {mode === 'signUp' && <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />}
+          {mode === 'signUp' && (
+            <>
+              <Field
+                label="Code d’invitation (facultatif)"
+                value={invite}
+                onChangeText={(v) => setInvite(cleanInviteCode(v))}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={10}
+                placeholder="ex. K7M2QXA"
+              />
+              {inviter && <Text style={styles.inviter}>Invité par @{inviter} : vous serez amis dès ton inscription.</Text>}
+              <TermsCheckbox checked={termsAccepted} onChange={setTermsAccepted} />
+            </>
+          )}
 
           {!(mode === 'forgot' && resetSent) && (
             <Button
@@ -185,4 +207,22 @@ const useStyles = makeStyles((Colors) => ({
   logo: { fontSize: 40, fontWeight: '900', letterSpacing: 1, color: Colors.accent },
   tagline: { fontSize: 16, color: Colors.textMuted },
   info: { fontSize: 15, lineHeight: 21, color: Colors.text, textAlign: 'center' },
+  inviter: { fontSize: 14, fontWeight: '700', color: Colors.accent },
 }));
+
+/** Pseudo du parrain si le code est valable */
+function useInviter(code: string) {
+  const [found, setFound] = useState<{ code: string; username: string | null } | null>(null);
+  useEffect(() => {
+    if (!INVITE_PATTERN.test(code)) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetchInviter(code).then((r) => !cancelled && setFound({ code, username: r?.username ?? null }));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [code]);
+  return found && found.code === code ? found.username : null;
+}

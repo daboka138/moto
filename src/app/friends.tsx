@@ -67,7 +67,8 @@ export default function FriendsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <SmallButton title="Trouver des motards près de moi (moto, style, rythme…)" onPress={() => router.push('/riders')} />
+      <SmallButton title="📨 Inviter des potes sur PasseRyder (lien, QR code)" onPress={() => router.push('/invite')} />
+      <SmallButton title="Trouver des motards près de moi (moto, style, rythme…)" variant="secondary" onPress={() => router.push('/riders')} />
       <Field
         label="Rechercher un motard"
         value={query}

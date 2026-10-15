@@ -27,11 +27,15 @@ tar -C site -cf - . | ssh root@187.6.165.249 'tar -C /var/www/passeryder --no-sa
 Pas besoin de recharger Caddy pour un simple changement de fichiers.
 
 ### 1.2 Bloc Caddy en place
+Pages de partage (générées par `node scripts/build-share-pages.cjs`, clé publishable seulement) : réécriture `@share` ajoutée le 15/10/2026 (sauvegarde `/etc/caddy/Caddyfile.bak-note12`).
 À la fin de `/etc/caddy/Caddyfile`, après le bloc comptaeasy.fr (inchangé) ; sauvegarde de l'ancienne version : `/etc/caddy/Caddyfile.bak-*`.
 ```caddy
 passeryder.fr {
     root * /var/www/passeryder
     encode zstd gzip
+    # Pages de partage : /i/CODE (invitation), /c/SLUG (club), /s/ID (sortie) → site/i, site/c, site/s
+    @share path_regexp share ^/(i|c|s)/[A-Za-z0-9-]+/?$
+    rewrite @share /{re.share.1}/index.html
     file_server
     header {
         Strict-Transport-Security "max-age=31536000"
@@ -313,6 +317,10 @@ Depuis les SMS automatiques (Brevo) : cocher **Contacts › Contacts** (numéros
 Collectés = Oui, **Partagés = Oui** (Brevo, prestataire d'envoi des SMS d'alerte), Traités de manière éphémère = Non
 (gardés le temps d'un « Je rentre »), Facultatif, finalité Fonctionnement de l'application. Position exacte : partagée
 aussi avec Brevo (lien de position dans le SMS), déjà « Partagée = Oui ».
+
+Depuis les invitations, clubs et récaps partagés (note 12) : rien de nouveau à cocher. Clubs, mur des clubs, récaps de
+sortie (tracé simplifié, départ et arrivée coupés par défaut) = **Autre contenu généré par l'utilisateur** ; le tracé
+partagé relève aussi de **Position exacte** (déjà déclarée, finalité Fonctionnement de l'application). Pas de partage avec un tiers.
 
 Depuis les points de bon comportement (opt-in, désactivés par défaut) : déjà couverts par **Activité dans les
 applications › Autre contenu généré par l'utilisateur** (ajouter « points de bon comportement » à la description,

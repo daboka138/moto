@@ -68,6 +68,7 @@ export type RideDetails = RideSummary & {
   route: [number, number][] | null;
   participants: RideParticipant[];
   startedAt: string | null;
+  endedAt: string | null;
   /** Convoi : écart toléré avec le motard le plus proche avant alerte (km, réglé par l'organisateur) */
   convoyGapKm: number;
   /** Point de regroupement posé par l'ouvreur ou l'organisateur pendant la balade */
@@ -106,6 +107,7 @@ export type RideDraft = {
   categories: MotoCategory[];
   pace: Pace | null;
   surface: Surface;
+  clubId?: string | null;
 };
 
 type Row = {
@@ -249,6 +251,7 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
       // Organisateur en premier, puis les inscrits, puis les invités
       .sort((a, b) => Number(b.id === r.created_by) - Number(a.id === r.created_by) || b.status.localeCompare(a.status)),
     startedAt: r.started_at,
+    endedAt: r.ended_at,
     convoyGapKm: r.convoy_gap_km ?? 2,
     regroup:
       r.regroup_lat != null && r.regroup_lng != null && r.regroup_at
@@ -284,6 +287,8 @@ export async function createRide(userId: string, d: RideDraft): Promise<string> 
       route: d.route.points,
       distance_m: d.route.distanceM,
       duration_s: d.route.durationS,
+      // Au nom d'un club : ses membres sont invités par le serveur
+      club_id: d.clubId ?? null,
     })
     .select('id')
     .single();

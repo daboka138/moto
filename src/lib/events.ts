@@ -144,6 +144,7 @@ export type EventDraft = {
   place: Place;
   maxAttendees: number | null;
   photo: PhotoValue;
+  clubId?: string | null;
 };
 
 export async function createEvent(userId: string, d: EventDraft): Promise<string> {
@@ -162,6 +163,8 @@ export async function createEvent(userId: string, d: EventDraft): Promise<string
       longitude: d.place.longitude,
       max_attendees: d.maxAttendees,
       photo_path: photoPath,
+      // Au nom d'un club : ses membres sont invités par le serveur
+      club_id: d.clubId ?? null,
     })
     .select('id')
     .single();

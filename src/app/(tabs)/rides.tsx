@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ClubsList } from '@/components/clubs-list';
 import { EventsList, PlacesList } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
@@ -27,12 +28,13 @@ const DATE_FILTERS: { value: DateFilter; label: string }[] = [
 ];
 const DISTANCE_FILTERS: (number | null)[] = [null, 10, 25, 50, 100];
 
-/** Onglet Sorties : balades, événements, lieux motards */
-type Segment = 'rides' | 'events' | 'places';
+/** Onglet Sorties : balades, événements, lieux motards, clubs */
+type Segment = 'rides' | 'events' | 'places' | 'clubs';
 const SEGMENTS: { value: Segment; label: string }[] = [
   { value: 'rides', label: 'Balades' },
   { value: 'events', label: 'Événements' },
   { value: 'places', label: 'Lieux' },
+  { value: 'clubs', label: 'Clubs' },
 ];
 
 function matchesDate(ride: RideSummary, filter: DateFilter) {
@@ -97,7 +99,7 @@ export default function RidesScreen() {
           )}
           <Pressable
             style={styles.create}
-            onPress={() => router.push(segment === 'rides' ? '/ride/new' : segment === 'events' ? '/event/new' : '/place/new')}>
+            onPress={() => router.push(segment === 'rides' ? '/ride/new' : segment === 'events' ? '/event/new' : segment === 'clubs' ? '/club/new' : '/place/new')}>
             <Ionicons name="add" size={20} color={Colors.white} />
             <Text style={styles.createText}>{segment === 'places' ? 'Ajouter' : 'Créer'}</Text>
           </Pressable>
@@ -120,6 +122,8 @@ export default function RidesScreen() {
         <EventsList me={me} />
       ) : segment === 'places' ? (
         <PlacesList me={me} />
+      ) : segment === 'clubs' ? (
+        <ClubsList me={me} />
       ) : (
         <>
           <View style={styles.filters}>

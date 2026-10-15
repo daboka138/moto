@@ -102,6 +102,34 @@
           Les réponses aux stories sont des messages privés (voir « Messages »).</li>
       </ul>
 
+      <h3>Invitations (parrainage)</h3>
+      <ul>
+        <li>Chaque membre a un code d'invitation. La page publique passeryder.fr/i/CODE affiche seulement le pseudo et la photo
+          de profil de celui qui invite.</li>
+        <li>Si tu t'inscris avec un code, nous enregistrons qui t'a invité (un seul parrain) et la date de ta première action
+          (rejoindre une balade, ajouter un ami, signaler un danger), sans autre détail. Vous devenez amis automatiquement ;
+          tu peux retirer ton parrain de tes amis à tout moment. Ton parrain voit ton pseudo dans sa liste de filleuls.</li>
+      </ul>
+
+      <h3>Récaps de sortie partagés (uniquement si tu partages)</h3>
+      <ul>
+        <li>Quand tu appuies sur « Partager » dans « Ta sortie », nous enregistrons le récap : titre, date, distance, durée,
+          dénivelé, nombre de participants, points et badges gagnés, et un tracé simplifié. <strong>Par défaut, les 500 premiers
+          et derniers mètres sont retirés avant l'envoi</strong> (ils ne quittent pas ton téléphone). Jamais de vitesse.</li>
+        <li>Toute personne qui a le lien passeryder.fr/s/… peut voir ce récap et ton pseudo. L'image story ou carrée est
+          dessinée dans ton navigateur, elle n'est pas stockée chez nous.</li>
+        <li>Le dénivelé est calculé à partir de points du tracé envoyés au service d'altitude d'Open-Meteo (voir « Services tiers »).</li>
+      </ul>
+
+      <h3>Clubs</h3>
+      <ul>
+        <li>Un club (nom, logo, description, ville, zone arrondie à environ 1 km si le créateur l'accepte) est visible par les
+          membres connectés, et sa page publique passeryder.fr/c/… montre nom, logo, description, ville, nombre de membres et
+          pseudo du fondateur.</li>
+        <li>La liste des membres (pseudos) est visible par les membres connectés ; une demande d'adhésion n'est visible que par
+          toi et les admins du club. Les messages du mur du club ne sont visibles que par ses membres.</li>
+      </ul>
+
       <h3>Badges et défis</h3>
       <ul>
         <li>Totaux affichés sur ton profil (visibles par les membres connectés) : kilomètres parcourus en navigation, nombre de
@@ -250,7 +278,7 @@
         <li><strong>Stations, cafés et restaurants sur ton trajet, cols franchis</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de
           l'itinéraire devant toi quand tu fais cette recherche, et points de la trace d'un trajet terminé pour y trouver les cols (sans
           aucune information sur toi).</li>
-        <li><strong>Météo sur le trajet</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire ou de la balade
+        <li><strong>Météo sur le trajet et dénivelé des sorties</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire, de la balade ou de la sortie
           (arrondis à environ 10 m), sans aucune information sur toi.</li>
         <li><strong>Recherche d'adresse</strong> : Géoplateforme de l'IGN (France), Nominatim et Photon (OpenStreetMap, UE) — texte recherché ou point sur la carte.</li>
         <li><strong>Notifications push</strong> : Expo Push (650 Industries, États-Unis) et Firebase Cloud Messaging (Google) —
@@ -277,6 +305,7 @@
         <li>Alertes SOS : 30 jours. « Je rentre » : 7 jours après la fin (numéros de téléphone effacés dès la fin). Journal des SMS d'alerte : 30 jours.</li>
         <li>Événements : 24 heures après leur fin (avec les inscriptions et les invitations).
           Notifications : 60 jours. J'aime et commentaires des balades : avec la balade. J'aime des stories : avec la story.</li>
+        <li>Récaps de sortie partagés, clubs et parrainage : tant que ton compte existe (ou jusqu'à ce que tu supprimes le club).</li>
         <li>Partage de trajet en direct : position effacée dès la fin du partage (au plus tard 30 minutes sans mise à jour), fiche supprimée 24 heures après.</li>
         <li>Points de bon comportement : tant que ton compte existe, ou jusqu'à ce que tu effaces ton historique.</li>
         <li>Tout le reste : tant que ton compte existe. Tu peux supprimer à tout moment une photo, une moto, une balade que tu as créée, etc.</li>

@@ -32,6 +32,7 @@ import { useConvoy } from '@/lib/convoy';
 import { eventKindInfo } from '@/lib/events';
 import { placeKindInfo } from '@/lib/places';
 import { readTrack } from '@/lib/trips';
+import { OUTING_MIN_KM, setTripReward } from '@/lib/outings';
 import { canUse, useCanUse } from '@/lib/features';
 import { recordTripPoints, refreshBadgesAfterGain, useGoodDrivingTracker, useGoodPointsEnabled } from '@/lib/good-points';
 import { useCommunityPlaces, useEvents } from '@/lib/use-community';
@@ -266,10 +267,22 @@ export default function MapScreen() {
       .then(async (points) => {
         if (points <= 0) return;
         setTimeout(() => showToast(`+${points} points de bon comportement`), 3000);
-        await refreshBadgesAfterGain();
+        setTripReward(trip.id, { points, badges: [] });
+        const fresh = await refreshBadgesAfterGain();
+        setTripReward(trip.id, { points, badges: fresh.map((b) => `${b.emoji} ${b.label}`) });
       })
       .catch((e) => console.warn('Points non enregistrés', e));
   }, [nav.summary, pointsOn, drivingSnapshot]);
+
+  // Sortie de plus de 5 km (navigation ou boucle) : écran « Ta sortie » (récap partageable) au lieu du simple résumé
+  const outingShown = useRef<string | null>(null);
+  const { summary: navSummary, clearSummary } = nav;
+  useEffect(() => {
+    if (!navSummary || navSummary.distanceM < OUTING_MIN_KM * 1000 || outingShown.current === navSummary.id) return;
+    outingShown.current = navSummary.id;
+    router.push({ pathname: '/outing', params: { trip: navSummary.id } });
+    clearSummary();
+  }, [navSummary, clearSummary]);
 
   // Sécurité : pas de saisie de texte en navigation au-dessus de 10 km/h
   const { setLocked } = useDrivingLock();
@@ -848,10 +861,16 @@ export default function MapScreen() {
             </View>
           )}
           {noFriends && !navigating && nav.phase === 'idle' && !ghost && (
-            <Pressable style={styles.inviteChip} onPress={() => router.push('/friends')}>
-              <Ionicons name="people" size={18} color={Colors.accent} />
-              <Text style={styles.inviteChipText}>Aucun pote sur la carte · Ajoute des amis</Text>
-            </Pressable>
+            <>
+              <Pressable style={styles.inviteChip} onPress={() => router.push('/friends')}>
+                <Ionicons name="people" size={18} color={Colors.accent} />
+                <Text style={styles.inviteChipText}>Aucun pote sur la carte · Ajoute des amis</Text>
+              </Pressable>
+              <Pressable style={styles.inviteChip} onPress={() => router.push('/invite')}>
+                <Ionicons name="paper-plane" size={18} color={Colors.accent} />
+                <Text style={styles.inviteChipText}>Inviter des potes sur PasseRyder</Text>
+              </Pressable>
+            </>
           )}
           {convoy && (
             <ConvoyPanel

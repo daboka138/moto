@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { decideMember } from '@/lib/clubs';
 import { setAttendance, declineEventInvite } from '@/lib/events';
 import { acceptFriendRequest, removeFriendship } from '@/lib/friends';
 import { photoUrl } from '@/lib/profile';
@@ -26,7 +27,10 @@ export type NotificationType =
   | 'place_review'
   | 'convoy'
   | 'regroup'
-  | 'sos';
+  | 'sos'
+  | 'referral'
+  | 'club_request'
+  | 'club_accepted';
 
 export type AppNotification = {
   id: string;
@@ -56,6 +60,9 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   convoy: '⚠️',
   regroup: '🚩',
   sos: '🆘',
+  referral: '📨',
+  club_request: '🏁',
+  club_accepted: '🏁',
 };
 
 type Row = {
@@ -108,7 +115,7 @@ export async function deleteNotification(id: string) {
 
 /** Notifications avec boutons Accepter / Refuser */
 export const hasActions = (n: AppNotification) =>
-  n.type === 'friend_request' || n.type === 'ride_invite' || n.type === 'event_invite';
+  n.type === 'friend_request' || n.type === 'ride_invite' || n.type === 'event_invite' || n.type === 'club_request';
 
 /** Accepter ou refuser directement depuis la notification (le serveur retire ensuite la notification) */
 export async function answerNotification(n: AppNotification, userId: string, accept: boolean) {
@@ -121,6 +128,10 @@ export async function answerNotification(n: AppNotification, userId: string, acc
       return accept ? joinRide(target, userId, true) : leaveRide(target, userId);
     case 'event_invite':
       return accept ? setAttendance(target, userId, 'going') : declineEventInvite(target, userId);
+    case 'club_request':
+      // Demande d'adhésion : la cible est le club, le demandeur est l'acteur
+      if (n.actor) await decideMember(target, n.actor.id, accept);
+      return;
   }
 }
 

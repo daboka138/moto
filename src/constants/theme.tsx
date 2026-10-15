@@ -26,6 +26,8 @@ export const LightColors = {
   surface: '#FFFFFF',
   /** Texte ou icône posé sur une couleur vive (bouton bleu, bandeau rouge…) */
   white: '#FFFFFF',
+  /** QR code (toujours noir sur blanc) */
+  black: '#000000',
   text: '#18181B',
   textMuted: '#71717A',
   textFaint: '#A1A1AA',

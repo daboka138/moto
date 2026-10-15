@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Club PasseRyder</title>
+  <meta name="description" content="Rejoins ce club de motards sur PasseRyder : balades, événements et sorties ensemble.">
+  <meta property="og:title" content="Club PasseRyder">
+  <meta property="og:description" content="Rejoins ce club de motards sur PasseRyder : balades, événements et sorties ensemble.">
+  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <meta property="og:site_name" content="PasseRyder">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .share-page { text-align: center; }
+    .hero .avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: var(--border); }
+    .share-page .points { text-align: left; max-width: 34em; margin: 20px auto; }
+    .share-page .code { font-size: 28px; font-weight: 900; letter-spacing: 4px; color: var(--accent-dark); }
+    .share-page .muted { color: var(--muted); }
+    .formats { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+    .formats button { font: inherit; font-weight: 700; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .formats button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .hero #preview { width: auto; height: auto; max-width: 100%; max-height: 70vh; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+    .share-page h1 { overflow-wrap: anywhere; }
+    .formats { flex-wrap: wrap; }
+    .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!-- Page générée par scripts/build-share-pages.cjs : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero share-page">
+      <img class="avatar" id="logo" src="/icon.png" alt="">
+      <h1 id="name">Club PasseRyder</h1>
+      <p class="lead" id="meta"></p>
+      <p id="desc" class="muted" style="white-space: pre-line"></p>
+      <p id="missing" hidden>Ce club n’existe plus ou n’est pas visible.</p>
+      <div class="cta">
+        <a class="button" id="open" href="#">Rejoindre dans l’app</a>
+        <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
+        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+      </div>
+      
+        <ul class="points">
+          <li>🗺️ Tes potes en direct sur la carte (tu choisis qui te voit)</li>
+          <li>🏍️ Balades en convoi : RDV, ouvreur, serre-file, regroupement</li>
+          <li>🌀 « Fais-moi une boucle » : des routes sinueuses au départ de chez toi</li>
+          <li>🆘 SOS, détection de chute et « Je rentre »</li>
+          <li>⚠️ Dangers signalés par les motards, spots et événements</li>
+        </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/guide">Guide</a>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
+    </div>
+  </footer>
+
+  <script>
+
+    // Clé publishable Supabase (publique, la même que dans l'app web)
+    var SUPABASE_URL = 'https://yfewldnhnnrzzscmfjsd.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_ndqUZWRvQOd2so6Zla0gtw_r4TP4kQS';
+    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    var android = /android/i.test(navigator.userAgent);
+    function rpc(name, body) {
+      return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    }
+    function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
+    // Lien Google Play réglable dans la console (pendant le test fermé : lien d'inscription testeur)
+    function playLink() {
+      return fetch(SUPABASE_URL + '/rest/v1/app_settings?key=eq.play_store_url&select=value', { headers: { apikey: SUPABASE_KEY } })
+        .then(function (r) { return r.json(); })
+        .then(function (rows) { return (rows && rows[0] && rows[0].value) || PLAY; })
+        .catch(function () { return PLAY; });
+    }
+    function lastSegment() { return decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || ''); }
+    function el(id) { return document.getElementById(id); }
+    function intentUrl(appPath, fallback) {
+      return 'intent://' + appPath + '#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+    }
+
+    var slug = lastSegment().toLowerCase();
+    var play = PLAY;
+    playLink().then(function (u) { play = u; el('play').href = u; });
+    if (!android) el('open').hidden = true;
+    rpc('club_public', { p_slug: slug }).then(function (c) {
+      if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
+      el('name').textContent = c.name;
+      document.title = c.name + ' · club PasseRyder';
+      var meta = [c.city, c.members + ' membre' + (c.members > 1 ? 's' : ''), c.join_policy === 'open' ? 'club public' : 'adhésion sur demande'];
+      el('meta').textContent = meta.filter(Boolean).join(' · ');
+      el('desc').textContent = (c.description || '') + (c.founder ? '\n\nFondé par @' + c.founder : '');
+      if (c.logo_path) el('logo').src = photo(c.logo_path);
+      el('web').href = 'https://app.passeryder.fr/club/' + c.id;
+      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, play); });
+    }).catch(function () { el('missing').hidden = false; });
+  </script>
+</body>
+</html>

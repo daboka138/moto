@@ -126,6 +126,8 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
   ride_comment: 'Commentaire de balade',
   story: 'Story',
   user: 'Compte',
+  club: 'Club',
+  club_post: 'Message d’un club',
 };
 
 export const REPORT_REASON_LABELS: Record<string, string> = {
@@ -191,7 +193,8 @@ export type ChallengeMetric =
   | 'convoy_done'
   | 'regroup'
   | 'spot_rated'
-  | 'points';
+  | 'points'
+  | 'referral';
 
 export const CHALLENGE_METRICS: { value: ChallengeMetric; label: string }[] = [
   { value: 'clean_km', label: 'Km propres' },
@@ -203,6 +206,7 @@ export const CHALLENGE_METRICS: { value: ChallengeMetric; label: string }[] = [
   { value: 'regroup', label: 'Regroupements' },
   { value: 'spot_rated', label: 'Spots bien notés' },
   { value: 'points', label: 'Points gagnés' },
+  { value: 'referral', label: 'Potes parrainés' },
 ];
 
 export type ChallengeRow = {
@@ -233,5 +237,34 @@ export async function saveChallenge(c: ChallengeRow) {
 
 export async function deleteChallenge(month: string) {
   const { error } = await supabase.from('monthly_challenges').delete().eq('month', month);
+  if (error) throw new Error(error.message);
+}
+
+
+// ---------- Invitations (parrainage) ----------
+
+export type ReferralStats = {
+  invited: number;
+  invited_30d: number;
+  qualified: number;
+  top: { username: string; n: number; qualified: number }[];
+};
+
+export async function fetchReferralStats(): Promise<ReferralStats> {
+  const { data, error } = await supabase.rpc('admin_referral_stats');
+  if (error) throw new Error(error.message);
+  return data as ReferralStats;
+}
+
+// ---------- Réglages publics (app_settings, écriture admin par RLS) ----------
+
+export async function fetchAppSetting(key: string): Promise<string | null> {
+  const { data, error } = await supabase.from('app_settings').select('value').eq('key', key).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.value ?? null;
+}
+
+export async function saveAppSetting(key: string, value: string) {
+  const { error } = await supabase.from('app_settings').upsert({ key, value }, { onConflict: 'key' });
   if (error) throw new Error(error.message);
 }

@@ -14,6 +14,10 @@ import {
   fetchChallenges,
   saveChallenge,
   fetchAdminReports,
+  fetchAppSetting,
+  fetchReferralStats,
+  saveAppSetting,
+  type ReferralStats,
   fetchAdminStats,
   fetchAdminUsers,
   moderate,
@@ -74,11 +78,15 @@ function Overview() {
   const Colors = useColors();
   const styles = useStyles();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [referrals, setReferrals] = useState<ReferralStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
+      fetchReferralStats()
+        .then(setReferrals)
+        .catch((e) => console.warn('Invitations indisponibles', e));
       setStats(await fetchAdminStats());
       setError(null);
     } catch (e) {
@@ -155,6 +163,23 @@ function Overview() {
         <Stat label="Spots" value={stats.places} />
         <Stat label="Posts" value={stats.posts} />
       </View>
+
+      <Text style={styles.section}>Invitations</Text>
+      <View style={styles.grid}>
+        <Stat label="Inscrits par invitation" value={referrals?.invited ?? 0} />
+        <Stat label="30 jours" value={referrals?.invited_30d ?? 0} />
+        <Stat label="Actifs (1re action)" value={referrals?.qualified ?? 0} />
+      </View>
+      {!!referrals?.top.length && (
+        <View style={[styles.card, { gap: 4 }]}>
+          <Text style={styles.label}>Top parrains</Text>
+          {referrals.top.map((t, i) => (
+            <Text key={t.username} style={styles.small}>
+              {i + 1}. @{t.username} · {t.n} filleul{t.n > 1 ? 's' : ''} ({t.qualified} actif{t.qualified > 1 ? 's' : ''})
+            </Text>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.section}>SMS envoyés (Brevo)</Text>
       <View style={styles.grid}>
@@ -352,6 +377,8 @@ function targetHref(r: AdminReport): Href | null {
       return { pathname: '/place/[id]', params: { id: r.targetId } };
     case 'event':
       return { pathname: '/event/[id]', params: { id: r.targetId } };
+    case 'club':
+      return { pathname: '/club/[id]', params: { id: r.targetId } };
     case 'user':
       return { pathname: '/user/[id]', params: { id: r.targetId } };
     default:
@@ -430,7 +457,7 @@ function Moderation() {
       {reports.length === 0 && <Text style={styles.muted}>Aucun signalement en attente. 👌</Text>}
       {reports.map((r) => {
         const href = targetHref(r);
-        const canHide = r.targetType === 'place' || r.targetType === 'place_review';
+        const canHide = r.targetType === 'place' || r.targetType === 'place_review' || r.targetType === 'club';
         const canDelete = r.targetType !== 'user';
         const working = busy === r.targetType + r.targetId;
         return (
@@ -518,9 +545,60 @@ function Features() {
         ))
       )}
 
+      <Text style={styles.section}>Lien Google Play</Text>
+      <PlayLink />
+
       <Text style={styles.section}>Défi du mois</Text>
       <Challenges />
     </ScrollView>
+  );
+}
+
+/** Lien des boutons « Télécharger sur Google Play » des pages /i/CODE et /c/SLUG (test fermé : lien d'inscription testeur) */
+function PlayLink() {
+  const styles = useStyles();
+  const [value, setValue] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppSetting('play_store_url')
+        .then((v) => {
+          setValue(v ?? '');
+          setSaved(v ?? '');
+        })
+        .catch((e) => Alert.alert('Oups', e instanceof Error ? e.message : String(e)));
+    }, []),
+  );
+
+  if (value === null) return null;
+  const valid = /^https:\/\/play\.google\.com\//.test(value.trim());
+  return (
+    <View style={[styles.card, { gap: 8 }]}>
+      <Field label="Adresse (https://play.google.com/…)" value={value} onChangeText={setValue} autoCapitalize="none" autoCorrect={false} />
+      <Text style={styles.small}>
+        Pendant le test fermé : le lien d’inscription des testeurs (Play Console › Tests fermés › « Rejoindre sur le Web »).
+      </Text>
+      {value.trim() !== saved && (
+        <Button
+          title={valid ? 'Enregistrer le lien' : 'Lien Google Play invalide'}
+          disabled={!valid}
+          loading={busy}
+          onPress={async () => {
+            setBusy(true);
+            try {
+              await saveAppSetting('play_store_url', value.trim());
+              setSaved(value.trim());
+            } catch (e) {
+              Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      )}
+    </View>
   );
 }
 

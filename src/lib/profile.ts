@@ -286,7 +286,7 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
 
 export async function uploadPhoto(
   userId: string,
-  kind: 'avatar' | 'moto' | 'wall' | 'cover' | 'place' | 'review' | 'event',
+  kind: 'avatar' | 'moto' | 'wall' | 'cover' | 'place' | 'review' | 'event' | 'club',
   photo: PhotoValue,
 ): Promise<string> {
   const contentType = photo.mimeType ?? 'image/jpeg';

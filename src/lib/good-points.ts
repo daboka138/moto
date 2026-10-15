@@ -23,7 +23,8 @@ export type PointKind =
   | 'convoy_done'
   | 'regroup'
   | 'spot_rated'
-  | 'challenge';
+  | 'challenge'
+  | 'referral';
 
 export const POINT_KINDS: Record<PointKind, { emoji: string; label: string; rule: string }> = {
   clean_km: { emoji: '🛡️', label: 'Km propres', rule: '1 point / 10 km roulés en navigation sans dépasser la limitation connue (40 par jour au plus)' },
@@ -35,6 +36,7 @@ export const POINT_KINDS: Record<PointKind, { emoji: string; label: string; rule
   regroup: { emoji: '🧲', label: 'Regroupement', rule: '5 points quand tu rejoins le point de regroupement' },
   spot_rated: { emoji: '☕', label: 'Spot bien noté', rule: '15 points quand ton spot reçoit au moins 2 avis d’autres membres, moyenne 4 ★ ou plus' },
   challenge: { emoji: '🎯', label: 'Défi du mois', rule: 'Bonus quand le défi du mois est réussi' },
+  referral: { emoji: '📨', label: 'Pote parrainé', rule: '30 points quand un pote inscrit avec ton invitation termine son profil et fait une 1re action (10 par mois)' },
 };
 
 export type Counters = Partial<Record<PointKind, number>>;
@@ -92,7 +94,7 @@ export function levelOf(total: number) {
   return { level, next, progress: Math.max(0, Math.min(1, progress)) };
 }
 
-// ---------- Badges (15) ----------
+// ---------- Badges (17) ----------
 
 export type GoodBadge = { id: string; emoji: string; label: string; description: string; kind: PointKind; goal: number };
 
@@ -112,6 +114,8 @@ export const GOOD_BADGES: GoodBadge[] = [
   { id: 'regroup-5', emoji: '🧲', label: 'Toujours au regroupement', description: '5 regroupements rejoints', kind: 'regroup', goal: 5 },
   { id: 'spot-1', emoji: '☕', label: 'Dénicheur', description: 'Premier spot bien noté', kind: 'spot_rated', goal: 1 },
   { id: 'spot-10', emoji: '🗺️', label: 'Guide local', description: '10 spots bien notés', kind: 'spot_rated', goal: 10 },
+  { id: 'referral-3', emoji: '📨', label: 'Recruteur', description: '3 potes parrainés', kind: 'referral', goal: 3 },
+  { id: 'referral-10', emoji: '🎖️', label: 'Ambassadeur', description: '10 potes parrainés', kind: 'referral', goal: 10 },
 ];
 
 export type GoodBadgeProgress = GoodBadge & { value: number; unlocked: boolean };
@@ -310,23 +314,23 @@ export function dismissCelebration() {
 }
 
 /** Compare les badges obtenus avec ceux déjà fêtés sur ce téléphone */
-export function checkNewBadges(counters: Counters) {
+export function checkNewBadges(counters: Counters): GoodBadge[] {
   const unlocked = goodBadges(counters).filter((b) => b.unlocked);
   const seen = readSeen();
   writeSeen(unlocked.map((b) => b.id));
   // Première fois sur ce téléphone (réinstallation…) : rien à fêter, on mémorise
-  if (seen === null && unlocked.length > 0) return;
+  if (seen === null && unlocked.length > 0) return [];
   const fresh = unlocked.filter((b) => !(seen ?? []).includes(b.id));
-  if (!fresh.length) return;
+  if (!fresh.length) return [];
   celebrations = [...celebrations, ...fresh];
   celebrationListeners.forEach((l) => l());
+  return fresh;
 }
 
-/** Après un gain de points : relit les compteurs et fête les nouveaux badges */
+/** Après un gain de points : relit les compteurs, fête et renvoie les nouveaux badges */
 export async function refreshBadgesAfterGain() {
   const mine = await fetchMyGoodPoints();
-  checkNewBadges(mine.counters);
-  return mine;
+  return checkNewBadges(mine.counters);
 }
 
 /** À l'activation : on part d'une liste vide (le premier badge sera fêté) */

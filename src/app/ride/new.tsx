@@ -12,6 +12,7 @@ import { Button, Chip, Field, Section } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
+import { ClubPicker } from '@/components/club-picker';
 import { canUse } from '@/lib/features';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -65,7 +66,8 @@ export default function NewRideScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string; gpx?: string }>();
+  const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string; gpx?: string; club?: string }>();
+  const [clubId, setClubId] = useState<string | null>(params.club ?? null);
   const [given] = useState(() => placeFromParams(params));
   const [title, setTitle] = useState('');
   const [start, setStart] = useState<Place | null>(params.role === 'start' ? given : null);
@@ -231,6 +233,7 @@ export default function NewRideScreen() {
         categories,
         pace,
         surface,
+        clubId,
       });
       router.replace({ pathname: '/ride/[id]', params: { id } });
     } catch (e) {
@@ -383,6 +386,8 @@ export default function NewRideScreen() {
             ))}
           </View>
         </Section>
+
+        <ClubPicker userId={session?.user.id} value={clubId} onChange={setClubId} />
 
         <Section title="Détails">
           <Text style={styles.label}>Niveau</Text>

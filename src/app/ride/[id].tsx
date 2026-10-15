@@ -137,7 +137,17 @@ export default function RideScreen() {
   const confirmEnd = () =>
     Alert.alert('Terminer la balade', 'Les participants ne se verront plus (selon leurs réglages habituels).', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Terminer', onPress: () => run(() => endRide(ride.id)) },
+      {
+        text: 'Terminer',
+        onPress: () =>
+          run(
+            () => endRide(ride.id),
+            () => {
+              load();
+              router.push({ pathname: '/outing', params: { ride: ride.id } });
+            },
+          ),
+      },
     ]);
 
   const confirmDelete = () =>
@@ -154,6 +164,9 @@ export default function RideScreen() {
 
   const actions = (
     <View style={styles.actions}>
+      {ride.status === 'ended' && (isOrganizer || ride.joined) && (
+        <Button title="🏁 Ta sortie : récap à partager" onPress={() => router.push({ pathname: '/outing', params: { ride: ride.id } })} />
+      )}
       {(isOrganizer || ride.joined) && <Button title="💬 Discussion de la balade" onPress={openChat} loading={busy} />}
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />

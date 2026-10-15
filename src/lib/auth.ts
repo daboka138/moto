@@ -40,11 +40,12 @@ export async function signInWithEmail(email: string, password: string) {
  * La version des CGU acceptée (case cochée) part dans les métadonnées : un trigger
  * l'enregistre dans terms_acceptances en même temps que le compte.
  */
-export async function signUpWithEmail(email: string, password: string): Promise<boolean> {
+export async function signUpWithEmail(email: string, password: string, inviteCode?: string): Promise<boolean> {
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
     password,
-    options: { data: { terms_version: TERMS_VERSION } },
+    // invite_code : parrainage créé par le serveur quand le profil est terminé (voir lib/invite.ts)
+    options: { data: { terms_version: TERMS_VERSION, ...(inviteCode ? { invite_code: inviteCode } : {}) } },
   });
   if (error) throw fail(error);
   return !data.session;

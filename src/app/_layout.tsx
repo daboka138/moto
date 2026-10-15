@@ -202,6 +202,10 @@ function RootNavigator() {
           <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />
           <Stack.Screen name="points" options={{ headerShown: true, title: 'Mes points' }} />
           <Stack.Screen name="premium" options={{ headerShown: true, title: 'PasseRyder Premium' }} />
+          <Stack.Screen name="invite" options={{ headerShown: true, title: 'Inviter des potes' }} />
+          <Stack.Screen name="outing" options={{ headerShown: true, title: 'Ta sortie' }} />
+          <Stack.Screen name="club/new" options={{ headerShown: true, title: 'Créer un club' }} />
+          <Stack.Screen name="club/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="search" />
           <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
           <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />

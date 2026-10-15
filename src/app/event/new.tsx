@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View } from 'react-native';
 
+import { ClubPicker } from '@/components/club-picker';
 import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
@@ -32,7 +33,8 @@ export default function NewEventScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const params = useLocalSearchParams<{ label?: string; lat?: string; lng?: string }>();
+  const params = useLocalSearchParams<{ label?: string; lat?: string; lng?: string; club?: string }>();
+  const [clubId, setClubId] = useState<string | null>(params.club ?? null);
   const [place, setPlace] = useState<Place | null>(() => {
     const latitude = Number(params.lat);
     const longitude = Number(params.lng);
@@ -76,6 +78,7 @@ export default function NewEventScreen() {
         place: place!,
         maxAttendees,
         photo,
+        clubId,
       });
       router.replace({ pathname: '/event/[id]', params: { id } });
     } catch (e) {
@@ -88,6 +91,7 @@ export default function NewEventScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Field label="Titre" required value={title} onChangeText={setTitle} maxLength={100} placeholder="ex. Rassemblement du Vieux-Port" />
+        <ClubPicker userId={session.user.id} value={clubId} onChange={setClubId} />
         <Section title="Type">
           <View style={styles.chips}>
             {EVENT_KINDS.map((k) => (
