@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, Sc
 
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { DateTimeField, PlaceField } from '@/components/form-fields';
-import { LeafletMap } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
@@ -304,15 +304,20 @@ export default function NewRideScreen() {
             onPress={() => choose("Point d'arrivée", setEnd, end)}
           />
 
-          <View style={styles.preview}>
-            <LeafletMap
-              position={me ? { ...me, accuracy: null } : null}
-              pins={pins}
-              routes={start && end ? [{ id: 'route', points: previewPoints }] : []}
-              fitPoints={fitPoints.length ? fitPoints : me ? [me] : undefined}
-              onMapLongPress={placeAt}
-            />
-          </View>
+          <ExpandableMap
+            style={styles.preview}
+            position={me ? { ...me, accuracy: null } : null}
+            pins={pins}
+            routes={start && end ? [{ id: 'route', points: previewPoints }] : []}
+            fitPoints={fitPoints.length ? fitPoints : me ? [me] : undefined}
+            onMapLongPress={placeAt}
+            title={title.trim() || 'Itinéraire de la balade'}
+            subtitle={
+              currentRoute
+                ? `${formatDistance(currentRoute.distanceM)} · environ ${formatDuration(currentRoute.durationS)}`
+                : `${IS_WEB ? 'Clic droit ou appui long' : 'Appui long'} pour placer un point`
+            }
+          />
           <Text style={styles.mapHint}>
             {IS_WEB ? 'Clic droit ou appui long' : 'Appui long'} sur la carte pour placer le départ, l’arrivée, le RDV ou
             une étape.

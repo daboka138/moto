@@ -501,6 +501,7 @@ export const FICHES: Fiche[] = [
       'La boucle part et revient au lieu de départ. « Créer une balade » en fait le point de RDV.',
       'Les boucles passent en priorité par les cols et routes réputés de la région et par les spots « belle route » / « point de vue » bien notés (un peu de hasard pour varier).',
       'Chaque boucle affiche sa part en ville, et sa durée reste entre -15 % et +20 % de ta demande.',
+      'Bouton ⤢ en coin de carte : la carte en plein écran (touche une boucle pour la choisir, « Partir » ou « Créer une balade » en bas). Aussi sur les cartes des balades, de « Ta sortie », des lieux et des événements.',
       'Jamais de ferry ni de passage en mer. Départ en ville : l’app sort par les axes directs (sans autoroute) vers la campagne et le relief, puis prend les petites routes.',
       'Position refusée ou indisponible : le choix du départ s’ouvre tout seul.',
       '« 💡 Besoin d’idées ? » : des articles de partenaires sur les belles routes de ta région.',

@@ -4,13 +4,13 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
-import { LeafletMap } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
 import { OpenInApp } from '@/components/open-in-app';
 import { Button, Chip } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
-import type { LatLng } from '@/lib/geo';
+import { distanceM, type LatLng } from '@/lib/geo';
 import { setPendingGpx } from '@/lib/gpx';
 import {
   CURVINESS,
@@ -35,6 +35,29 @@ import { pickPlace } from '@/lib/place-picker';
 
 const ORIGIN_TITLE = 'Lieu de départ de la boucle';
 
+/**
+ * Boucle touchée sur la carte : la plus proche du doigt, si elle passe à moins de ~4 % de la
+ * taille de la zone (la carte ne donne pas son zoom), sinon aucune.
+ */
+function nearestLoop(loops: Loop[], p: LatLng): number | null {
+  const all = loops.flatMap((l) => l.route.points);
+  const lats = all.map((x) => x.latitude);
+  const lngs = all.map((x) => x.longitude);
+  const diag = distanceM(
+    { latitude: Math.min(...lats), longitude: Math.min(...lngs) },
+    { latitude: Math.max(...lats), longitude: Math.max(...lngs) },
+  );
+  let best: { i: number; d: number } | null = null;
+  loops.forEach((l, i) => {
+    for (let k = 0; k < l.route.points.length; k += 3) {
+      const d = distanceM(p, l.route.points[k]);
+      if (!best || d < best.d) best = { i, d };
+    }
+  });
+  const found = best as { i: number; d: number } | null;
+  return found && found.d <= Math.max(300, diag * 0.04) ? found.i : null;
+}
+
 const durationLabel = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}`);
 
 /**
@@ -58,6 +81,12 @@ function LoopScreenContent() {
   const [progress, setProgress] = useState<number | null>(null);
   const [loops, setLoops] = useState<Loop[] | null>(null);
   const [selected, setSelected] = useState(0);
+  // Demande des boucles affichées (les réglages peuvent changer ensuite)
+  const [requested, setRequested] = useState<LoopTarget | null>(null);
+  const offTargetLabel = (l: Loop) =>
+    requested?.kind === 'distance'
+      ? `${formatDistance(l.route.distanceM)} au lieu de ${requested.km} km`
+      : `≈ ${durationLabel(l.durationMin)} au lieu de ${requested ? durationLabel(requested.minutes) : '?'}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +126,7 @@ function LoopScreenContent() {
   const generate = async () => {
     if (!start) return;
     const target: LoopTarget = mode === 'duration' ? { kind: 'duration', minutes } : { kind: 'distance', km };
+    setRequested(target);
     setProgress(0);
     setLoops(null);
     try {
@@ -210,18 +240,55 @@ function LoopScreenContent() {
 
       {loops && loops.length > 0 && start && (
         <>
-          <View style={styles.map}>
-            <LeafletMap
-              position={null}
-              pins={[{ id: 'start', kind: 'start', label: '🏁', latitude: start.latitude, longitude: start.longitude }]}
-              routes={loops.map((l, i) => ({
-                id: l.id,
-                points: l.route.points.map((p) => [p.latitude, p.longitude] as [number, number]),
-                ...(i === selected ? {} : { color: Colors.textFaint, muted: true }),
-              }))}
-              fitPoints={loop?.route.points.filter((_, i) => i % 20 === 0)}
-            />
-          </View>
+          <ExpandableMap
+            style={styles.map}
+            position={null}
+            pins={[{ id: 'start', kind: 'start', label: '🏁', latitude: start.latitude, longitude: start.longitude }]}
+            routes={loops.map((l, i) => ({
+              id: l.id,
+              points: l.route.points.map((p) => [p.latitude, p.longitude] as [number, number]),
+              ...(i === selected ? {} : { color: Colors.textFaint, muted: true }),
+            }))}
+            fitPoints={loop?.route.points.filter((_, i) => i % 20 === 0)}
+            title={loop ? `Boucle ${selected + 1} · ${curvinessLabel(loop.score)}` : undefined}
+            subtitle={
+              loop
+                ? `${formatDistance(loop.route.distanceM)} · ≈ ${durationLabel(loop.durationMin)}${loop.offTarget ? ' · hors durée demandée' : ''}`
+                : undefined
+            }
+            // Plein écran : toucher une boucle la sélectionne
+            fullProps={{
+              onMapPress: (p) => {
+                const i = nearestLoop(loops, p);
+                if (i !== null) setSelected(i);
+              },
+            }}
+            footer={(close) =>
+              loop && (
+                <>
+                  {IS_WEB ? (
+                    <OpenInApp path="/loop" compact />
+                  ) : (
+                    <Button
+                      title="Partir"
+                      onPress={() => {
+                        close();
+                        go(loop);
+                      }}
+                    />
+                  )}
+                  <Button
+                    title="Créer une balade"
+                    variant="secondary"
+                    onPress={() => {
+                      close();
+                      createRide(loop);
+                    }}
+                  />
+                </>
+              )
+            }
+          />
           {loops.map((l, i) => (
             <Pressable
               key={l.id}
@@ -242,7 +309,12 @@ function LoopScreenContent() {
                   {l.overlap > 0.15 ? ' · un peu d’aller-retour' : ''}
                 </Text>
                 {l.offTarget && (
-                  <Text style={styles.warn}>Pas de boucle à la durée demandée ici : la plus proche est proposée.</Text>
+                  <View style={styles.warnBox}>
+                    <Ionicons name="warning" size={16} color={Colors.warning} />
+                    <Text style={styles.warn}>
+                      Pas de boucle à la durée demandée ici : {offTargetLabel(l)}. C’est la plus proche trouvée.
+                    </Text>
+                  </View>
                 )}
               </View>
               <View style={styles.scoreBar}>
@@ -275,7 +347,8 @@ const useStyles = makeStyles((Colors) => ({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: 15, fontWeight: '700', color: Colors.text },
   hint: { fontSize: 13, color: Colors.textMuted },
-  warn: { fontSize: 12, color: Colors.warning, fontWeight: '700' },
+  warn: { flex: 1, fontSize: 13, color: Colors.warning, fontWeight: '700' },
+  warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 4 },
   progress: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   map: { height: 280, borderRadius: 16, overflow: 'hidden' },
   loopCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2, borderColor: Colors.surface },

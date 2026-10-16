@@ -3,7 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Switch, Text, View } from 'react-native';
 
-import { LeafletMap } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
@@ -118,13 +118,14 @@ export default function OutingScreen() {
         {new Date(draft.startedAt).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
       </Text>
 
-      <View style={styles.map}>
-        <LeafletMap
-          position={null}
-          routes={[{ id: 'outing', points: shown.map((p) => [p.latitude, p.longitude] as [number, number]) }]}
-          fitPoints={fit}
-        />
-      </View>
+      <ExpandableMap
+        style={styles.map}
+        position={null}
+        routes={[{ id: 'outing', points: shown.map((p) => [p.latitude, p.longitude] as [number, number]) }]}
+        fitPoints={fit}
+        title={draft.title}
+        subtitle={`${(draft.distanceM / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km · ${formatDuration(draft.durationS)}`}
+      />
 
       <View style={styles.stats}>
         <Stat value={(draft.distanceM / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} label="km" />

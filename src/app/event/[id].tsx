@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
-import { LeafletMap } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -192,13 +192,14 @@ export default function EventScreen() {
           )}
         </View>
 
-        <View style={styles.map}>
-          <LeafletMap
-            position={null}
-            pins={[{ id: 'e', kind: 'event', label: kind.emoji, latitude: event.place.latitude, longitude: event.place.longitude }]}
-            fitPoints={[event.place]}
-          />
-        </View>
+        <ExpandableMap
+          style={styles.map}
+          position={null}
+          pins={[{ id: 'e', kind: 'event', label: kind.emoji, latitude: event.place.latitude, longitude: event.place.longitude }]}
+          fitPoints={[event.place]}
+          title={event.title}
+          subtitle={event.place.label}
+        />
 
         {!!event.description && (
           <Card title="Programme">

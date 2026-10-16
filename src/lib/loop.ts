@@ -739,22 +739,47 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
     );
   }
 
-  // Seules les boucles à la bonne durée (-15 % / +20 %) sont proposées ; sans aucune, les plus
-  // proches de la demande, signalées « hors durée ». Puis le plaisir (sinuosité voulue, moins la
-  // ville et les allers-retours) ; plus de 20 % d'aller-retour : écartée s'il y a mieux.
-  const onTarget = found.filter((l) => !l.offTarget);
-  const fit = (l: Loop) => Math.abs(measure(l.route, l.score) - want) / want;
-  const base = onTarget.length ? onTarget : [...found].sort((a, b) => fit(a) - fit(b)).slice(0, 3);
-  if (!onTarget.length) {
-    for (const l of base) {
+  // Sans aucune boucle à la bonne durée : part en ville calculée pour les plus proches, proposées faute de mieux
+  if (!found.some((l) => inTargetRange(l, r.target))) {
+    const closest = [...found].sort((x, y) => targetGap(x, r.target) - targetGap(y, r.target)).slice(0, 3);
+    for (const l of closest) {
       const town = await urbanStats(l.route, costing);
       l.urban = town?.urban ?? null;
       l.exitKm = town?.exitKm ?? null;
     }
   }
+  return pickLoops(found, r.target, r.curviness);
+}
+
+/** Ce qui est comparé à la demande, tel qu'affiché : durée estimée (min) ou longueur (km) */
+export const loopMeasure = (l: Pick<Loop, 'route' | 'durationMin'>, target: LoopTarget) =>
+  target.kind === 'duration' ? l.durationMin : l.route.distanceM / 1000;
+const targetValue = (t: LoopTarget) => (t.kind === 'duration' ? t.minutes : t.km);
+/** Écart relatif à la demande (0,5 = 50 %) */
+const targetGap = (l: Pick<Loop, 'route' | 'durationMin'>, t: LoopTarget) => Math.abs(loopMeasure(l, t) - targetValue(t)) / targetValue(t);
+/** Dans la marge -15 % / +20 % de la demande */
+export function inTargetRange(l: Pick<Loop, 'route' | 'durationMin'>, t: LoopTarget) {
+  const m = loopMeasure(l, t);
+  return m >= targetValue(t) * (1 - FIT_UNDER) && m <= targetValue(t) * (1 + FIT_OVER);
+}
+
+/**
+ * Choix final (fonction pure, testée par scripts/dev/rank-test.mjs) : seules les boucles dans la
+ * marge sont proposées ; sans aucune, les 3 plus proches, toutes marquées offTarget. « Hors
+ * durée » est recalculé ici sur la durée AFFICHÉE : jamais de boucle hors marge en tête quand une
+ * autre est dans la marge. Puis le plaisir ; plus de 20 % d'aller-retour : écartée s'il y a mieux.
+ */
+export function pickLoops(found: Loop[], target: LoopTarget, curviness: Curviness): Loop[] {
+  const flagged = found.map((l) => ({ ...l, offTarget: !inTargetRange(l, target) }));
+  const onTarget = flagged.filter((l) => !l.offTarget);
+  const base = onTarget.length ? onTarget : [...flagged].sort((a, b) => targetGap(a, target) - targetGap(b, target)).slice(0, 3);
   const clean = base.filter((l) => l.overlap <= OVERLAP_MAX);
   const pool = clean.length ? clean : base;
-  const ranked = pool.sort((a, b) => plaisirScore(b, r.curviness) - plaisirScore(a, r.curviness));
+  const ranked = [...pool].sort(
+    (a, b) =>
+      Number(a.offTarget) - Number(b.offTarget) ||
+      (a.offTarget ? targetGap(a, target) - targetGap(b, target) : plaisirScore(b, curviness) - plaisirScore(a, curviness)),
+  );
   const distinct: Loop[] = [];
   for (const l of ranked) if (!distinct.some((d) => sameRoute(d.route, l.route))) distinct.push(l);
   return distinct.slice(0, 3);

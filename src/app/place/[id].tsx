@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 
 import { showActionSheet } from '@/components/action-sheet';
 import { Stars } from '@/components/community-cards';
-import { LeafletMap } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Card } from '@/components/profile-view';
 import { Button, Field } from '@/components/ui';
@@ -174,9 +174,14 @@ export default function PlaceScreen() {
       {place.photoUrl ? (
         <Image source={{ uri: place.photoUrl }} style={styles.photo} contentFit="cover" />
       ) : (
-        <View style={styles.map}>
-          <LeafletMap position={null} pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]} fitPoints={[place]} />
-        </View>
+        <ExpandableMap
+          style={styles.map}
+          position={null}
+          pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]}
+          fitPoints={[place]}
+          title={place.name}
+          subtitle={`${kind.emoji} ${kind.label}`}
+        />
       )}
       <View style={styles.body}>
         <Text style={styles.kind}>
@@ -201,9 +206,14 @@ export default function PlaceScreen() {
         <Button title="Y aller" onPress={() => goToPlace({ ...place, label: place.name })} />
 
         {place.photoUrl && (
-          <View style={styles.mapSmall}>
-            <LeafletMap position={null} pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]} fitPoints={[place]} />
-          </View>
+          <ExpandableMap
+            style={styles.mapSmall}
+            position={null}
+            pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]}
+            fitPoints={[place]}
+            title={place.name}
+            subtitle={`${kind.emoji} ${kind.label}`}
+          />
         )}
 
         <Card title={mine ? 'Mon avis' : 'Donner mon avis'}>

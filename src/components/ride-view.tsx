@@ -3,7 +3,8 @@ import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { LeafletMap, type MapPin } from '@/components/leaflet-map';
+import { ExpandableMap } from '@/components/expandable-map';
+import type { MapPin } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
 import { WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -58,9 +59,19 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.map}>
-        <LeafletMap position={null} pins={pins} routes={[{ id: 'route', points: routePoints }]} fitPoints={fit} />
-      </View>
+      <ExpandableMap
+        style={styles.map}
+        position={null}
+        pins={pins}
+        routes={[{ id: 'route', points: routePoints }]}
+        fitPoints={fit}
+        title={ride.title}
+        subtitle={
+          ride.distanceM !== null
+            ? `${formatDistance(ride.distanceM)}${ride.durationS !== null ? ` · environ ${formatDuration(ride.durationS)}` : ''}`
+            : undefined
+        }
+      />
 
       <View style={styles.body}>
         {ride.status === 'live' && (
