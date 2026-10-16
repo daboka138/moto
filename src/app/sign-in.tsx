@@ -15,6 +15,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '@/lib/auth';
+import { errorMessage } from '@/lib/errors';
 import { cleanInviteCode, clearPendingInvite, fetchInviter, INVITE_PATTERN, pendingInviteCode } from '@/lib/invite';
 
 type Mode = 'signIn' | 'signUp' | 'forgot';
@@ -73,7 +74,7 @@ export default function SignInScreen() {
       // Si une session s'ouvre, la navigation bascule toute seule (voir _layout.tsx)
     } catch (e) {
       if (e instanceof AuthFailure && e.code === 'email_not_confirmed') setUnconfirmed(true);
-      Alert.alert(mode === 'signIn' ? 'Connexion' : 'Inscription', e instanceof Error ? e.message : String(e));
+      Alert.alert(mode === 'signIn' ? 'Connexion' : 'Inscription', errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ export default function SignInScreen() {
       await requestPasswordReset(email);
       setResetSent(true);
     } catch (e) {
-      Alert.alert('Mot de passe oublié', e instanceof Error ? e.message : String(e));
+      Alert.alert('Mot de passe oublié', errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function SignInScreen() {
       await resendConfirmation(email);
       Alert.alert('Email renvoyé', 'Si ton adresse attend une confirmation, tu vas recevoir un nouvel email. Pense à regarder dans les spams.');
     } catch (e) {
-      Alert.alert('Confirmation', e instanceof Error ? e.message : String(e));
+      Alert.alert('Confirmation', errorMessage(e));
     } finally {
       setResending(false);
     }

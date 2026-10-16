@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PhotoPicker } from '@/components/photo-picker';
 import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACES } from '@/lib/moto';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
+import { errorMessage, PhotoUnreadableError } from '@/lib/errors';
 import {
   emptyMotorcycleDraft,
   INTEREST_SUGGESTIONS,
@@ -29,12 +30,40 @@ type Props = {
   header?: React.ReactNode;
 };
 
+/** Inscription : saisie gardée sur l'appareil jusqu'à la création du profil (page rechargée, coupure…) */
+const DRAFT_KEY = 'moto.onboardingDraft';
+
+/** Brouillon d'inscription retrouvé (sans les photos choisies : leur adresse ne survit pas à un rechargement) */
+function savedDraft(userId: string): ProfileDraft | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as { userId: string; draft: ProfileDraft } | null;
+    if (!saved || saved.userId !== userId) return null;
+    const d = saved.draft;
+    const keep = (photo: ProfileDraft['avatar']) => (photo.localUri?.startsWith('blob:') ? { ...photo, localUri: null } : photo);
+    return { ...d, avatar: keep(d.avatar), motorcycles: d.motorcycles.map((m) => ({ ...m, photo: keep(m.photo) })) };
+  } catch {
+    return null;
+  }
+}
+
 export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, header }: Props) {
   const Colors = useColors();
   const styles = useStyles();
-  const [draft, setDraft] = useState<ProfileDraft>(() => profileToDraft(profile, identity));
+  const creating = profile === null;
+  const [draft, setDraft] = useState<ProfileDraft>(() => (creating && savedDraft(userId)) || profileToDraft(profile, identity));
   const [interestInput, setInterestInput] = useState('');
   const [saving, setSaving] = useState(false);
+  // Dernière erreur d'enregistrement : bandeau clair + « Réessayer » (la saisie reste)
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!creating) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ userId, draft }));
+    } catch {
+      // stockage indisponible : la saisie reste à l'écran
+    }
+  }, [creating, userId, draft]);
 
   const set = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -73,11 +102,24 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
       return;
     }
     setSaving(true);
+    setSaveError(null);
     try {
       await saveProfile(userId, draft, profile);
+      if (creating) {
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          // rien à faire
+        }
+      }
       await onSaved();
     } catch (e) {
-      Alert.alert('Enregistrement impossible', e instanceof Error ? e.message : String(e));
+      // Photo devenue illisible : seule cette photo est à rechoisir, le reste est gardé
+      if (e instanceof PhotoUnreadableError) {
+        const clear = (photo: ProfileDraft['avatar']) => (photo.localUri === e.uri ? { ...photo, localUri: null } : photo);
+        setDraft((d) => ({ ...d, avatar: clear(d.avatar), motorcycles: d.motorcycles.map((m) => ({ ...m, photo: clear(m.photo) })) }));
+      }
+      setSaveError(errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -263,13 +305,34 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
           </View>
         </Section>
 
-        <Button title={submitLabel} onPress={submit} loading={saving} />
+        {saveError && (
+          <View style={styles.errorBox}>
+            <Ionicons name="cloud-offline-outline" size={20} color={Colors.danger} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.errorTitle}>Enregistrement impossible</Text>
+              <Text style={styles.errorText}>{saveError}</Text>
+              <Text style={styles.errorText}>Ce que tu as saisi est gardé.</Text>
+            </View>
+          </View>
+        )}
+        <Button title={saveError ? 'Réessayer' : submitLabel} onPress={submit} loading={saving} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const useStyles = makeStyles((Colors) => ({
+  errorBox: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+    backgroundColor: Colors.surface,
+  },
+  errorTitle: { fontSize: 15, fontWeight: '800', color: Colors.danger },
+  errorText: { fontSize: 14, color: Colors.text },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   hint: { color: Colors.textMuted },
   privateNote: { flexDirection: 'row', alignItems: 'center', gap: 8 },

@@ -1,4 +1,5 @@
 import { photoUrl } from '@/lib/profile';
+import { PhotoUnreadableError } from '@/lib/errors';
 import { readFileBytes } from '@/lib/read-file';
 import { supabase } from '@/lib/supabase';
 
@@ -131,7 +132,9 @@ export async function publishStory(
   const contentType = media.mimeType ?? (media.type === 'video' ? 'video/mp4' : 'image/jpeg');
   const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg').replace('quicktime', 'mov') ?? 'jpg';
   const path = `${userId}/story-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-  const bytes = await readFileBytes(media.uri);
+  const bytes = await readFileBytes(media.uri).catch(() => {
+    throw new PhotoUnreadableError(media.uri);
+  });
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType });
   if (uploadError) throw new Error(`Envoi impossible : ${uploadError.message}`);
   const { error } = await supabase.from('stories').insert({

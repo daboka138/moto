@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Field } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
+import { errorMessage } from '@/lib/errors';
 import { openInApp, IS_WEB, webDevice } from '@/lib/app-link';
 import { PASSWORD_MAX, PASSWORD_MIN, updatePassword, verifyEmailLink } from '@/lib/auth';
 import { clearPendingAuthLink, getPendingAuthLink, type PendingAuthLink } from '@/lib/auth-link';
@@ -75,7 +76,7 @@ export default function AuthCallbackScreen() {
       if (linkType === 'recovery') await updatePassword(password);
       setDone(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }

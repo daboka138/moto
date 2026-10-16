@@ -1,6 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 
+import { errorMessage } from '@/lib/errors';
+import { snapshotImage } from '@/lib/image-snapshot';
+
 export type PickedImage = { uri: string; mimeType?: string };
 
 /** Demande « Galerie ou Appareil photo ? » puis ouvre le sélecteur. Renvoie null si annulé. */
@@ -37,5 +40,11 @@ async function launch(source: 'camera' | 'library', aspect?: [number, number]): 
     source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled) return null;
   const asset = result.assets[0];
-  return { uri: asset.uri, mimeType: asset.mimeType ?? undefined };
+  // Web : photo lue et copiée tout de suite (sinon illisible au moment de l'envoi sur Android)
+  try {
+    return await snapshotImage(asset.uri, asset.mimeType ?? undefined);
+  } catch (e) {
+    Alert.alert('Photo illisible', `${errorMessage(e)} Astuce : prends-la depuis la Galerie du téléphone.`);
+    return null;
+  }
 }

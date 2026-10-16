@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TermsCheckbox } from '@/components/terms-checkbox';
 import { Button } from '@/components/ui';
 import { makeStyles } from '@/constants/theme';
+import { errorMessage } from '@/lib/errors';
 import { signOut } from '@/lib/auth';
 import { useSession } from '@/lib/session';
 import { acceptTerms } from '@/lib/terms';
@@ -26,7 +27,7 @@ export default function TermsScreen() {
       // La session recharge l'état des CGU : la navigation bascule toute seule
       await refreshProfile();
     } catch (e) {
-      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+      Alert.alert('Oups', errorMessage(e));
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,8 @@ import { useDrivingLock } from '@/lib/driving-lock';
 import { useSession } from '@/lib/session';
 import { MAX_VIDEO_S, publishStory, type StoryVisibility } from '@/lib/stories';
 import { useStories } from '@/lib/stories-context';
+import { errorMessage } from '@/lib/errors';
+import { snapshotImage, snapshotVideo } from '@/lib/image-snapshot';
 
 type Media = { uri: string; mimeType?: string; type: 'image' | 'video'; durationS: number | null };
 
@@ -51,7 +53,15 @@ export default function NewStoryScreen() {
       Alert.alert('Vidéo trop longue', `Une story vidéo dure ${MAX_VIDEO_S} secondes maximum.`);
       return;
     }
-    setMedia({ uri: asset.uri, mimeType: asset.mimeType ?? undefined, type: isVideo ? 'video' : 'image', durationS });
+    // Web : fichier copié tout de suite (sinon illisible au moment de l'envoi sur Android)
+    let copy: { uri: string; mimeType?: string };
+    try {
+      copy = isVideo ? await snapshotVideo(asset.uri, asset.mimeType ?? undefined) : await snapshotImage(asset.uri, asset.mimeType ?? undefined);
+    } catch (e) {
+      Alert.alert('Fichier illisible', errorMessage(e));
+      return;
+    }
+    setMedia({ uri: copy.uri, mimeType: copy.mimeType, type: isVideo ? 'video' : 'image', durationS });
   };
 
   const publish = async () => {
@@ -62,7 +72,7 @@ export default function NewStoryScreen() {
       await refresh();
       router.back();
     } catch (e) {
-      Alert.alert('Publication impossible', e instanceof Error ? e.message : String(e));
+      Alert.alert('Publication impossible', errorMessage(e));
     } finally {
       setSaving(false);
     }
