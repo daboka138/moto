@@ -147,7 +147,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'Sur ordinateur ou iPhone, ouvre app.passeryder.fr et connecte-toi avec le même compte.',
       'Tu y retrouves la carte (consultation), le Mur, les Sorties, les Messages, les Notifs et ton Profil.',
-      'Pour le GPS en direct, la navigation, la voix et la sécurité, installe l’app Android depuis Google Play.',
+      'Pour le GPS en direct, la navigation, la voix et la sécurité, installe l’app Android : passeryder.fr/telecharger (étapes pour Android, iPhone et ordinateur).',
     ],
     astuces: ['La version web s’installe sur l’écran d’accueil comme une app (menu du navigateur › Installer).'],
     limites: [

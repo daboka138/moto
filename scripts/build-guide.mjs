@@ -82,6 +82,7 @@ const html = `<!doctype html>
     <div class="wrap">
       <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
       <nav>
+        <a href="/telecharger">Télécharger</a>
         <a href="https://app.passeryder.fr">App web</a>
         <a href="/guide">Guide</a>
         <a href="/conditions">Conditions</a>
@@ -94,7 +95,7 @@ const html = `<!doctype html>
   <main class="wrap">
     <article class="guide">
       <h1>Guide d'utilisation</h1>
-      <p class="meta">Tout PasseRyder en fiches courtes. Les fonctions marquées <span class="tag">📱 App Android</span> sont réservées à l'app Android ; le reste marche aussi sur <a href="https://app.passeryder.fr">app.passeryder.fr</a>.</p>
+      <p class="meta">Tout PasseRyder en fiches courtes. Les fonctions marquées <span class="tag">📱 App Android</span> sont réservées à l'app Android (<a href="/telecharger">l'installer</a>) ; le reste marche aussi sur <a href="https://app.passeryder.fr">app.passeryder.fr</a>.</p>
 
       <input class="guide-search" type="search" id="q" placeholder="Rechercher : convoi, SOS, GPX…" autocomplete="off" aria-label="Rechercher dans le guide">
       <p class="meta" id="empty" hidden>Rien trouvé. Essaie un autre mot, ou <a href="${esc(mail)}">écris-nous</a>.</p>

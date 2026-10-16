@@ -1,10 +1,13 @@
 // Pages publiques de partage sur passeryder.fr (servies par Caddy, voir PLAY_STORE.md § 1.2) :
 //   site/i/  → /i/CODE  invitation d'un membre (pseudo + photo, Google Play, version web)
 //   site/c/  → /c/SLUG  page publique d'un club
+//   site/telecharger/ → /telecharger  page de téléchargement (Android : test fermé en 3 étapes ou
+//                        Google Play selon app_settings.distribution_mode ; iPhone : version web ;
+//                        ordinateur : QR code). Visuels : branding/telecharger.mjs
 //   site/s/  → /s/ID    récap de sortie + image story 1080×1920 ou carrée 1080×1080 (canvas),
 //                        « Partager l'image » (Web Share) ou « Télécharger ». JAMAIS de vitesse.
 // Les données viennent de fonctions Supabase publiques (invite_info, club_public, get_outing,
-// app_settings.play_store_url) avec la clé PUBLISHABLE uniquement.
+// app_settings : distribution_mode, testers_group_url, testing_optin_url, play_store_url) avec la clé PUBLISHABLE uniquement.
 // Usage : node scripts/build-share-pages.cjs, puis republier le site.
 const fs = require('fs');
 const path = require('path');
@@ -22,17 +25,16 @@ const KEY = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 if (!SUPABASE_URL || !KEY) throw new Error('.env incomplet');
 if (!KEY.startsWith('sb_publishable_')) throw new Error('Seule une clé publishable peut aller sur le site');
 
-const head = (title, description) => `<!doctype html>
+const head = (title, description, { index = false, image = 'https://passeryder.fr/icon.png', css = '' } = {}) => `<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex">
-  <title>${title}</title>
+${index ? '' : '  <meta name="robots" content="noindex">\n'}  <title>${title}</title>
   <meta name="description" content="${description}">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${description}">
-  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <meta property="og:image" content="${image}">
   <meta property="og:site_name" content="PasseRyder">
   <link rel="icon" href="/favicon.png">
   <link rel="stylesheet" href="/style.css">
@@ -49,7 +51,7 @@ const head = (title, description) => `<!doctype html>
     .share-page h1 { overflow-wrap: anywhere; }
     .formats { flex-wrap: wrap; }
     .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
-  </style>
+${css}  </style>
 </head>
 <body>
   <!-- Page générée par scripts/build-share-pages.cjs : ne pas modifier à la main -->
@@ -71,6 +73,7 @@ const foot = `
       <a href="/guide">Guide</a>
       <a href="/conditions">Conditions d'utilisation</a>
       <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="/mentions-legales">Mentions légales</a>
       <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
     </div>
   </footer>
@@ -80,7 +83,8 @@ const common = `
     // Clé publishable Supabase (publique, la même que dans l'app web)
     var SUPABASE_URL = '${SUPABASE_URL}';
     var SUPABASE_KEY = '${KEY}';
-    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    // Tous les boutons « Télécharger » mènent à /telecharger (étapes du test fermé ou Google Play)
+    var DOWNLOAD = 'https://passeryder.fr/telecharger';
     var android = /android/i.test(navigator.userAgent);
     function rpc(name, body) {
       return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
@@ -90,13 +94,6 @@ const common = `
       }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
     }
     function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
-    // Lien Google Play réglable dans la console (pendant le test fermé : lien d'inscription testeur)
-    function playLink() {
-      return fetch(SUPABASE_URL + '/rest/v1/app_settings?key=eq.play_store_url&select=value', { headers: { apikey: SUPABASE_KEY } })
-        .then(function (r) { return r.json(); })
-        .then(function (rows) { return (rows && rows[0] && rows[0].value) || PLAY; })
-        .catch(function () { return PLAY; });
-    }
     function lastSegment() { return decodeURIComponent(location.pathname.replace(/\\/+$/, '').split('/').pop() || ''); }
     function el(id) { return document.getElementById(id); }
     function intentUrl(appPath, fallback) {
@@ -124,7 +121,7 @@ const invite = `${head('Rejoins-moi sur PasseRyder', 'L’app des motards qui ro
       <p id="code-box" hidden>Ton code d’invitation : <span class="code" id="code"></span><br>
         <span class="muted">Saisis-le à l’inscription : vous serez amis tout de suite.</span></p>
       <div class="cta">
-        <a class="button" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+        <a class="button" id="play" href="/telecharger">Télécharger l’app</a>
         <a class="button secondary" id="web" href="https://app.passeryder.fr/sign-in">Utiliser la version web</a>
       </div>
       <p class="note">Gratuit. Pas de publicité, données hébergées en Europe.</p>
@@ -134,8 +131,8 @@ ${foot}
   <script>
 ${common}
     var code = lastSegment().toUpperCase().replace(/[^A-Z0-9]/g, '');
-    playLink().then(function (u) { el('play').href = u; });
     if (/^[A-Z0-9]{6,10}$/.test(code)) {
+      el('play').href = '/telecharger?invite=' + code;
       el('web').href = 'https://app.passeryder.fr/sign-in?invite=' + code;
       el('code').textContent = code;
       el('code-box').hidden = false;
@@ -163,7 +160,7 @@ const club = `${head('Club PasseRyder', 'Rejoins ce club de motards sur PasseRyd
       <div class="cta">
         <a class="button" id="open" href="#">Rejoindre dans l’app</a>
         <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
-        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+        <a class="button secondary" id="play" href="/telecharger">Télécharger l’app</a>
       </div>
       ${PITCH}
     </section>
@@ -172,8 +169,6 @@ ${foot}
   <script>
 ${common}
     var slug = lastSegment().toLowerCase();
-    var play = PLAY;
-    playLink().then(function (u) { play = u; el('play').href = u; });
     if (!android) el('open').hidden = true;
     rpc('club_public', { p_slug: slug }).then(function (c) {
       if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
@@ -184,7 +179,7 @@ ${common}
       el('desc').textContent = (c.description || '') + (c.founder ? '\\n\\nFondé par @' + c.founder : '');
       if (c.logo_path) el('logo').src = photo(c.logo_path);
       el('web').href = 'https://app.passeryder.fr/club/' + c.id;
-      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, play); });
+      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, DOWNLOAD); });
     }).catch(function () { el('missing').hidden = false; });
   </script>
 </body>
@@ -211,7 +206,7 @@ const outing = `${head('Sortie à moto · PasseRyder', 'Une sortie à moto parta
         <p class="note">Départ et arrivée masqués si l’auteur l’a choisi. Aucune vitesse n’est affichée.</p>
       </div>
       <div class="cta" style="margin-top: 24px">
-        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Découvrir PasseRyder</a>
+        <a class="button secondary" id="play" href="/telecharger">Découvrir PasseRyder</a>
       </div>
     </section>
   </main>
@@ -223,7 +218,6 @@ ${common}
     var data = null;
     var logo = new Image();
     logo.src = '/icon.png';
-    playLink().then(function (u) { el('play').href = u; });
 
     var ACCENT = '#0ea5e9', LIGHT = '#7dd3fc', WHITE = '#ffffff', MUTED = '#cbd5e1';
     function km(m) { return (m / 1000).toLocaleString('fr-FR', { maximumFractionDigits: m >= 100000 ? 0 : 1 }); }
@@ -376,12 +370,161 @@ ${common}
 </html>
 `;
 
+// ---------- /telecharger ----------
+// Liens par défaut = réglages de la console au moment de l'écriture ; la page relit app_settings
+// (Console › Fonctions › Distribution) : passer en « public » ne laisse que l'étape Google Play.
+const GROUP_URL = 'https://groups.google.com/g/passeryder-testeurs';
+const TESTING_URL = 'https://play.google.com/apps/testing/com.passeryder.app';
+const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+
+const downloadCss = `
+    .dl .hero { padding-bottom: 8px; }
+    .dl .hero img.logo { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 12px 32px rgb(14 165 233 / 30%); }
+    .dl .hero h1 { font-size: clamp(30px, 8vw, 42px); }
+    .dl section.part { margin: 24px 0; }
+    .dl h2 { font-size: 21px; margin: 0 0 12px; text-align: center; }
+    .steps-dl { display: grid; gap: 12px; margin: 0 auto; max-width: 30em; }
+    a.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: var(--accent); color: #fff; text-decoration: none; box-shadow: 0 6px 18px rgb(14 165 233 / 25%); }
+    a.step .num { flex: 0 0 44px; height: 44px; border-radius: 50%; background: #fff; color: #0369a1; display: grid; place-items: center; font-weight: 900; font-size: 22px; }
+    a.step strong { display: block; font-size: 19px; line-height: 1.25; }
+    a.step small { display: block; font-size: 14px; opacity: .9; }
+    a.step.done { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+    a.step.done .num { background: var(--accent); color: #fff; }
+    [hidden] { display: none !important; }
+    .dl .tip { text-align: center; color: var(--muted); font-size: 15px; margin: 12px auto 0; max-width: 32em; }
+    .dl .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px; max-width: 30em; margin: 0 auto; text-align: center; }
+    .dl .card ol { text-align: left; margin: 12px 0 0; padding-left: 22px; }
+    .dl .qr { width: 220px; height: 220px; border-radius: 14px; background: #fff; }
+    .dl .code { font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--accent-dark); }
+    .dl .muted { color: var(--muted); }
+    .dl .feats { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px; }
+    .dl .feats li { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px 14px; font-size: 16px; line-height: 1.35; }
+    .dl .feats .ico { font-size: 26px; flex: 0 0 auto; }
+    .dl .shots { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 0 12px; justify-content: safe center; }
+    .dl .shots img { flex: 0 0 auto; width: min(62vw, 220px); aspect-ratio: 9 / 16; height: auto; border-radius: 18px; border: 1px solid var(--border); scroll-snap-align: center; background: var(--border); }
+    .dl .facts { text-align: center; font-weight: 700; margin: 20px 0 6px; }
+    .dl .safety { text-align: center; color: var(--danger); font-weight: 700; margin: 0 0 8px; }
+`;
+
+const download = `${head('Télécharger PasseRyder', 'L’app des motards qui roulent ensemble : potes en direct, balades en convoi, boucles sinueuses, SOS. Gratuit, sans pub.', { index: true, image: 'https://passeryder.fr/telecharger/partage.png', css: downloadCss })}
+  <main class="wrap dl">
+    <section class="hero">
+      <img class="logo" src="/icon.png" alt="Logo PasseRyder" width="96" height="96">
+      <h1>PasseRyder</h1>
+      <p class="lead">L’app des motards qui roulent ensemble</p>
+      <p id="code-box" hidden>Ton code d’invitation : <span class="code" id="code"></span><br>
+        <span class="muted">Saisis-le à l’inscription : vous serez amis tout de suite.</span></p>
+    </section>
+
+    <section class="part" id="desktop" hidden>
+      <div class="card">
+        <img class="qr" src="/telecharger/qr.png" alt="QR code vers passeryder.fr/telecharger" width="220" height="220">
+        <p><strong>Scanne ce QR code avec ton téléphone</strong><br><span class="muted">ou ouvre passeryder.fr/telecharger dessus</span></p>
+      </div>
+    </section>
+
+    <section class="part" id="android">
+      <h2 id="android-title">Sur Android</h2>
+      <div class="steps-dl">
+        <a class="step test-only" id="s1" href="${GROUP_URL}" target="_blank" rel="noopener">
+          <span class="num">1</span><span><strong>Rejoins le groupe des testeurs</strong><small>Bouton « Rejoindre le groupe », puis reviens ici</small></span></a>
+        <a class="step test-only" id="s2" href="${TESTING_URL}" target="_blank" rel="noopener">
+          <span class="num">2</span><span><strong>Active le test</strong><small>Bouton « Devenir testeur »</small></span></a>
+        <a class="step" id="s3" href="${PLAY_URL}" target="_blank" rel="noopener">
+          <span class="num" id="n3">3</span><span><strong>Installe PasseRyder</strong><small>Sur Google Play, bouton « Installer »</small></span></a>
+      </div>
+      <p class="tip test-only">Utilise le même compte Google que ton Play Store. L’app est en test : si Google Play ne la trouve pas tout de suite, attends quelques minutes après l’étape 2.</p>
+    </section>
+
+    <section class="part" id="ios">
+      <h2>Sur iPhone</h2>
+      <div class="card">
+        <p style="margin-top: 0">Version iPhone bientôt disponible. En attendant, utilise PasseRyder sur le web.</p>
+        <a class="button" id="web" href="https://app.passeryder.fr">Ouvrir app.passeryder.fr</a>
+        <ol>
+          <li>Ouvre app.passeryder.fr dans <strong>Safari</strong>.</li>
+          <li>Touche <strong>Partager</strong> (le carré avec une flèche vers le haut).</li>
+          <li>Choisis <strong>« Sur l’écran d’accueil »</strong>, puis <strong>Ajouter</strong>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="part">
+      <h2>Ce que fait PasseRyder</h2>
+      <ul class="feats">
+        <li><span class="ico">🗺️</span>Carte en direct avec tes potes (tu choisis qui te voit)</li>
+        <li><span class="ico">🏍️</span>Balades et convoi avec ouvreur et serre-file</li>
+        <li><span class="ico">🌀</span>Boucles sinueuses et itinéraire Plaisir</li>
+        <li><span class="ico">🆘</span>SOS, détection de chute et « Je rentre »</li>
+        <li><span class="ico">☕</span>Spots, événements et clubs</li>
+        <li><span class="ico">🏅</span>Points de bon comportement</li>
+      </ul>
+    </section>
+
+    <section class="part">
+      <div class="shots">
+        <img src="/telecharger/capture-1-carte.jpg" alt="La carte en direct" width="540" height="960" loading="lazy">
+        <img src="/telecharger/capture-2-sorties.jpg" alt="Les sorties : balades, événements, lieux" width="540" height="960" loading="lazy">
+        <img src="/telecharger/capture-3-balade-carte.jpg" alt="Une balade sur la carte" width="540" height="960" loading="lazy">
+      </div>
+      <p class="facts">Gratuit · Sans pub · Données hébergées en Europe</p>
+      <p class="safety">Ne manipule pas ton téléphone en roulant.</p>
+    </section>
+  </main>
+${foot}
+  <script>
+${common}
+    var ua = navigator.userAgent;
+    var device = android ? 'android'
+      : (/iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) ? 'ios' : 'desktop';
+    el('desktop').hidden = device !== 'desktop';
+    el('android').hidden = device === 'ios';
+    el('ios').hidden = device === 'android';
+    // Sur le téléphone, une seule section : le titre « Sur Android » est inutile
+    if (device === 'android') el('android-title').hidden = true;
+
+    var code = (new URLSearchParams(location.search).get('invite') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (/^[A-Z0-9]{6,10}$/.test(code)) {
+      el('code').textContent = code;
+      el('code-box').hidden = false;
+      el('web').href = 'https://app.passeryder.fr/sign-in?invite=' + code;
+    }
+
+    // Étapes faites (mémorisées sur cet appareil) : le bouton suivant reste mis en avant
+    function remember(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
+    function remembered(k) { try { return !!localStorage.getItem(k); } catch (e) { return false; } }
+    ['s1', 's2'].forEach(function (id) {
+      if (remembered('dl.' + id)) el(id).classList.add('done');
+      el(id).addEventListener('click', function () { remember('dl.' + id); el(id).classList.add('done'); });
+    });
+
+    // Réglages de la console : mode de distribution et liens
+    fetch(SUPABASE_URL + '/rest/v1/app_settings?select=key,value&key=in.(distribution_mode,testers_group_url,testing_optin_url,play_store_url)', { headers: { apikey: SUPABASE_KEY } })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var s = {};
+        rows.forEach(function (row) { s[row.key] = row.value; });
+        if (s.testers_group_url) el('s1').href = s.testers_group_url;
+        if (s.testing_optin_url) el('s2').href = s.testing_optin_url;
+        if (s.play_store_url) el('s3').href = s.play_store_url;
+        if (s.distribution_mode === 'public') {
+          Array.prototype.forEach.call(document.querySelectorAll('.test-only'), function (n) { n.hidden = true; });
+          el('n3').textContent = '↓';
+        }
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>
+`;
+
 for (const [dir, html] of [
   ['i', invite],
   ['c', club],
   ['s', outing],
+  ['telecharger', download],
 ]) {
   fs.mkdirSync(path.join(ROOT, 'site', dir), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'site', dir, 'index.html'), html);
 }
-console.log('site/i, site/c, site/s générés');
+console.log('site/i, site/c, site/s, site/telecharger générés');

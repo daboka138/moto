@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { makeStyles, useColors } from '@/constants/theme';
-import { openInApp, PLAY_STORE_URL, webDevice } from '@/lib/app-link';
+import { DOWNLOAD_URL, openInApp, webDevice } from '@/lib/app-link';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 /**
  * Version web : fonction réservée à l'app Android. Android : bouton « Ouvrir dans l'app »
- * (l'app au bon écran, sinon Google Play). iPhone : bientôt disponible. Ordinateur : Google Play.
+ * (l'app au bon écran, sinon passeryder.fr/telecharger). iPhone : bientôt disponible.
+ * Ordinateur : passeryder.fr/telecharger.
  */
 export function OpenInApp({ path, compact }: { path: string; compact?: boolean }) {
   const Colors = useColors();
@@ -28,20 +29,20 @@ export function OpenInApp({ path, compact }: { path: string; compact?: boolean }
     <View style={styles.block}>
       <Pressable
         style={({ pressed }) => [styles.button, compact && styles.compact, pressed && { opacity: 0.7 }]}
-        onPress={() => (device === 'android' ? openInApp(path) : Linking.openURL(PLAY_STORE_URL))}>
+        onPress={() => (device === 'android' ? openInApp(path) : Linking.openURL(DOWNLOAD_URL))}>
         <Ionicons
-          name={device === 'android' ? 'open-outline' : 'logo-google-playstore'}
+          name={device === 'android' ? 'open-outline' : 'download-outline'}
           size={20}
           color={Colors.white}
         />
         <Text style={styles.buttonText}>
-          {device === 'android' ? 'Ouvrir dans l’app' : 'Télécharger sur Google Play'}
+          {device === 'android' ? 'Ouvrir dans l’app' : 'Télécharger l’app'}
         </Text>
       </Pressable>
       {!compact && (
         <Text style={styles.hint}>
           {device === 'android'
-            ? 'Pas encore installée ? Tu arriveras sur Google Play.'
+            ? 'Pas encore installée ? Tu arriveras sur la page de téléchargement.'
             : 'Installe PasseRyder sur ton téléphone Android pour utiliser cette fonction.'}
         </Text>
       )}

@@ -58,12 +58,12 @@ const common = `
     // Clé publishable Supabase (publique, la même que dans l'app web)
     var SUPABASE_URL = '${SUPABASE_URL}';
     var SUPABASE_KEY = '${KEY}';
-    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    var DOWNLOAD = 'https://passeryder.fr/telecharger'; // test fermé : étapes testeur, sinon Google Play
     var android = /android/i.test(navigator.userAgent);
-    // Android : ouvre l'app (sinon Google Play) ; ailleurs : la version web
+    // Android : ouvre l'app (sinon la page /telecharger) ; ailleurs : la version web
     function openApp() {
       if (android) {
-        location.href = 'intent://#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(PLAY) + ';end';
+        location.href = 'intent://#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(DOWNLOAD) + ';end';
       } else {
         location.href = 'https://app.passeryder.fr/';
       }
@@ -75,12 +75,12 @@ const common = `
         body: JSON.stringify(body)
       });
     }
-    // Android : app + version web ; ailleurs : version web + Google Play
+    // Android : app + version web ; ailleurs : version web + /telecharger
     if (!android) {
       document.getElementById('open-app').textContent = 'Ouvrir la version web';
       var alt = document.getElementById('alt');
-      alt.textContent = 'Télécharger sur Google Play';
-      alt.href = PLAY;
+      alt.textContent = 'Télécharger l’app';
+      alt.href = DOWNLOAD;
     }
     document.getElementById('open-app').addEventListener('click', function (e) { e.preventDefault(); openApp(); });
 `;

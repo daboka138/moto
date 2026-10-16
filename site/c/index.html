@@ -49,7 +49,7 @@
       <div class="cta">
         <a class="button" id="open" href="#">Rejoindre dans l’app</a>
         <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
-        <a class="button secondary" id="play" href="https://play.google.com/store/apps/details?id=com.passeryder.app">Télécharger sur Google Play</a>
+        <a class="button secondary" id="play" href="/telecharger">Télécharger l’app</a>
       </div>
       
         <ul class="points">
@@ -68,6 +68,7 @@
       <a href="/guide">Guide</a>
       <a href="/conditions">Conditions d'utilisation</a>
       <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="/mentions-legales">Mentions légales</a>
       <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
     </div>
   </footer>
@@ -77,7 +78,8 @@
     // Clé publishable Supabase (publique, la même que dans l'app web)
     var SUPABASE_URL = 'https://yfewldnhnnrzzscmfjsd.supabase.co';
     var SUPABASE_KEY = 'sb_publishable_ndqUZWRvQOd2so6Zla0gtw_r4TP4kQS';
-    var PLAY = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+    // Tous les boutons « Télécharger » mènent à /telecharger (étapes du test fermé ou Google Play)
+    var DOWNLOAD = 'https://passeryder.fr/telecharger';
     var android = /android/i.test(navigator.userAgent);
     function rpc(name, body) {
       return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
@@ -87,13 +89,6 @@
       }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
     }
     function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
-    // Lien Google Play réglable dans la console (pendant le test fermé : lien d'inscription testeur)
-    function playLink() {
-      return fetch(SUPABASE_URL + '/rest/v1/app_settings?key=eq.play_store_url&select=value', { headers: { apikey: SUPABASE_KEY } })
-        .then(function (r) { return r.json(); })
-        .then(function (rows) { return (rows && rows[0] && rows[0].value) || PLAY; })
-        .catch(function () { return PLAY; });
-    }
     function lastSegment() { return decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || ''); }
     function el(id) { return document.getElementById(id); }
     function intentUrl(appPath, fallback) {
@@ -101,8 +96,6 @@
     }
 
     var slug = lastSegment().toLowerCase();
-    var play = PLAY;
-    playLink().then(function (u) { play = u; el('play').href = u; });
     if (!android) el('open').hidden = true;
     rpc('club_public', { p_slug: slug }).then(function (c) {
       if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
@@ -113,7 +106,7 @@
       el('desc').textContent = (c.description || '') + (c.founder ? '\n\nFondé par @' + c.founder : '');
       if (c.logo_path) el('logo').src = photo(c.logo_path);
       el('web').href = 'https://app.passeryder.fr/club/' + c.id;
-      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, play); });
+      el('open').addEventListener('click', function (e) { e.preventDefault(); location.href = intentUrl('club/' + c.id, DOWNLOAD); });
     }).catch(function () { el('missing').hidden = false; });
   </script>
 </body>

@@ -5,7 +5,8 @@ import { router } from 'expo-router';
 // trajets) n'existent que dans l'app Android. Ici : sur quel appareil tourne la page, et
 // comment ouvrir l'app au bon écran.
 
-export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.passeryder.app';
+/** Page de téléchargement (test fermé : étapes testeur ; iPhone : version web ; ordinateur : QR code) */
+export const DOWNLOAD_URL = 'https://passeryder.fr/telecharger';
 const ANDROID_PACKAGE = 'com.passeryder.app';
 const APP_SCHEME = 'passeryder';
 
@@ -25,8 +26,8 @@ export function webDevice(): WebDevice {
 
 /**
  * Ouvre l'app Android à l'écran `path` (ex. « /homecoming »). Lien intent:// : Chrome ouvre
- * l'app si elle est installée, sinon la page Google Play (browser_fallback_url).
- * iPhone : pas encore d'app. Ordinateur : page Google Play.
+ * l'app si elle est installée, sinon la page de téléchargement (browser_fallback_url).
+ * iPhone : pas encore d'app. Ordinateur : page de téléchargement.
  */
 export function openInApp(path: string) {
   const device = webDevice();
@@ -35,14 +36,14 @@ export function openInApp(path: string) {
     return;
   }
   if (device === 'desktop') {
-    Linking.openURL(PLAY_STORE_URL);
+    Linking.openURL(DOWNLOAD_URL);
     return;
   }
   // passeryder://<chemin> : l'app ouvre l'écran correspondant (Expo Router)
   const target = path.replace(/^\//, '');
   window.location.href =
     `intent://${target}#Intent;scheme=${APP_SCHEME};package=${ANDROID_PACKAGE};` +
-    `S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
+    `S.browser_fallback_url=${encodeURIComponent(DOWNLOAD_URL)};end`;
 }
 
 /**

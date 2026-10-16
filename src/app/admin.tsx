@@ -545,8 +545,8 @@ function Features() {
         ))
       )}
 
-      <Text style={styles.section}>Lien Google Play</Text>
-      <PlayLink />
+      <Text style={styles.section}>Distribution de l’app</Text>
+      <Distribution />
 
       <Text style={styles.section}>Défi du mois</Text>
       <Challenges />
@@ -554,42 +554,71 @@ function Features() {
   );
 }
 
-/** Lien des boutons « Télécharger sur Google Play » des pages /i/CODE et /c/SLUG (test fermé : lien d'inscription testeur) */
-function PlayLink() {
+// Page passeryder.fr/telecharger (et tous les boutons « Télécharger » du site) : test fermé = 3 étapes
+// (groupe des testeurs, activer le test, Google Play), public = Google Play seul. Lu par la page
+// dans app_settings : aucun recodage ni republication pour passer en public.
+const DISTRIBUTION_LINKS = [
+  { key: 'testers_group_url', label: '1. Groupe des testeurs (https://groups.google.com/…)', prefix: 'https://groups.google.com/', testOnly: true },
+  { key: 'testing_optin_url', label: '2. Activer le test (https://play.google.com/apps/testing/…)', prefix: 'https://play.google.com/apps/testing/', testOnly: true },
+  { key: 'play_store_url', label: '3. Google Play (https://play.google.com/…)', prefix: 'https://play.google.com/', testOnly: false },
+] as const;
+type DistributionKey = 'distribution_mode' | (typeof DISTRIBUTION_LINKS)[number]['key'];
+const DISTRIBUTION_KEYS: DistributionKey[] = ['distribution_mode', ...DISTRIBUTION_LINKS.map((l) => l.key)];
+
+function Distribution() {
   const styles = useStyles();
-  const [value, setValue] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<DistributionKey, string> | null>(null);
+  const [saved, setSaved] = useState<Record<DistributionKey, string> | null>(null);
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      fetchAppSetting('play_store_url')
-        .then((v) => {
-          setValue(v ?? '');
-          setSaved(v ?? '');
+      Promise.all(DISTRIBUTION_KEYS.map((k) => fetchAppSetting(k)))
+        .then((list) => {
+          const v = Object.fromEntries(DISTRIBUTION_KEYS.map((k, i) => [k, list[i] ?? ''])) as Record<DistributionKey, string>;
+          if (v.distribution_mode !== 'public') v.distribution_mode = 'test';
+          setValues(v);
+          setSaved(v);
         })
         .catch((e) => Alert.alert('Oups', e instanceof Error ? e.message : String(e)));
     }, []),
   );
 
-  if (value === null) return null;
-  const valid = /^https:\/\/play\.google\.com\//.test(value.trim());
+  if (!values || !saved) return null;
+  const isPublic = values.distribution_mode === 'public';
+  const changed = DISTRIBUTION_KEYS.filter((k) => values[k].trim() !== saved[k]);
+  const invalid = DISTRIBUTION_LINKS.filter((l) => (!l.testOnly || !isPublic || values[l.key].trim()) && !values[l.key].trim().startsWith(l.prefix));
+  const set = (k: DistributionKey, v: string) => setValues({ ...values, [k]: v });
   return (
     <View style={[styles.card, { gap: 8 }]}>
-      <Field label="Adresse (https://play.google.com/…)" value={value} onChangeText={setValue} autoCapitalize="none" autoCorrect={false} />
+      <Text style={styles.small}>Mode de distribution (page passeryder.fr/telecharger)</Text>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <Chip label="Test fermé (3 étapes)" selected={!isPublic} onPress={() => set('distribution_mode', 'test')} />
+        <Chip label="Public (Google Play seul)" selected={isPublic} onPress={() => set('distribution_mode', 'public')} />
+      </View>
+      {DISTRIBUTION_LINKS.map((l) => (
+        <Field
+          key={l.key}
+          label={l.testOnly && isPublic ? `${l.label} — inutilisé en public` : l.label}
+          value={values[l.key]}
+          onChangeText={(v) => set(l.key, v)}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      ))}
       <Text style={styles.small}>
-        Pendant le test fermé : le lien d’inscription des testeurs (Play Console › Tests fermés › « Rejoindre sur le Web »).
+        La page relit ces réglages à chaque visite : rien à republier. Le lien 3 sert aussi d’étape unique en public.
       </Text>
-      {value.trim() !== saved && (
+      {changed.length > 0 && (
         <Button
-          title={valid ? 'Enregistrer le lien' : 'Lien Google Play invalide'}
-          disabled={!valid}
+          title={invalid.length ? `Lien invalide : ${invalid[0].label.split(' (')[0]}` : 'Enregistrer'}
+          disabled={invalid.length > 0}
           loading={busy}
           onPress={async () => {
             setBusy(true);
             try {
-              await saveAppSetting('play_store_url', value.trim());
-              setSaved(value.trim());
+              for (const k of changed) await saveAppSetting(k, values[k].trim());
+              setSaved(Object.fromEntries(DISTRIBUTION_KEYS.map((k) => [k, values[k].trim()])) as Record<DistributionKey, string>);
             } catch (e) {
               Alert.alert('Oups', e instanceof Error ? e.message : String(e));
             } finally {
