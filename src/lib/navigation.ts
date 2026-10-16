@@ -300,20 +300,34 @@ export function crossesWater(route: NavRoute): boolean {
   return false;
 }
 
-/**
- * onRoad(i) : ce point est accroché à une vraie route (rue et au-dessus), jamais à un sentier ou
- * une piste voisine (sinon « pas d'itinéraire ») ; points de passage des boucles générées.
- */
+/** Réglages Valhalla d'un point (boucles générées) : type « through », classe de route mini, cap de départ */
+export type ValhallaLocationOptions = {
+  /** through : on y passe sans s'arrêter, demi-tour interdit */
+  type?: 'break' | 'through';
+  /** Classe de route la plus petite où accrocher le point (jamais un sentier, une impasse résidentielle…) */
+  minRoadClass?: 'tertiary' | 'unclassified' | 'residential';
+  /** Cap de départ imposé (degrés), pour repartir dans le sens d'arrivée (pas de demi-tour) */
+  heading?: number;
+};
+
+/** locationFor(i) : réglages du point i (boucles générées), rien pour un itinéraire classique */
 export async function fetchValhalla(
   stops: LatLng[],
   routeOptions: RouteOptions,
-  onRoad?: (index: number) => boolean,
+  locationFor?: (index: number) => ValhallaLocationOptions | undefined,
 ): Promise<NavRoute> {
   const { costing, options } = valhallaCosting(routeOptions);
   const body = {
     locations: stops.map((p, i) => {
       const l = valhallaLocation(p);
-      return onRoad?.(i) ? { ...l, search_filter: { ...l.search_filter, min_road_class: 'residential' } } : l;
+      const o = locationFor?.(i);
+      if (!o) return l;
+      return {
+        ...l,
+        ...(o.type ? { type: o.type } : {}),
+        ...(o.minRoadClass ? { search_filter: { ...l.search_filter, min_road_class: o.minRoadClass } } : {}),
+        ...(o.heading !== undefined ? { heading: Math.round((o.heading + 360) % 360), heading_tolerance: 60 } : {}),
+      };
     }),
     costing,
     costing_options: { [costing]: options },

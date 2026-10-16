@@ -434,12 +434,16 @@ function buildHtml(Colors: Palette, dark: boolean) {
   };
 
   var routeLayer = L.layerGroup().addTo(map);
+  // Tracés dessinés sur un canvas, pas en SVG : pendant un zoom au doigt, le WebView Android
+  // recompose le SVG en retard sur les tuiles (le tracé « glisse » puis se recale) ; le canvas est
+  // transformé comme une image, avec les tuiles. Marge 0,5 : rien de coupé en dézoomant.
+  var routeRenderer = L.canvas({ padding: 0.5 });
   window.setRoutes = function (list) {
     routeLayer.clearLayers();
     // Alternatives d'abord : l'itinéraire choisi est dessiné par-dessus
     list.filter(function (r) { return r.muted; }).concat(list.filter(function (r) { return !r.muted; })).forEach(function (r) {
-      L.polyline(r.points, { color: '${Colors.white}', weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
-      L.polyline(r.points, { color: r.color || '${Colors.accent}', weight: r.muted ? 4 : 5, opacity: r.muted ? 0.8 : 0.95, interactive: false }).addTo(routeLayer);
+      L.polyline(r.points, { renderer: routeRenderer, color: '${Colors.white}', weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
+      L.polyline(r.points, { renderer: routeRenderer, color: r.color || '${Colors.accent}', weight: r.muted ? 4 : 5, opacity: r.muted ? 0.8 : 0.95, interactive: false }).addTo(routeLayer);
     });
   };
 

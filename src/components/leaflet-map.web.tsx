@@ -103,6 +103,7 @@ export function LeafletMap({
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const pinsRef = useRef<L.LayerGroup | null>(null);
   const routesRef = useRef<L.LayerGroup | null>(null);
+  const routeRendererRef = useRef<L.Canvas | null>(null);
   const meRef = useRef<{ marker: L.Marker; halo: L.Circle } | null>(null);
   const centeredRef = useRef(false);
   // Derniers callbacks reçus : les écouteurs Leaflet, posés une seule fois, les lisent ici
@@ -285,11 +286,14 @@ export function LeafletMap({
     if (!group) return;
     group.clearLayers();
     const list = JSON.parse(routesJson) as NonNullable<MapProps['routes']>;
+    // Canvas plutôt que SVG : le tracé reste collé au fond pendant un zoom au doigt (navigateurs mobiles)
+    const renderer = (routeRendererRef.current ??= L.canvas({ padding: 0.5 }));
     for (const r of [...list.filter((x) => x.muted), ...list.filter((x) => !x.muted)]) {
-      L.polyline(r.points, { color: colors.white, weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(
+      L.polyline(r.points, { renderer, color: colors.white, weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(
         group,
       );
       L.polyline(r.points, {
+        renderer,
         color: r.color || colors.accent,
         weight: r.muted ? 4 : 5,
         opacity: r.muted ? 0.8 : 0.95,

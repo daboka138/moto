@@ -10,6 +10,7 @@ import {
   valhallaCosting,
   valhallaLocation,
   type NavRoute,
+  type ValhallaLocationOptions,
 } from '@/lib/navigation';
 import type { RouteOptions } from '@/lib/moto';
 
@@ -97,9 +98,11 @@ const FIT_UNDER = 0.15;
 const FIT_OVER = 0.2;
 /** Sans altitude connue : aucune route à moins de 600 m = en mer */
 const SEA_M = 600;
-/** Point à moins de 300 m d'une route : gardé tel quel ; sinon recalé sur la route (3 km au plus) */
+/** Point à plus de 300 m de toute rue : en mer ou en plein massif (voir l.altitude) ; route tertiaire à 3 km au plus */
 const NEAR_ROAD_M = 300;
 const SNAP_MAX_M = 3000;
+/** Sans route tertiaire assez proche : petite route (classe « unclassified ») à 1,5 km au plus */
+const SNAP_MINOR_M = 1500;
 /**
  * Rues (classe « résidentielle » et au-dessus) à moins de 200 m : 25 ou plus = centre-ville
  * (Vieux-Port 28, Castellane 48, Aubagne 70 ; crêtes, cols, lotissements : 1 à 6)
@@ -116,11 +119,6 @@ const DENSE = 9;
 /** Aller-retour toléré sans pénalité, et maximum pour être proposée */
 const OVERLAP_FREE = 0.1;
 const OVERLAP_MAX = 0.2;
-/** Cul-de-sac pris pour atteindre un point de passage, à supprimer */
-const SPUR_MIN_M = 250;
-const SPUR_MAX_M = 5000;
-const SPUR_STEP_M = 25;
-const SPUR_SIDE_M = 80;
 const EARTH_M = 6_371_000;
 
 export function targetKm(t: LoopTarget, c: Curviness) {
@@ -252,24 +250,36 @@ async function elevations(points: LatLng[]): Promise<(number | null)[]> {
 
 /** Sondage de chaque point (Valhalla /locate, 40 points par requête, + altitudes) */
 async function probe(points: LatLng[], costing: string): Promise<Probe[]> {
-  const located: { roadM: number; ways: number; road: LatLng | null }[] = [];
-  for (let i = 0; i < points.length; i += 40) {
-    const chunk = points.slice(i, i + 40);
+  const located: { roadM: number; ways: number; road: LatLng | null; main: LatLng | null; minor: LatLng | null }[] = [];
+  // Trois recherches par point : rues autour (ville ? mer ?), route tertiaire ou plus, petite route
+  const PER_REQUEST = 13;
+  const nearest = (p: LatLng, r?: LocateResult) => {
+    const roads = (r?.edges ?? []).map((e) => ({ latitude: e.correlated_lat, longitude: e.correlated_lon }));
+    return roads.length ? roads.reduce((a, b) => (distanceM(p, b) < distanceM(p, a) ? b : a)) : null;
+  };
+  for (let i = 0; i < points.length; i += PER_REQUEST) {
+    const chunk = points.slice(i, i + PER_REQUEST);
     const res = await postValhalla<LocateResult[]>('locate', {
       costing,
       verbose: false,
-      // Rues et routes seulement : ni sentier, ni piste, ni voie de service (le point y serait inaccessible)
-      locations: chunk.map((p) => ({
-        ...valhallaLocation(p),
-        radius: PROBE_RADIUS_M,
-        search_filter: { exclude_ferry: true, min_road_class: 'residential' },
-      })),
+      locations: chunk.flatMap((p) => [
+        // Rues et routes seulement : ni sentier, ni piste, ni voie de service (le point y serait inaccessible)
+        { ...valhallaLocation(p), radius: PROBE_RADIUS_M, search_filter: { exclude_ferry: true, min_road_class: 'residential' } },
+        { ...valhallaLocation(p), search_filter: { exclude_ferry: true, min_road_class: 'tertiary' } },
+        { ...valhallaLocation(p), search_filter: { exclude_ferry: true, min_road_class: 'unclassified' } },
+      ]),
     });
     chunk.forEach((p, j) => {
       // La route la plus proche est renvoyée même au-delà du rayon
-      const roads = (res[j]?.edges ?? []).map((e) => ({ latitude: e.correlated_lat, longitude: e.correlated_lon }));
-      const road = roads.length ? roads.reduce((a, b) => (distanceM(p, b) < distanceM(p, a) ? b : a)) : null;
-      located.push({ roadM: road ? distanceM(p, road) : Infinity, ways: new Set((res[j]?.edges ?? []).map((e) => e.way_id)).size, road });
+      const around = res[3 * j];
+      const road = nearest(p, around);
+      located.push({
+        roadM: road ? distanceM(p, road) : Infinity,
+        ways: new Set((around?.edges ?? []).map((e) => e.way_id)).size,
+        road,
+        main: nearest(p, res[3 * j + 1]),
+        minor: nearest(p, res[3 * j + 2]),
+      });
     });
   }
   // Altitude : mer (0 m) ou massif pour les points loin d'une route, relief préféré pour tous
@@ -278,7 +288,15 @@ async function probe(points: LatLng[], costing: string): Promise<Probe[]> {
     const l = located[i];
     const elevation = heights[i];
     const sea = l.roadM > NEAR_ROAD_M && (elevation != null ? elevation < 2 : l.roadM > SEA_M);
-    const spot = l.roadM <= NEAR_ROAD_M ? p : !sea && l.road && l.roadM <= SNAP_MAX_M ? l.road : null;
+    // Point de passage posé sur une route tertiaire ou plus, sinon une petite route de campagne
+    // proche ; jamais dans une rue résidentielle ou une impasse (sinon demi-tour)
+    const spot = sea
+      ? null
+      : l.main && distanceM(p, l.main) <= SNAP_MAX_M
+        ? l.main
+        : l.minor && distanceM(p, l.minor) <= SNAP_MINOR_M
+          ? l.minor
+          : null;
     return { roadM: l.roadM, ways: l.ways, elevation, sea, spot };
   });
 }
@@ -444,27 +462,97 @@ function evenly(points: LatLng[], stepM: number): LatLng[] {
   return out;
 }
 
+/** Cap d'arrivée d'un tracé (sur ses 60 derniers mètres) */
+function endBearing(points: LatLng[]): number {
+  const last = points[points.length - 1];
+  let k = points.length - 2;
+  while (k > 0 && distanceM(points[k], last) < 60) k--;
+  return bearingDeg(points[Math.max(0, k)], last);
+}
+
+/** Demi-tour : cap qui tourne de plus de 150° en moins de 300 m (fenêtres de 60 m avant / après) */
+const UTURN_DEG = 150;
+const UTURN_STEP_M = 20;
+const UTURN_WINDOW = 3; // 3 × 20 m de chaque côté
+const UTURN_MERGE_M = 300;
+/** Aller et retour sur la même chaussée : points avant / après à moins de 20 m (un lacet : bien plus) */
+const UTURN_SAME_M = 20;
+/** Demi-tour à moins de 1 km d'un point de passage : c'est lui qui l'a provoqué */
+const UTURN_NEAR_VIA_M = 1000;
+/** Cul-de-sac coupé du tracé : 3 km au plus (aller + retour) */
+const SPUR_CUT_MAX_M = 3000;
+
 /**
- * Cul-de-sac pour atteindre un point de passage (on y va et on revient par la même route) :
- * renvoie l'entrée du cul-de-sac (à mettre à la place du point), ou null s'il n'y en a pas.
+ * Demi-tours d'un tracé : changement de cap de plus de 150° sur moins de 300 m, ou tronçon pris
+ * à l'aller puis au retour (cul-de-sac). Renvoie leur position (un par endroit, à 300 m près).
  */
-export function spurBase(points: LatLng[], waypoint: LatLng): LatLng | null {
-  const pts = evenly(points, SPUR_STEP_M);
-  let m = 0;
-  for (let i = 1; i < pts.length; i++) if (distanceM(pts[i], waypoint) < distanceM(pts[m], waypoint)) m = i;
-  const near = (i: number, j: number) => {
+export function findUTurns(points: LatLng[]): LatLng[] {
+  const pts = evenly(points, UTURN_STEP_M);
+  return uTurnIndices(pts).map((i) => pts[i]);
+}
+
+/** Indices des demi-tours dans un tracé rééchantillonné tous les 20 m (un par endroit) */
+function uTurnIndices(pts: LatLng[]): number[] {
+  const found: number[] = [];
+  for (let i = UTURN_WINDOW; i < pts.length - UTURN_WINDOW; i++) {
+    const before = pts[i - UTURN_WINDOW];
+    const after = pts[i + UTURN_WINDOW];
+    // Fenêtre trop courte (point sur place) : ignorée
+    if (distanceM(before, pts[i]) < UTURN_STEP_M * 2 || distanceM(pts[i], after) < UTURN_STEP_M * 2) continue;
+    const turn = Math.abs(((bearingDeg(pts[i], after) - bearingDeg(before, pts[i]) + 540) % 360) - 180);
+    // Demi-tour franc, et on revient vraiment sur ses pas (pas un lacet serré qui monte)
+    if (turn > UTURN_DEG && distanceM(before, after) < UTURN_SAME_M && !found.some((f) => distanceM(pts[f], pts[i]) < UTURN_MERGE_M))
+      found.push(i);
+  }
+  return found;
+}
+
+/**
+ * Coupe les culs-de-sac d'un tracé (aller puis retour sur la même chaussée autour d'un demi-tour,
+ * 3 km au plus) : crochet au départ dans une impasse, entrée dans une petite rue… Tracé
+ * rééchantillonné tous les 20 m, distance et durée recalculées. null si rien à couper.
+ */
+export function cutSpurs(route: NavRoute): NavRoute | null {
+  const pts = evenly(route.points, UTURN_STEP_M);
+  const same = (i: number, j: number) => {
     for (let d = -2; d <= 2; d++) {
       const x = pts[i + d];
-      // 80 m : aller et retour parfois sur deux voies parallèles (chaussées séparées, boucle de desserte)
-      if (x && distanceM(x, pts[j]) < SPUR_SIDE_M) return true;
+      if (x && distanceM(x, pts[j]) < UTURN_SAME_M) return true;
     }
     return false;
   };
-  let k = 1;
-  while (m - k >= 0 && m + k < pts.length && near(m - k, m + k)) k++;
-  const lengthM = (k - 1) * SPUR_STEP_M;
-  return lengthM >= SPUR_MIN_M && lengthM <= SPUR_MAX_M ? pts[m - k + 1] : null;
+  const cuts: [number, number][] = [];
+  for (const m of uTurnIndices(pts)) {
+    let k = 1;
+    while (m - k >= 0 && m + k < pts.length && same(m - k, m + k)) k++;
+    const a = Math.max(0, m - k + 1);
+    const b = Math.min(pts.length - 1, m + k - 1);
+    if ((b - a) * UTURN_STEP_M <= SPUR_CUT_MAX_M) cuts.push([a, b]);
+  }
+  if (!cuts.length) return null;
+  // On garde a, on saute jusqu'à b (même endroit, à 20 m près)
+  const skip = new Set<number>();
+  for (const [a, b] of cuts) for (let i = a + 1; i <= b; i++) skip.add(i);
+  const kept = pts.filter((_, i) => !skip.has(i));
+  const cumulative = [0];
+  for (let i = 1; i < kept.length; i++) cumulative.push(cumulative[i - 1] + distanceM(kept[i - 1], kept[i]));
+  const total = cumulative[cumulative.length - 1];
+  // Consignes : celles du morceau coupé disparaissent, les suivantes sont décalées
+  const removedBefore = (alongM: number) =>
+    cuts.reduce((acc, [a, b]) => acc + (alongM >= b * UTURN_STEP_M ? (b - a) * UTURN_STEP_M : 0), 0);
+  const steps = route.steps
+    .filter((st) => !cuts.some(([a, b]) => st.alongM > a * UTURN_STEP_M && st.alongM < b * UTURN_STEP_M))
+    .map((st) => ({ ...st, alongM: Math.max(0, st.alongM - removedBefore(st.alongM)) }));
+  return {
+    ...route,
+    points: kept,
+    cumulative,
+    distanceM: total,
+    durationS: route.distanceM ? (route.durationS * total) / route.distanceM : route.durationS,
+    steps,
+  };
 }
+
 
 type TraceAttributes = { edges?: { length: number; density?: number }[] };
 
@@ -630,13 +718,31 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
   // Départ en ville et boucle « petites routes » : sortie et retour par des routes directes (sans
   // autoroute), sinon le profil petites routes zigzague dans les rues. Petites routes ensuite.
   const exitFast = startBuilt && options.style === 'fun';
+  // Points de passage : « through » (demi-tour interdit en y passant), accrochés à une vraie route
+  const through: ValhallaLocationOptions = { type: 'through', minRoadClass: 'unclassified' };
+  const onRoad: ValhallaLocationOptions = { minRoadClass: 'unclassified' };
   const fetchLoop = async (via: LatLng[]) => {
     const stops = [r.start, ...via, r.start];
-    if (!exitFast) return fetchValhalla(stops, options, (i) => i > 0 && i < stops.length - 1);
+    const whole = () => fetchValhalla(stops, options, (i) => (i > 0 && i < stops.length - 1 ? through : undefined));
+    if (!exitFast) return whole();
+    const split = await fetchSplit(via);
+    // Un demi-tour au raccord des tronçons (souvent à un rond-point) : boucle d'un seul tenant, points
+    // « through » (demi-tour interdit) ; on garde celle qui a le moins de demi-tours
+    const splitTurns = findUTurns(split.points).length;
+    if (!splitTurns) return split;
+    const single = await whole().catch(() => null);
+    return single && findUTurns(single.points).length < splitTurns ? single : split;
+  };
+  const fetchSplit = async (via: LatLng[]) => {
+    // Trois tronçons : chacun repart dans le sens d'arrivée du précédent
     const direct: RouteOptions = { ...options, style: 'fast' };
-    const out = await fetchValhalla([r.start, via[0]], direct, (i) => i === 1);
-    const middle = await fetchValhalla(via, options, () => true);
-    const back = await fetchValhalla([via[via.length - 1], r.start], direct, (i) => i === 0);
+    const out = await fetchValhalla([r.start, via[0]], direct, (i) => (i === 1 ? onRoad : undefined));
+    const middle = await fetchValhalla(via, options, (i) =>
+      i === 0 ? { ...onRoad, heading: endBearing(out.points) } : i === via.length - 1 ? onRoad : through,
+    );
+    const back = await fetchValhalla([via[via.length - 1], r.start], direct, (i) =>
+      i === 0 ? { ...onRoad, heading: endBearing(middle.points) } : undefined,
+    );
     return joinRoutes([out, middle, back]);
   };
   // Point de passage injoignable (route interdite au profil, île…) : boucle sans le dernier, puis sans le premier
@@ -683,15 +789,27 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
         r.log?.(`${plan.id} : passe sur l'eau, rejetée`);
         continue; // ferry ou traversée : rejetée, plan suivant
       }
-      // Culs-de-sac aux points de passage : point ramené à l'entrée, boucle recalculée
-      const bases = via.map((p) => spurBase(route.points, p));
-      if (bases.some(Boolean)) {
-        const fixed = via.map((p, k) => bases[k] ?? p);
-        const again = await fetchLoop(fixed).catch(() => null);
+      // Demi-tour près d'un point de passage (impasse, petite rue) : boucle recalculée sans ce point
+      const turns = findUTurns(route.points);
+      const culprits = via.filter((v) => turns.some((t) => distanceM(t, v) < UTURN_NEAR_VIA_M));
+      if (culprits.length && via.length - culprits.length >= 2) {
+        const fewer = via.filter((v) => !culprits.includes(v));
+        const again = await fetchLoop(fewer).catch(() => null);
         if (again && !crossesWater(again)) {
           route = again;
-          via = fixed;
+          via = fewer;
         }
+      }
+      // Restes (crochet au départ dans une impasse, entrée dans un cul-de-sac) : coupés du tracé
+      route = cutSpurs(route) ?? route;
+      const left = findUTurns(route.points);
+      if (left.length) {
+        r.log?.(
+          `${plan.id} : ${left.length} demi-tour(s) restant(s), rejetée (${left
+            .map((t) => `${t.latitude.toFixed(5)},${t.longitude.toFixed(5)} à ${Math.round(distanceM(r.start, t))} m du départ`)
+            .join(' ; ')})`,
+        );
+        continue;
       }
       const { score, degPerKm } = curvature(route.points);
       const got = measure(route, score);

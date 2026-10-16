@@ -1,6 +1,6 @@
 // Usage : node --import ./scripts/dev/register.mjs scripts/dev/loops-test.mjs
 // Génère des boucles depuis quelques départs de test et affiche leurs indicateurs.
-const { generateLoops } = await import('../../src/lib/loop.ts');
+const { generateLoops, findUTurns } = await import('../../src/lib/loop.ts');
 const { attractors } = await import('./attractors.mjs');
 const ATTRACTORS = await attractors();
 console.log(`${ATTRACTORS.length} attracteurs`);
@@ -23,7 +23,7 @@ for (const [name, start] of Object.entries(STARTS)) {
           const d = Math.hypot((a.latitude - b.latitude) * 111e3, (a.longitude - b.longitude) * 81e3);
           if (d > maxSeg) maxSeg = d;
         }
-        console.log(`${name} ${minutes} min | ${(l.route.distanceM / 1000).toFixed(0)} km ≈${l.durationMin} min | sinuosité ${l.score} | overlap ${(l.overlap * 100).toFixed(0)} % | urbain ${l.urban != null ? (l.urban * 100).toFixed(0) + ' %' : '?'} | sortie ville ${l.exitKm != null ? l.exitKm.toFixed(1) + ' km' : '?'} | segment max ${(maxSeg / 1000).toFixed(2)} km | ferry ${l.route.hasFerry}${l.offTarget ? ' | HORS DURÉE' : ''} | ${l.id.replace(/-\d+$/, '')}`);
+        console.log(`${name} ${minutes} min | ${(l.route.distanceM / 1000).toFixed(0)} km ≈${l.durationMin} min | sinuosité ${l.score} | overlap ${(l.overlap * 100).toFixed(0)} % | urbain ${l.urban != null ? (l.urban * 100).toFixed(0) + ' %' : '?'} | sortie ville ${l.exitKm != null ? l.exitKm.toFixed(1) + ' km' : '?'} | segment max ${(maxSeg / 1000).toFixed(2)} km | demi-tours ${findUTurns(l.route.points).length} | ferry ${l.route.hasFerry}${l.offTarget ? ' | HORS DURÉE' : ''} | ${l.id.replace(/-\d+$/, '')}`);
       }
     } catch (e) {
       console.log(`${name} ${minutes} min | ERREUR ${e.message}`);
