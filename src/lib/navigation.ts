@@ -47,6 +47,8 @@ export type NavRoute = {
   options: RouteOptions | null;
   /** Autres tracés proposés par Valhalla (itinéraire Plaisir : le plus sinueux est gardé) */
   alternatives?: NavRoute[];
+  /** Valhalla : le tracé prend un ferry ou un train-auto (malgré use_ferry 0 s'il n'y a pas d'autre chemin) */
+  hasFerry?: boolean;
 };
 
 const TIMEOUT_MS = 12_000;
@@ -130,6 +132,9 @@ export function valhallaCosting(o: RouteOptions): { costing: string; options: Re
   const exclusions = {
     ...(o.avoidTolls ? { exclude_tolls: true } : {}),
     ...(o.avoidUnpaved ? { exclude_unpaved: true } : {}),
+    // Jamais de ferry ni de train-auto (sinon une boucle au bord de la mer part vers la Corse)
+    use_ferry: 0,
+    use_rail_ferry: 0,
   };
   if (o.scooter50) {
     // Cyclomoteur : 45 km/h, le profil exclut de lui-même autoroutes et voies rapides
@@ -267,17 +272,56 @@ export function osrmInstruction(s: OsrmStep): { icon: ManeuverIcon; action: stri
 
 type ValhallaManeuver = { type: number; instruction: string; street_names?: string[]; begin_shape_index: number };
 
-export async function fetchValhalla(stops: LatLng[], routeOptions: RouteOptions): Promise<NavRoute> {
+const VALHALLA = 'https://valhalla1.openstreetmap.de';
+/** Manœuvres Valhalla « prendre le ferry » / « quitter le ferry » */
+const FERRY_MANEUVERS = new Set([28, 29]);
+
+/** Appel brut au serveur Valhalla (route, locate, trace_attributes) */
+export async function postValhalla<T>(service: string, body: unknown): Promise<T> {
+  const { ok, json } = await fetchJson(`${VALHALLA}/${service}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!ok) throw new Error(json?.error ?? `Valhalla ${service} indisponible`);
+  return json as T;
+}
+
+/** Point Valhalla : jamais accroché à une ligne de ferry (un point posé en mer irait sur Marseille-Bastia) */
+export const valhallaLocation = (p: LatLng) => ({ lat: p.latitude, lon: p.longitude, search_filter: { exclude_ferry: true } });
+
+/** Plus long segment sans point intermédiaire : au-delà de 2,5 km, c'est une traversée (mer, lac) */
+const WATER_SEGMENT_M = 2500;
+
+/** Le tracé passe sur l'eau : ferry, ou long segment parfaitement droit (traversée) */
+export function crossesWater(route: NavRoute): boolean {
+  if (route.hasFerry) return true;
+  for (let i = 1; i < route.points.length; i++) if (distanceM(route.points[i - 1], route.points[i]) > WATER_SEGMENT_M) return true;
+  return false;
+}
+
+/**
+ * onRoad(i) : ce point est accroché à une vraie route (rue et au-dessus), jamais à un sentier ou
+ * une piste voisine (sinon « pas d'itinéraire ») ; points de passage des boucles générées.
+ */
+export async function fetchValhalla(
+  stops: LatLng[],
+  routeOptions: RouteOptions,
+  onRoad?: (index: number) => boolean,
+): Promise<NavRoute> {
   const { costing, options } = valhallaCosting(routeOptions);
   const body = {
-    locations: stops.map((p) => ({ lat: p.latitude, lon: p.longitude })),
+    locations: stops.map((p, i) => {
+      const l = valhallaLocation(p);
+      return onRoad?.(i) ? { ...l, search_filter: { ...l.search_filter, min_road_class: 'residential' } } : l;
+    }),
     costing,
     costing_options: { [costing]: options },
     directions_options: { language: 'fr-FR', units: 'kilometers' },
     // Itinéraire Plaisir de A à B : 2 tracés de plus, le plus sinueux sera gardé
     ...(routeOptions.style === 'fun' && stops.length === 2 ? { alternates: 2 } : {}),
   };
-  const { ok, json } = await fetchJson('https://valhalla1.openstreetmap.de/route', {
+  const { ok, json } = await fetchJson(`${VALHALLA}/route`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -290,7 +334,10 @@ export async function fetchValhalla(stops: LatLng[], routeOptions: RouteOptions)
   return alternatives.length ? { ...main, alternatives } : main;
 }
 
-type ValhallaTrip = { legs: { shape: string; maneuvers: ValhallaManeuver[] }[]; summary: { length: number; time: number } };
+type ValhallaTrip = {
+  legs: { shape: string; maneuvers: ValhallaManeuver[] }[];
+  summary: { length: number; time: number; has_ferry?: boolean };
+};
 
 function valhallaTrip(trip: ValhallaTrip, routeOptions: RouteOptions): NavRoute {
   const legs = trip.legs;
@@ -326,6 +373,7 @@ function valhallaTrip(trip: ValhallaTrip, routeOptions: RouteOptions): NavRoute 
     steps,
     engine: 'valhalla',
     options: routeOptions,
+    hasFerry: !!trip.summary.has_ferry || legs.some((l) => l.maneuvers.some((m) => FERRY_MANEUVERS.has(m.type))),
   };
 }
 
@@ -369,6 +417,30 @@ function valhallaIcon(type: number): ManeuverIcon {
 }
 
 /** Décodage du format « polyline » à 6 décimales utilisé par Valhalla. */
+/** Encode un tracé au format polyline 6 (Valhalla trace_attributes) */
+export function encodePolyline6(points: LatLng[]): string {
+  let out = '';
+  let lastLat = 0;
+  let lastLng = 0;
+  const put = (v: number) => {
+    let n = v < 0 ? ~(v << 1) : v << 1;
+    while (n >= 0x20) {
+      out += String.fromCharCode((0x20 | (n & 0x1f)) + 63);
+      n >>= 5;
+    }
+    out += String.fromCharCode(n + 63);
+  };
+  for (const p of points) {
+    const lat = Math.round(p.latitude * 1e6);
+    const lng = Math.round(p.longitude * 1e6);
+    put(lat - lastLat);
+    put(lng - lastLng);
+    lastLat = lat;
+    lastLng = lng;
+  }
+  return out;
+}
+
 export function decodePolyline6(encoded: string): LatLng[] {
   const points: LatLng[] = [];
   let index = 0;
@@ -394,6 +466,35 @@ export function decodePolyline6(encoded: string): LatLng[] {
 }
 
 // ---------- Position sur le trajet ----------
+
+/**
+ * Itinéraires mis bout à bout (chacun part de l'arrivée du précédent), comme un seul tracé :
+ * « vous êtes arrivé » gardé seulement à la fin. Options : celles du premier.
+ */
+export function joinRoutes(parts: NavRoute[]): NavRoute {
+  const points: LatLng[] = [];
+  const offsets: number[] = [];
+  for (const [k, r] of parts.entries()) {
+    offsets.push(points.length ? points.length - 1 : 0);
+    points.push(...(k === 0 ? r.points : r.points.slice(1)));
+  }
+  const cumulative = cumulate(points);
+  const steps = parts.flatMap((r, k) =>
+    r.steps
+      .filter((s) => k === parts.length - 1 || s.icon !== 'arrive')
+      .map((s) => ({ ...s, alongM: s.alongM + cumulative[offsets[k]] })),
+  );
+  return {
+    points,
+    cumulative,
+    distanceM: parts.reduce((a, r) => a + r.distanceM, 0),
+    durationS: parts.reduce((a, r) => a + r.durationS, 0),
+    steps,
+    engine: parts[0].engine,
+    options: parts[0].options,
+    hasFerry: parts.some((r) => r.hasFerry),
+  };
+}
 
 function cumulate(points: LatLng[]) {
   const c = [0];

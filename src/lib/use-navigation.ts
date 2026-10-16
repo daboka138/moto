@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { defaultRouteOptions, type MotoCategory, type RouteOptions } from '@/lib/moto';
 import {
+  crossesWater,
   defaultVariant,
   fetchNavRoute,
   needsValhalla,
@@ -54,7 +55,10 @@ export type RouteChoice = {
  */
 function pickRoute(v: RouteVariant, r: NavRoute): NavRoute {
   if (v !== 'fun' || r.engine !== 'valhalla') return r;
-  const all = [r, ...(r.alternatives ?? [])].map(plaisirDuration);
+  const tracks = [r, ...(r.alternatives ?? [])].map(plaisirDuration);
+  // Jamais un tracé qui passe sur l'eau (ferry, traversée) s'il en existe un autre
+  const dry = tracks.filter((x) => !crossesWater(x));
+  const all = dry.length ? dry : tracks;
   const quickest = Math.min(...all.map((x) => x.durationS));
   const best = all
     .filter((x) => x.durationS <= quickest * 1.5)
