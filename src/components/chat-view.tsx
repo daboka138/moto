@@ -15,26 +15,43 @@ import type { WallPhoto } from '@/lib/wall';
 
 export type ChatPerson = { username: string; avatarUrl: string };
 
+/** Statut d'un de mes messages : ✓ envoyé, ✓✓ reçu, ✓✓ bleu vu (null : accusés de lecture coupés) */
+export type MessageStatus = { delivered: boolean; seen: boolean; seenCount: number } | null;
+
+/** Réactions d'un message, regroupées par emoji */
+export type ReactionSummary = { emoji: string; count: number; mine: boolean }[];
+
 type Props = {
   title: string;
   avatarUrl: string | null;
+  /** Icône sans photo : drapeau (balade), groupe */
+  avatarIcon?: 'flag' | 'people';
   isGroup: boolean;
+  /** Sous-titre (membres d'un groupe, sourdine…) */
+  subtitle?: string | null;
   onTitlePress?: () => void;
   onMenu?: () => void;
   /** Du plus récent au plus ancien */
   messages: Message[] | null;
   meId: string;
   people: Map<string, ChatPerson>;
-  /** Dernière lecture de chaque autre membre */
-  readers: { id: string; lastReadAt: string }[];
   imageUrl: (path: string) => string | undefined;
+  statusOf: (m: Message) => MessageStatus;
+  reactionsOf: (m: Message) => ReactionSummary;
+  onReact: (m: Message, emoji: string) => void;
   onSend: (text: string, image?: PickedImage) => Promise<void>;
   onMessageLongPress?: (m: Message) => void;
+  /** Appui sur un de mes messages : détail « Vu à … » / « Vu par … » */
+  onMyMessagePress?: (m: Message) => void;
+  /** Message en cours de modification (saisie pré-remplie) */
+  editing?: Message | null;
+  onCancelEdit?: () => void;
+  onEdit?: (m: Message, text: string) => Promise<void>;
   /** Saisie impossible (blocage…) : explication affichée à la place */
   disabledReason?: string | null;
 };
 
-/** Conversation : bulles, photos, heure, « Vu », saisie (bloquée pendant la conduite). */
+/** Conversation : bulles, photos, réactions, statuts, « modifié », saisie (bloquée pendant la conduite). */
 export function ChatView(p: Props) {
   const Colors = useColors();
   const styles = useStyles();
@@ -43,12 +60,23 @@ export function ChatView(p: Props) {
   const [sending, setSending] = useState(false);
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
 
+  // Modification : texte du message dans la saisie (ajusté au rendu quand le message change)
+  const editingId = p.editing?.id ?? null;
+  const [shownEditId, setShownEditId] = useState<string | null>(null);
+  if (editingId !== shownEditId) {
+    setShownEditId(editingId);
+    if (p.editing) setText(p.editing.body ?? '');
+  }
+
   const send = async (image?: PickedImage) => {
     if (sending || (!text.trim() && !image)) return;
     setSending(true);
     try {
-      await p.onSend(image ? '' : text, image);
+      if (p.editing && !image) await p.onEdit?.(p.editing, text);
+      else await p.onSend(image ? '' : text, image);
       if (!image) setText('');
+    } catch {
+      // erreur déjà affichée par l'écran ; la saisie est gardée
     } finally {
       setSending(false);
     }
@@ -60,16 +88,48 @@ export function ChatView(p: Props) {
   };
 
   // « Vu » sous mon dernier message
-  const lastMine = p.messages?.find((m) => m.senderId === p.meId);
-  const seenBy = lastMine ? p.readers.filter((r) => r.lastReadAt >= lastMine.createdAt).length : 0;
-  const seenLabel = !lastMine ? null : seenBy === 0 ? 'Envoyé' : p.isGroup ? `Vu par ${seenBy}` : 'Vu';
+  const lastMine = p.messages?.find((m) => m.senderId === p.meId && m.kind === 'user' && !m.deletedAt);
+  const lastStatus = lastMine ? p.statusOf(lastMine) : null;
+  // Groupe : « Vu par N » dès qu'un membre a lu (✓✓ bleues quand tous l'ont lu)
+  const seenSome = !!lastStatus && (p.isGroup ? lastStatus.seenCount > 0 : lastStatus.seen);
+  const seenLabel = !lastStatus
+    ? null
+    : seenSome
+      ? p.isGroup
+        ? `Vu par ${lastStatus.seenCount}`
+        : 'Vu'
+      : lastStatus.delivered
+        ? 'Reçu'
+        : 'Envoyé';
+
+  const ticks = (status: MessageStatus) => {
+    if (!status) return null;
+    const blue = status.seen;
+    return (
+      <Ionicons
+        name={status.delivered || status.seen ? 'checkmark-done' : 'checkmark'}
+        size={14}
+        color={blue ? Colors.seenTickOnBubble : Colors.accentSoft}
+      />
+    );
+  };
 
   const renderItem = ({ item, index }: { item: Message; index: number }) => {
+    if (item.kind === 'system') {
+      return (
+        <View style={styles.systemLine}>
+          <Text style={styles.system}>{item.body}</Text>
+        </View>
+      );
+    }
     const mine = item.senderId === p.meId;
     const older = p.messages?.[index + 1];
-    const firstOfRun = !older || older.senderId !== item.senderId;
+    const firstOfRun = !older || older.senderId !== item.senderId || older.kind === 'system';
     const person = p.people.get(item.senderId);
-    const url = item.imagePath ? p.imageUrl(item.imagePath) : undefined;
+    const deleted = !!item.deletedAt;
+    const url = !deleted && item.imagePath ? p.imageUrl(item.imagePath) : undefined;
+    const reactions = deleted ? [] : p.reactionsOf(item);
+    const longPress = () => !deleted && p.onMessageLongPress?.(item);
     return (
       <View style={[styles.line, mine ? styles.lineMine : styles.lineOther]}>
         {!mine && p.isGroup && (
@@ -80,31 +140,67 @@ export function ChatView(p: Props) {
         <View style={[styles.column, mine && styles.columnMine]}>
           {!mine && p.isGroup && firstOfRun && <Text style={styles.sender}>@{person?.username ?? '?'}</Text>}
           <Pressable
-            onLongPress={() => !mine && p.onMessageLongPress?.(item)}
+            onLongPress={longPress}
+            onPress={() => mine && !deleted && p.onMyMessagePress?.(item)}
             delayLongPress={350}
-            style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleOther, !!item.imagePath && styles.bubblePhoto]}>
-            {item.imagePath &&
-              (url ? (
-                <Pressable
-                  onPress={() =>
-                    setViewing({ id: item.id, ownerId: item.senderId, path: null, url, caption: item.body, createdAt: item.createdAt })
-                  }
-                  onLongPress={() => !mine && p.onMessageLongPress?.(item)}>
-                  <Image source={{ uri: url }} style={styles.photo} contentFit="cover" transition={150} />
-                </Pressable>
-              ) : (
-                <View style={[styles.photo, styles.photoLoading]}>
-                  <ActivityIndicator color={Colors.textMuted} />
-                </View>
-              ))}
-            {item.tripShareId ? (
-              <TripShareCard id={item.tripShareId} mine={mine} fallback={item.body} />
+            style={[
+              styles.bubble,
+              mine ? styles.bubbleMine : styles.bubbleOther,
+              !!url && styles.bubblePhoto,
+              deleted && styles.bubbleDeleted,
+            ]}>
+            {deleted ? (
+              <Text style={[styles.deleted, mine && styles.deletedMine]}>🚫 Message supprimé</Text>
             ) : (
-              !!item.body && <Text style={[styles.body, mine && styles.bodyMine]}>{item.body}</Text>
+              <>
+                {item.imagePath &&
+                  (url ? (
+                    <Pressable
+                      onPress={() =>
+                        setViewing({ id: item.id, ownerId: item.senderId, path: null, url, caption: item.body, createdAt: item.createdAt })
+                      }
+                      onLongPress={longPress}>
+                      <Image source={{ uri: url }} style={styles.photo} contentFit="cover" transition={150} />
+                    </Pressable>
+                  ) : (
+                    <View style={[styles.photo, styles.photoLoading]}>
+                      <ActivityIndicator color={Colors.textMuted} />
+                    </View>
+                  ))}
+                {item.tripShareId ? (
+                  <TripShareCard id={item.tripShareId} mine={mine} fallback={item.body} />
+                ) : (
+                  !!item.body && <Text style={[styles.body, mine && styles.bodyMine]}>{item.body}</Text>
+                )}
+              </>
             )}
-            <Text style={[styles.time, mine && styles.timeMine]}>{messageTime(item.createdAt)}</Text>
+            <View style={styles.meta}>
+              {!!item.editedAt && !deleted && <Text style={[styles.time, mine && styles.timeMine]}>modifié ·</Text>}
+              <Text style={[styles.time, mine && styles.timeMine]}>{messageTime(item.createdAt)}</Text>
+              {mine && !deleted && ticks(p.statusOf(item))}
+            </View>
           </Pressable>
-          {item.id === lastMine?.id && !!seenLabel && <Text style={styles.seen}>{seenLabel}</Text>}
+          {reactions.length > 0 && (
+            <View style={[styles.reactions, mine && styles.reactionsMine]}>
+              {reactions.map((r) => (
+                <Pressable
+                  key={r.emoji}
+                  onPress={() => p.onReact(item, r.emoji)}
+                  style={[styles.reaction, r.mine && styles.reactionMine]}
+                  accessibilityLabel={`${r.emoji} ${r.count}`}>
+                  <Text style={styles.reactionText}>
+                    {r.emoji}
+                    {r.count > 1 ? ` ${r.count}` : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {item.id === lastMine?.id && !!seenLabel && (
+            <Pressable onPress={() => p.onMyMessagePress?.(item)} hitSlop={6}>
+              <Text style={[styles.seen, seenSome && styles.seenBlue]}>{seenLabel}</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     );
@@ -121,12 +217,19 @@ export function ChatView(p: Props) {
             <Image source={{ uri: p.avatarUrl }} style={styles.headerAvatar} />
           ) : (
             <View style={[styles.headerAvatar, styles.groupAvatar]}>
-              <Ionicons name="flag" size={18} color={Colors.accent} />
+              <Ionicons name={p.avatarIcon ?? 'flag'} size={18} color={Colors.accent} />
             </View>
           )}
-          <Text style={styles.headerText} numberOfLines={1}>
-            {p.title}
-          </Text>
+          <View style={styles.flex}>
+            <Text style={styles.headerText} numberOfLines={1}>
+              {p.title}
+            </Text>
+            {!!p.subtitle && (
+              <Text style={styles.headerSub} numberOfLines={1}>
+                {p.subtitle}
+              </Text>
+            )}
+          </View>
         </Pressable>
         {p.onMenu && (
           <Pressable onPress={p.onMenu} hitSlop={12}>
@@ -148,11 +251,7 @@ export function ChatView(p: Props) {
             renderItem={renderItem}
             contentContainerStyle={styles.list}
             keyboardShouldPersistTaps="handled"
-            ListFooterComponent={
-              p.messages.length === 0 ? (
-                <Text style={styles.empty}>Aucun message. Dis bonjour 👋</Text>
-              ) : null
-            }
+            ListFooterComponent={p.messages.length === 0 ? <Text style={styles.empty}>Aucun message. Dis bonjour 👋</Text> : null}
           />
         )}
 
@@ -167,30 +266,52 @@ export function ChatView(p: Props) {
             <Text style={styles.noticeText}>Saisie désactivée pendant la conduite</Text>
           </View>
         ) : (
-          <View style={styles.inputBar}>
-            <Pressable onPress={sendPhoto} hitSlop={8} disabled={sending}>
-              <Ionicons name="image-outline" size={28} color={Colors.accent} />
-            </Pressable>
-            <TextInput
-              style={styles.input}
-              value={text}
-              onChangeText={setText}
-              placeholder="Message…"
-              placeholderTextColor={Colors.textFaint}
-              multiline
-              maxLength={2000}
-            />
-            <Pressable
-              style={[styles.sendButton, (!text.trim() || sending) && styles.sendDisabled]}
-              onPress={() => send()}
-              disabled={!text.trim() || sending}>
-              {sending ? (
-                <ActivityIndicator color={Colors.white} size="small" />
-              ) : (
-                <Ionicons name="send" size={18} color={Colors.white} />
+          <>
+            {p.editing && (
+              <View style={styles.editBar}>
+                <Ionicons name="create-outline" size={18} color={Colors.accent} />
+                <Text style={styles.editText} numberOfLines={1}>
+                  Modification : {p.editing.body}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setText('');
+                    p.onCancelEdit?.();
+                  }}
+                  hitSlop={10}
+                  accessibilityLabel="Annuler la modification">
+                  <Ionicons name="close" size={20} color={Colors.textMuted} />
+                </Pressable>
+              </View>
+            )}
+            <View style={styles.inputBar}>
+              {!p.editing && (
+                <Pressable onPress={sendPhoto} hitSlop={8} disabled={sending}>
+                  <Ionicons name="image-outline" size={28} color={Colors.accent} />
+                </Pressable>
               )}
-            </Pressable>
-          </View>
+              <TextInput
+                style={styles.input}
+                value={text}
+                onChangeText={setText}
+                placeholder="Message…"
+                placeholderTextColor={Colors.textFaint}
+                multiline
+                maxLength={2000}
+              />
+              <Pressable
+                style={[styles.sendButton, (!text.trim() || sending) && styles.sendDisabled]}
+                onPress={() => send()}
+                disabled={!text.trim() || sending}
+                accessibilityLabel={p.editing ? 'Enregistrer la modification' : 'Envoyer'}>
+                {sending ? (
+                  <ActivityIndicator color={Colors.white} size="small" />
+                ) : (
+                  <Ionicons name={p.editing ? 'checkmark' : 'send'} size={18} color={Colors.white} />
+                )}
+              </Pressable>
+            </View>
+          </>
         )}
       </KeyboardAvoidingView>
 
@@ -216,9 +337,21 @@ const useStyles = makeStyles((Colors) => ({
   headerTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },
   groupAvatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
-  headerText: { flex: 1, fontSize: 17, fontWeight: '800', color: Colors.text },
+  headerText: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  headerSub: { fontSize: 12, color: Colors.textMuted },
   list: { padding: 12, gap: 4 },
   empty: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
+  systemLine: { alignItems: 'center', paddingVertical: 6 },
+  system: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
   line: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   lineMine: { justifyContent: 'flex-end' },
   lineOther: { justifyContent: 'flex-start' },
@@ -231,13 +364,30 @@ const useStyles = makeStyles((Colors) => ({
   bubbleMine: { backgroundColor: Colors.accent, borderBottomRightRadius: 6 },
   bubbleOther: { backgroundColor: Colors.surface, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: Colors.border },
   bubblePhoto: { padding: 4 },
+  bubbleDeleted: { opacity: 0.75 },
   photo: { width: 220, height: 220, borderRadius: 14, backgroundColor: Colors.border },
   photoLoading: { alignItems: 'center', justifyContent: 'center' },
   body: { fontSize: 16, lineHeight: 21, color: Colors.text, paddingHorizontal: 2 },
   bodyMine: { color: Colors.white },
-  time: { fontSize: 11, color: Colors.textMuted, alignSelf: 'flex-end', paddingHorizontal: 2 },
+  deleted: { fontSize: 15, fontStyle: 'italic', color: Colors.textMuted },
+  deletedMine: { color: Colors.accentSoft },
+  meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, paddingHorizontal: 2 },
+  time: { fontSize: 11, color: Colors.textMuted },
   timeMine: { color: Colors.accentSoft },
+  reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: -2, marginLeft: 6 },
+  reactionsMine: { marginLeft: 0, marginRight: 6, justifyContent: 'flex-end' },
+  reaction: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  reactionMine: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
+  reactionText: { fontSize: 13, color: Colors.text },
   seen: { fontSize: 12, color: Colors.textMuted, marginRight: 4 },
+  seenBlue: { color: Colors.seenTick, fontWeight: '700' },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,6 +399,17 @@ const useStyles = makeStyles((Colors) => ({
     borderTopColor: Colors.border,
   },
   noticeText: { color: Colors.textMuted, fontWeight: '600' },
+  editBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  editText: { flex: 1, color: Colors.textMuted, fontSize: 13 },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',

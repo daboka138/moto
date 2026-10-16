@@ -35,6 +35,8 @@ import { usePrivacy } from '@/lib/privacy-context';
 import { REPORT_TYPES } from '@/lib/reports';
 import { setSimulation, SIMULATION_SPEEDS, useSimulation } from '@/lib/simulation';
 import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
+import { errorMessage } from '@/lib/errors';
+import { fetchReadReceipts, setReadReceipts } from '@/lib/messages';
 
 type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -137,6 +139,7 @@ export default function SettingsScreen() {
           value={discoverable ?? false}
           onChange={toggleDiscoverable}
         />
+        <ReadReceiptsRow userId={userId} />
       </View>
 
       <GoodPointsSection />
@@ -552,6 +555,33 @@ function NotificationsSection({ userId }: { userId: string | undefined }) {
         ))}
       </View>
     </>
+  );
+}
+
+/** Accusés de lecture : coupés, les autres ne voient plus quand je lis, et je ne vois plus les leurs */
+function ReadReceiptsRow({ userId }: { userId: string | undefined }) {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    fetchReadReceipts(userId)
+      .then(setOn)
+      .catch(() => setOn(true));
+  }, [userId]);
+  return (
+    <SwitchRow
+      label="Accusés de lecture"
+      description="Les autres voient quand tu as lu leurs messages (✓✓ bleu, « Vu »). Coupé, tu ne vois plus non plus les leurs."
+      value={on ?? true}
+      disabled={on === null}
+      onChange={(next) => {
+        if (!userId) return;
+        setOn(next);
+        setReadReceipts(userId, next).catch((e) => {
+          setOn(!next);
+          Alert.alert('Réglage impossible', errorMessage(e));
+        });
+      }}
+    />
   );
 }
 

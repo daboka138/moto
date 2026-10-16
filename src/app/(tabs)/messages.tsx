@@ -7,12 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import { messagePreview, messageTime, type Conversation } from '@/lib/messages';
+import { isMuted, messagePreview, messageTime, type Conversation } from '@/lib/messages';
 import { useMessages } from '@/lib/messages-context';
 import { useSession } from '@/lib/session';
 import { useInbox } from '@/lib/use-inbox';
 
-/** Onglet Messages : mes conversations privées et de balade. */
+/** Onglet Messages : mes conversations privées, de groupe et de balade. */
 export default function MessagesScreen() {
   const Colors = useColors();
   const styles = useStyles();
@@ -44,7 +44,7 @@ export default function MessagesScreen() {
           <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.groupAvatar]}>
-            <Ionicons name="flag" size={24} color={Colors.accent} />
+            <Ionicons name={item.kind === 'group' ? 'people' : 'flag'} size={24} color={Colors.accent} />
           </View>
         )}
         <View style={styles.text}>
@@ -52,11 +52,14 @@ export default function MessagesScreen() {
             <Text style={[styles.title, unread && styles.bold]} numberOfLines={1}>
               {item.title}
             </Text>
+            {isMuted(item) && <Ionicons name="notifications-off" size={14} color={Colors.textMuted} />}
             <Text style={[styles.time, unread && styles.timeUnread]}>{messageTime(item.lastAt)}</Text>
           </View>
           <View style={styles.topLine}>
             <Text style={[styles.preview, unread && styles.previewUnread]} numberOfLines={1}>
-              {item.blocked ? 'Conversation bloquée' : `${mine && item.lastBody !== null ? 'Toi : ' : ''}${messagePreview(item)}`}
+              {item.blocked
+                ? 'Conversation bloquée'
+                : `${mine && item.lastBody !== null && item.lastKind === 'user' && !item.lastDeleted ? 'Toi : ' : ''}${messagePreview(item)}`}
             </Text>
             {unread && (
               <View style={styles.badge}>

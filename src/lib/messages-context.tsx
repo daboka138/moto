@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
-import { fetchConversations, type Conversation } from '@/lib/messages';
+import { fetchConversations, isMuted, markDelivered, type Conversation } from '@/lib/messages';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 
@@ -52,15 +52,25 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    const load = () => !cancelled && refresh();
+    // Messages arrivés pendant mon absence : ✓✓ « reçu » pour leurs auteurs
+    const load = () => !cancelled && refresh().then(markDelivered);
     load();
     const channel = supabase
       .channel(`messages:${userId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const m = payload.new as { conversation_id: string; sender_id: string; body: string | null; image_path: string | null };
+        const m = payload.new as {
+          conversation_id: string;
+          sender_id: string;
+          body: string | null;
+          image_path: string | null;
+          kind?: string;
+        };
         refresh().then(() => {
           if (m.sender_id === userId) return;
+          markDelivered();
           const conv = conversationsRef.current.find((c) => c.id === m.conversation_id);
+          // Pas de bandeau pour un message système (« X a ajouté Y ») ni une conversation en sourdine
+          if (m.kind === 'system' || (conv && isMuted(conv))) return;
           notify({
             title: conv?.title ?? 'Nouveau message',
             body: m.body ?? (m.image_path ? '📷 Photo' : ''),

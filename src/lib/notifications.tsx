@@ -30,7 +30,9 @@ export type NotificationType =
   | 'sos'
   | 'referral'
   | 'club_request'
-  | 'club_accepted';
+  | 'club_accepted'
+  | 'reaction'
+  | 'group_added';
 
 export type AppNotification = {
   id: string;
@@ -63,6 +65,8 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   referral: '📨',
   club_request: '🏁',
   club_accepted: '🏁',
+  reaction: '😊',
+  group_added: '👥',
 };
 
 type Row = {

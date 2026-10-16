@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { PersonRow } from '@/components/person-row';
 import { Button } from '@/components/ui';
@@ -48,7 +49,19 @@ export default function NewMessageScreen() {
       contentContainerStyle={styles.list}
       data={friends}
       keyExtractor={(f) => f.id}
-      ListHeaderComponent={<Text style={styles.hint}>Tu peux écrire à tes amis.</Text>}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          {friends.length > 0 && (
+            <Pressable style={({ pressed }) => [styles.groupRow, pressed && { opacity: 0.6 }]} onPress={() => router.push('/group/new')}>
+              <View style={styles.groupIcon}>
+                <Ionicons name="people" size={22} color={Colors.white} />
+              </View>
+              <Text style={styles.groupText}>Nouveau groupe</Text>
+            </Pressable>
+          )}
+          <Text style={styles.hint}>Tu peux écrire à tes amis.</Text>
+        </View>
+      }
       renderItem={({ item }) => (
         <PersonRow
           photoUrl={item.avatarUrl}
@@ -77,6 +90,10 @@ const useStyles = makeStyles((Colors) => ({
   list: { padding: 16, gap: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   hint: { color: Colors.textMuted, marginBottom: 8 },
+  header: { gap: 8 },
+  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  groupIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  groupText: { fontSize: 16, fontWeight: '700', color: Colors.text },
   empty: { gap: 10, paddingTop: 16 },
   muted: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
 }));

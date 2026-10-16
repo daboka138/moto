@@ -216,6 +216,8 @@ function RootNavigator() {
           <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
           <Stack.Screen name="chat/[id]" />
           <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />
+          <Stack.Screen name="group/new" options={{ headerShown: true, title: 'Nouveau groupe' }} />
+          <Stack.Screen name="group/[id]" options={{ headerShown: true, title: 'Infos du groupe' }} />
           <Stack.Screen name="story/new" options={{ headerShown: true, title: 'Nouvelle story' }} />
           <Stack.Screen
             name="story/[ownerId]"

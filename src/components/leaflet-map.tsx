@@ -609,6 +609,11 @@ export function LeafletMap({
       onMessage={onMessage}
       // Le bip de dépassement de vitesse doit pouvoir sonner sans toucher la carte
       mediaPlaybackRequiresUserAction={false}
+      // Android : pas de zoom de page de la WebView (activé par défaut) en concurrence avec le
+      // pincement de Leaflet ; seule la carte zoome
+      setBuiltInZoomControls={false}
+      setDisplayZoomControls={false}
+      scalesPageToFit={false}
       // Les liens (attribution OSM) s'ouvrent dans le navigateur, pas dans la carte
       onShouldStartLoadWithRequest={(req) => {
         if (req.url === BASE_URL || req.url.startsWith('about:')) return true;
