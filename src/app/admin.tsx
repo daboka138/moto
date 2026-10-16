@@ -33,6 +33,8 @@ import {
   type ChallengeRow,
 } from '@/lib/admin';
 import { FEATURE_STATUS_LABELS, refreshFeatures, setFeatureStatus, setUserPremium, useFeatures, type FeatureStatus } from '@/lib/features';
+import { deletePartnerLink, fetchPartnerLinks, savePartnerLink, type PartnerLink, type PartnerLinkDraft } from '@/lib/partners';
+import { pickPlace } from '@/lib/place-picker';
 import { useSession } from '@/lib/session';
 
 type Tab = 'overview' | 'users' | 'moderation' | 'features';
@@ -548,6 +550,9 @@ function Features() {
       <Text style={styles.section}>Distribution de l’app</Text>
       <Distribution />
 
+      <Text style={styles.section}>Liens partenaires (Idées de balades)</Text>
+      <PartnerLinks />
+
       <Text style={styles.section}>Défi du mois</Text>
       <Challenges />
     </ScrollView>
@@ -627,6 +632,161 @@ function Distribution() {
           }}
         />
       )}
+    </View>
+  );
+}
+
+// Liens partenaires « 💡 Besoin d'idées ? » (écrans boucle et création de balade). Clics = nombre
+// anonyme, à montrer au partenaire. Zone : centre + rayon, ou partout.
+const EMPTY_LINK = (order: number): PartnerLinkDraft => ({
+  title: '',
+  description: '',
+  url: 'https://',
+  imageUrl: '',
+  zoneLabel: '',
+  zone: null,
+  zoneRadiusKm: 50,
+  active: true,
+  sortOrder: order,
+});
+
+function PartnerLinks() {
+  const styles = useStyles();
+  const [list, setList] = useState<PartnerLink[] | null>(null);
+  const [draft, setDraft] = useState<PartnerLinkDraft | null>(null);
+  const [radius, setRadius] = useState('50');
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setList(await fetchPartnerLinks());
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const edit = (d: PartnerLinkDraft) => {
+    setDraft(d);
+    setRadius(String(d.zoneRadiusKm ?? 50));
+  };
+
+  if (!list) return null;
+
+  if (draft) {
+    const set = (patch: Partial<PartnerLinkDraft>) => setDraft({ ...draft, ...patch });
+    const radiusKm = Number(radius);
+    const https = (u: string) => /^https:\/\/\S+$/.test(u.trim());
+    const error =
+      draft.title.trim().length < 3
+        ? 'Titre trop court'
+        : !https(draft.url)
+          ? 'Adresse invalide (https://…)'
+          : draft.imageUrl?.trim() && !https(draft.imageUrl)
+            ? 'Image invalide (https://…)'
+            : draft.zone && !(Number.isInteger(radiusKm) && radiusKm >= 1 && radiusKm <= 2000)
+              ? 'Rayon entre 1 et 2000 km'
+              : null;
+    return (
+      <View style={[styles.card, { gap: 8 }]}>
+        <Field label="Titre" value={draft.title} onChangeText={(v) => set({ title: v })} maxLength={100} />
+        <Field label="Description courte" value={draft.description ?? ''} onChangeText={(v) => set({ description: v })} maxLength={200} />
+        <Field label="Adresse du lien" value={draft.url} onChangeText={(v) => set({ url: v })} autoCapitalize="none" autoCorrect={false} />
+        <Field
+          label="Image (facultatif, https://…)"
+          value={draft.imageUrl ?? ''}
+          onChangeText={(v) => set({ imageUrl: v })}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <Field label="Zone affichée (ex. Marseille / Bouches-du-Rhône)" value={draft.zoneLabel ?? ''} onChangeText={(v) => set({ zoneLabel: v })} maxLength={80} />
+        <View style={styles.actions}>
+          <Chip label="Partout" selected={!draft.zone} onPress={() => set({ zone: null })} />
+          <Chip
+            label={draft.zone ? `Centre : ${draft.zone.latitude.toFixed(3)}, ${draft.zone.longitude.toFixed(3)}` : 'Choisir le centre de la zone'}
+            selected={!!draft.zone}
+            onPress={async () => {
+              const place = await pickPlace({ title: 'Centre de la zone', initial: draft.zone });
+              if (place) setDraft((d) => d && { ...d, zone: { latitude: place.latitude, longitude: place.longitude } });
+            }}
+          />
+        </View>
+        {draft.zone && <Field label="Rayon (km)" value={radius} onChangeText={setRadius} keyboardType="number-pad" maxLength={4} />}
+        <Field
+          label="Ordre (plus petit = en premier)"
+          value={String(draft.sortOrder)}
+          onChangeText={(v) => set({ sortOrder: Number(v.replace(/[^0-9]/g, '')) || 0 })}
+          keyboardType="number-pad"
+          maxLength={4}
+        />
+        <View style={styles.actions}>
+          <Chip label="Actif" selected={draft.active} onPress={() => set({ active: true })} />
+          <Chip label="Inactif" selected={!draft.active} onPress={() => set({ active: false })} />
+        </View>
+        <Button
+          title={error ?? 'Enregistrer'}
+          disabled={!!error}
+          loading={saving}
+          onPress={async () => {
+            setSaving(true);
+            try {
+              await savePartnerLink({ ...draft, zoneRadiusKm: draft.zone ? radiusKm : null });
+              setDraft(null);
+              await load();
+            } catch (e) {
+              Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+            } finally {
+              setSaving(false);
+            }
+          }}
+        />
+        <Button title="Annuler" variant="ghost" onPress={() => setDraft(null)} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ gap: 8 }}>
+      {list.map((l) => (
+        <Pressable
+          key={l.id}
+          style={[styles.card, { gap: 2, opacity: l.active ? 1 : 0.55 }]}
+          onPress={() =>
+            showActionSheet({
+              title: l.title,
+              options: [
+                { label: 'Modifier', onPress: () => edit({ ...l }) },
+                { label: l.active ? 'Désactiver' : 'Activer', onPress: () => savePartnerLink({ ...l, active: !l.active }).then(load, (e) => Alert.alert('Oups', String(e))) },
+                {
+                  label: 'Supprimer',
+                  destructive: true,
+                  onPress: () =>
+                    Alert.alert('Supprimer ce lien ?', `${l.title} (${l.clicks} clic${l.clicks > 1 ? 's' : ''})`, [
+                      { text: 'Annuler', style: 'cancel' },
+                      { text: 'Supprimer', style: 'destructive', onPress: () => deletePartnerLink(l.id).then(load, (e) => Alert.alert('Oups', String(e))) },
+                    ]),
+                },
+              ],
+            })
+          }>
+          <Text style={styles.label}>{l.title}</Text>
+          <Text style={styles.small}>
+            {[l.description, l.zoneLabel ?? (l.zone ? null : 'Partout'), l.zone ? `${l.zoneRadiusKm} km` : null, l.active ? null : 'inactif']
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+          <Text style={styles.premium}>
+            {l.clicks} clic{l.clicks > 1 ? 's' : ''} envoyé{l.clicks > 1 ? 's' : ''}
+          </Text>
+        </Pressable>
+      ))}
+      <Button title="+ Ajouter un lien partenaire" variant="secondary" onPress={() => edit(EMPTY_LINK(list.length))} />
+      <Text style={styles.small}>Clics comptés de façon anonyme (un nombre par lien, rien sur qui clique).</Text>
     </View>
   );
 }

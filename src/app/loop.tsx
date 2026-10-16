@@ -26,16 +26,28 @@ import { mainCategory } from '@/lib/profile';
 import { formatDistance } from '@/lib/routing';
 import { useSession } from '@/lib/session';
 import { FeatureGate } from '@/components/feature-gate';
+import { PlaceField } from '@/components/form-fields';
+import { PartnerIdeas } from '@/components/partner-ideas';
+import { SpotSuggestions } from '@/components/spot-suggestions';
+import type { Place } from '@/lib/geocoding';
+import { pickPlace } from '@/lib/place-picker';
+
+const ORIGIN_TITLE = 'Lieu de départ de la boucle';
 
 const durationLabel = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ''}`);
 
-/** « Fais-moi une boucle » : 2-3 boucles au départ de ma position, avec un score de sinuosité. */
+/**
+ * « Fais-moi une boucle » : 2-3 boucles avec un score de sinuosité, qui partent et reviennent au lieu
+ * de départ (ma position par défaut, ou une adresse, un favori, un spot, un point de la carte).
+ */
 function LoopScreenContent() {
   const Colors = useColors();
   const styles = useStyles();
   const { profile } = useSession();
   const scooter50 = mainCategory(profile) === 'cyclo';
-  const [start, setStart] = useState<LatLng | null>(null);
+  const [me, setMe] = useState<LatLng | null>(null);
+  // Lieu de départ choisi (null = ma position)
+  const [origin, setOrigin] = useState<Place | null>(null);
   const [locError, setLocError] = useState(false);
   const [mode, setMode] = useState<'duration' | 'distance'>('duration');
   const [minutes, setMinutes] = useState(90);
@@ -54,15 +66,32 @@ function LoopScreenContent() {
         if (!granted) throw new Error('refusée');
         const last = await Location.getLastKnownPositionAsync();
         const p = last ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
-        if (!cancelled) setStart({ latitude: p.coords.latitude, longitude: p.coords.longitude });
+        if (!cancelled) setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude });
       } catch {
-        if (!cancelled) setLocError(true);
+        if (cancelled) return;
+        // Position refusée ou indisponible (web) : on propose tout de suite de choisir le départ
+        setLocError(true);
+        const place = await pickPlace({ title: ORIGIN_TITLE, initial: null, suggest: true });
+        if (!cancelled && place) setOrigin(place);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const start: LatLng | null = origin ?? me;
+
+  async function chooseOrigin(initial: LatLng | null) {
+    const place = await pickPlace({ title: ORIGIN_TITLE, initial, suggest: true });
+    if (place) changeOrigin(place);
+  }
+
+  // « 📍 Ma position » choisi dans le sélecteur = revenir au suivi de ma position
+  function changeOrigin(place: Place | null) {
+    setOrigin(place && me && place.label === '📍 Ma position' ? null : place);
+    setLoops(null);
+  }
 
   const generate = async () => {
     if (!start) return;
@@ -93,9 +122,13 @@ function LoopScreenContent() {
     router.navigate({ pathname: '/', params: { gpx: String(Date.now()) } });
   };
 
+  // Le lieu de départ choisi devient le point de rendez-vous de la balade (ma position : le départ du tracé)
   const createRide = (l: Loop) => {
     handOff(l);
-    router.push({ pathname: '/ride/new', params: { gpx: '1' } });
+    const meeting = origin
+      ? { role: 'meeting', label: origin.label, lat: String(origin.latitude), lng: String(origin.longitude) }
+      : {};
+    router.push({ pathname: '/ride/new', params: { gpx: '1', ...meeting } });
   };
 
   const saveRoad = (l: Loop) =>
@@ -105,7 +138,7 @@ function LoopScreenContent() {
         kind: 'road',
         lat: String(start!.latitude),
         lng: String(start!.longitude),
-        label: 'Départ de la boucle',
+        label: origin?.label ?? 'Départ de la boucle',
         name: title(l),
         description: `Boucle de ${formatDistance(l.route.distanceM)}, environ ${durationLabel(l.durationMin)}, sinuosité ${String(l.score).replace('.', ',')}/10.`,
       },
@@ -114,6 +147,16 @@ function LoopScreenContent() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <TipBubble id="boucle" />
+      <PlaceField
+        label="Départ"
+        value={origin ?? (me ? { label: '📍 Ma position', ...me } : null)}
+        placeholder="Choisir le lieu de départ"
+        onPress={() => chooseOrigin(start)}
+        onClear={origin && me ? () => changeOrigin(null) : undefined}
+      />
+      <SpotSuggestions title="Départs populaires (pratiques pour donner RDV)" center={me ?? origin} selected={origin} onPick={changeOrigin} />
+      <Text style={styles.hint}>La boucle part et revient à ce lieu.</Text>
+
       <Text style={styles.section}>Durée ou distance</Text>
       <View style={styles.row}>
         <Chip label="⏱️ Durée" selected={mode === 'duration'} onPress={() => setMode('duration')} />
@@ -144,8 +187,15 @@ function LoopScreenContent() {
       </View>
       {scooter50 && <Text style={styles.hint}>50 cm³ : jamais d’autoroute ni de voie rapide.</Text>}
 
-      {locError ? (
-        <Text style={styles.error}>Position inconnue : autorise la localisation pour partir de là où tu es.</Text>
+      {!start ? (
+        locError ? (
+          <Button title="Choisir le lieu de départ" variant="secondary" onPress={() => chooseOrigin(null)} />
+        ) : (
+          <View style={styles.progress}>
+            <ActivityIndicator color={Colors.accent} />
+            <Text style={styles.hint}>Recherche de ta position…</Text>
+          </View>
+        )
       ) : progress !== null ? (
         <View style={styles.progress}>
           <ActivityIndicator color={Colors.accent} />
@@ -203,6 +253,8 @@ function LoopScreenContent() {
           <Text style={styles.credit}>Itinéraires : Valhalla (OpenStreetMap). Durée estimée selon la sinuosité.</Text>
         </>
       )}
+
+      <PartnerIdeas near={start} />
     </ScrollView>
   );
 }
@@ -216,7 +268,6 @@ const useStyles = makeStyles((Colors) => ({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: 15, fontWeight: '700', color: Colors.text },
   hint: { fontSize: 13, color: Colors.textMuted },
-  error: { fontSize: 14, color: Colors.danger, fontWeight: '600' },
   progress: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   map: { height: 280, borderRadius: 16, overflow: 'hidden' },
   loopCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2, borderColor: Colors.surface },

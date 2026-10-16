@@ -2,19 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Text, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LeafletMap } from '@/components/leaflet-map';
 import { SearchBar } from '@/components/nav/search-bar';
-import { Button } from '@/components/ui';
+import { Button, Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
-import type { LatLng } from '@/lib/geo';
+import { FAVORITE_LABELS, sortFavorites, useFavorites } from '@/lib/favorites';
+import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { currentPickRequest, resolvePick } from '@/lib/place-picker';
+import { fetchPopularSpots, MEETING_KINDS, placeKindInfo, spotAsPlace, type CommunityPlace } from '@/lib/places';
+import { formatDistance } from '@/lib/routing';
 import { reverseGeocode } from '@/lib/search';
 
-/** Choix d'un lieu : recherche d'adresse (même barre que l'onglet Carte) ou appui sur la carte. */
+/**
+ * Choix d'un lieu : recherche d'adresse (même barre que l'onglet Carte), appui (ou appui long) sur
+ * la carte, et avec suggest : ma position, Maison / Travail / favoris, spots PasseRyder proches.
+ */
 export default function PickPlaceScreen() {
   const Colors = useColors();
   const styles = useStyles();
@@ -22,6 +28,9 @@ export default function PickPlaceScreen() {
   // Demande qui a ouvert l'écran : le lieu validé n'est renvoyé qu'à elle
   const [request] = useState(currentPickRequest);
   const initial = request?.initial ?? null;
+  const suggest = request?.suggest ?? false;
+  const favorites = sortFavorites(useFavorites());
+  const [spots, setSpots] = useState<CommunityPlace[]>([]);
   const [me, setMe] = useState<LatLng | null>(null);
   const [selected, setSelected] = useState<Place | null>(null);
   const [resolving, setResolving] = useState(false);
@@ -34,15 +43,34 @@ export default function PickPlaceScreen() {
   useEffect(() => () => resolvePick(request?.id, null), [request]);
 
   useEffect(() => {
-    Location.getLastKnownPositionAsync()
-      .then((p) => {
-        if (!p) return;
-        const point = { latitude: p.coords.latitude, longitude: p.coords.longitude };
-        setMe(point);
-        setFocus((f) => f ?? point);
-      })
-      .catch(() => {});
+    (async () => {
+      // Sans autorisation, pas de demande ici : l'écran sert justement quand la position manque
+      const p =
+        (await Location.getLastKnownPositionAsync().catch(() => null)) ??
+        ((await Location.getForegroundPermissionsAsync().catch(() => null))?.granted
+          ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null)
+          : null);
+      if (!p) return;
+      const point = { latitude: p.coords.latitude, longitude: p.coords.longitude };
+      setMe(point);
+      setFocus((f) => f ?? point);
+    })();
   }, []);
+
+  // Spots proches (cafés, points de vue, stations, parkings) : autour du point initial, sinon de moi
+  const spotsCenter = initial ?? me;
+  const spotsKey = spotsCenter ? `${spotsCenter.latitude.toFixed(2)},${spotsCenter.longitude.toFixed(2)}` : null;
+  useEffect(() => {
+    if (!suggest || !spotsKey) return;
+    const [latitude, longitude] = spotsKey.split(',').map(Number);
+    let cancelled = false;
+    fetchPopularSpots({ latitude, longitude }, { kinds: MEETING_KINDS, limit: 6 })
+      .then((list) => !cancelled && setSpots(list))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [suggest, spotsKey]);
 
   const choose = (place: Place) => {
     pressId.current++;
@@ -75,18 +103,56 @@ export default function PickPlaceScreen() {
       <LeafletMap
         position={me ? { ...me, accuracy: null } : null}
         onMapPress={onMapPress}
-        pins={
-          selected
-            ? [{ id: 'selected', kind: 'meeting', label: '●', latitude: selected.latitude, longitude: selected.longitude }]
-            : []
-        }
+        onMapLongPress={onMapPress}
+        pins={[
+          ...spots.map((p) => ({ id: p.id, kind: 'place' as const, label: placeKindInfo(p.kind).emoji, latitude: p.latitude, longitude: p.longitude })),
+          ...(selected
+            ? [{ id: 'selected', kind: 'meeting' as const, label: '●', latitude: selected.latitude, longitude: selected.longitude }]
+            : []),
+        ]}
+        onPinPress={(id) => {
+          const spot = spots.find((p) => p.id === id);
+          if (spot) choose(spotAsPlace(spot));
+        }}
         fitPoints={focus ? [focus] : undefined}
       />
 
       <View style={styles.search} pointerEvents="box-none">
         <SearchBar near={me ?? initial} onSelect={choose} placeholder="Rechercher une adresse, un lieu…" />
-        {!selected && <Text style={styles.hint}>… ou appuie sur la carte pour placer le point.</Text>}
+        {!selected && <Text style={styles.hint}>… ou appuie sur la carte (ou un spot) pour placer le point.</Text>}
       </View>
+
+      {suggest && !selected && (me || favorites.length > 0 || spots.length > 0) && (
+        <SafeAreaView edges={['bottom']} style={styles.bottom}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+            {me && <Chip label="📍 Ma position" onPress={() => choose({ label: '📍 Ma position', ...me })} />}
+            {favorites.map((f) => (
+              <Chip
+                key={f.id}
+                label={f.kind === 'custom' ? `⭐ ${f.label}` : `${f.kind === 'home' ? '🏠' : '💼'} ${FAVORITE_LABELS[f.kind]}`}
+                onPress={() => choose({ label: f.kind === 'custom' ? f.label : FAVORITE_LABELS[f.kind], latitude: f.latitude, longitude: f.longitude })}
+              />
+            ))}
+          </ScrollView>
+          {spots.length > 0 && (
+            <View style={styles.spots}>
+              <Text style={styles.spotsTitle}>Spots PasseRyder proches</Text>
+              {spots.slice(0, 4).map((p) => (
+                <Pressable key={p.id} style={({ pressed }) => [styles.spot, pressed && { opacity: 0.6 }]} onPress={() => choose(spotAsPlace(p))}>
+                  <Text style={styles.spotEmoji}>{placeKindInfo(p.kind).emoji}</Text>
+                  <Text style={styles.spotName} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                  <Text style={styles.spotMeta}>
+                    {p.rating != null ? `★ ${p.rating.toFixed(1).replace('.', ',')} · ` : ''}
+                    {spotsCenter ? formatDistance(distanceM(spotsCenter, p)) : ''}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </SafeAreaView>
+      )}
 
       {selected && (
         <SafeAreaView edges={['bottom']} style={styles.bottom}>
@@ -134,4 +200,11 @@ const useStyles = makeStyles((Colors) => ({
   selectedBody: { flex: 1 },
   selectedText: { fontSize: 16, fontWeight: '600', color: Colors.text },
   resolving: { fontSize: 13, color: Colors.textMuted },
+  chips: { gap: 8 },
+  spots: { gap: 2 },
+  spotsTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
+  spot: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  spotEmoji: { fontSize: 18 },
+  spotName: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.text },
+  spotMeta: { fontSize: 13, color: Colors.textMuted },
 }));

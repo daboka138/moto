@@ -1,4 +1,4 @@
-import type { LatLng } from '@/lib/geo';
+import { distanceM, type LatLng } from '@/lib/geo';
 import { photoUrl, uploadPhoto, type PhotoValue } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
@@ -93,6 +93,32 @@ export async function fetchPlacesAround(center: LatLng, radiusKm = 80): Promise<
   if (error) throw error;
   return ((data ?? []) as unknown as PlaceRow[]).map(toPlace);
 }
+
+/** Spots pratiques pour donner rendez-vous (départ d'une boucle, RDV d'une balade) */
+export const MEETING_KINDS: PlaceKind[] = ['biker_cafe', 'viewpoint', 'fuel', 'parking'];
+
+/**
+ * Départs populaires : les spots les mieux notés à moins de radiusKm (puis les plus commentés,
+ * puis les plus proches). Par défaut cafés motards et points de vue.
+ */
+export async function fetchPopularSpots(
+  center: LatLng,
+  { radiusKm = 20, limit = 4, kinds = ['biker_cafe', 'viewpoint'] }: { radiusKm?: number; limit?: number; kinds?: PlaceKind[] } = {},
+): Promise<CommunityPlace[]> {
+  const list = await fetchPlacesAround(center, radiusKm);
+  const dist = (p: LatLng) => distanceM(center, p);
+  return list
+    .filter((p) => kinds.includes(p.kind) && dist(p) <= radiusKm * 1000)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.reviewsCount - a.reviewsCount || dist(a) - dist(b))
+    .slice(0, limit);
+}
+
+/** Spot → lieu choisi (départ, RDV) : « ☕ Nom du café » */
+export const spotAsPlace = (p: CommunityPlace) => ({
+  label: `${placeKindInfo(p.kind).emoji} ${p.name}`,
+  latitude: p.latitude,
+  longitude: p.longitude,
+});
 
 /** Lieux par identifiants (résultats de recherche), dans l'ordre donné */
 export async function fetchPlacesByIds(ids: string[]): Promise<CommunityPlace[]> {

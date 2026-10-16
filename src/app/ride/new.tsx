@@ -19,6 +19,9 @@ import type { Place } from '@/lib/geocoding';
 import { simplifyTrack, takePendingGpx, trackLengthM, type GpxData } from '@/lib/gpx';
 import { pickAndParseGpx } from '@/lib/gpx-import';
 import { pickPlace } from '@/lib/place-picker';
+import { MEETING_KINDS } from '@/lib/places';
+import { PartnerIdeas } from '@/components/partner-ideas';
+import { SpotSuggestions } from '@/components/spot-suggestions';
 import { ALL_CATEGORIES, MOTO_CATEGORIES, PACES, SURFACES, type MotoCategory, type Pace, type Surface } from '@/lib/moto';
 import {
   createRide,
@@ -183,7 +186,7 @@ export default function NewRideScreen() {
   };
 
   const choose = async (label: string, setter: (p: Place) => void, initial?: Place | null) => {
-    const place = await pickPlace({ title: label, initial: initial ?? near });
+    const place = await pickPlace({ title: label, initial: initial ?? near, suggest: true });
     if (place) setter(place);
   };
 
@@ -255,6 +258,8 @@ export default function NewRideScreen() {
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TipBubble id="balade" />
         <Field label="Titre" required value={title} onChangeText={setTitle} placeholder="ex. Tour des Calanques" maxLength={80} />
+
+        <PartnerIdeas near={start ?? me} />
 
         <Section title="Itinéraire">
           {canUse('gpx') && (
@@ -339,6 +344,7 @@ export default function NewRideScreen() {
             onPress={() => choose('Point de regroupement', setMeeting, meeting ?? start)}
             onClear={meeting ? () => setMeeting(null) : undefined}
           />
+          <SpotSuggestions title="Spots proches pour le RDV" center={start ?? me} kinds={MEETING_KINDS} selected={meeting} onPick={setMeeting} />
           <View style={styles.row}>
             <View style={styles.col}>
               <DateTimeField label="Date" mode="date" value={meetingAt} onChange={setDatePart} minimumDate={new Date()} />
