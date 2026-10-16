@@ -49,7 +49,14 @@ export type LoopRequest = {
   avoidHighways: boolean;
   /** 50 cm³ : profil cyclomoteur (jamais d'autoroute ni de voie rapide) */
   scooter50?: boolean;
+  /** Points de passage préférés : cols / routes réputés, spots bien notés (lib/scenic.ts) */
+  attractors?: Attractor[];
+  /** Journal des essais (banc d'essai scripts/dev) */
+  log?: (message: string) => void;
 };
+
+/** Point de passage préféré (col, belle route, point de vue) ; weight 0 à 1 */
+export type Attractor = LatLng & { name: string; weight: number };
 
 export type Loop = {
   id: string;
@@ -68,6 +75,8 @@ export type Loop = {
   urban: number | null;
   /** Km parcourus avant de quitter la ville dense (null : inconnu) */
   exitKm: number | null;
+  /** Durée (ou longueur) hors de la plage demandée : proposée faute de mieux */
+  offTarget: boolean;
 };
 
 /** Vitesse moyenne de départ selon le type de route (pour passer d'une durée à une distance) */
@@ -81,8 +90,11 @@ export function loopDurationMin(distanceM: number, score: number) {
 /** Une route fait environ 1,3 fois la distance à vol d'oiseau */
 const ROAD_FACTOR = 1.3;
 /** Calculs d'itinéraire au plus (boucles rejetées comprises), et boucles valables voulues */
-const MAX_ROUTES = 6;
-const ENOUGH = 4;
+const MAX_ROUTES = 8;
+const ENOUGH = 3;
+/** Plage acceptée autour de la durée (ou longueur) demandée : -15 % / +20 % */
+const FIT_UNDER = 0.15;
+const FIT_OVER = 0.2;
 /** Sans altitude connue : aucune route à moins de 600 m = en mer */
 const SEA_M = 600;
 /** Point à moins de 300 m d'une route : gardé tel quel ; sinon recalé sur la route (3 km au plus) */
@@ -499,9 +511,103 @@ export function plaisirScore(l: Pick<Loop, 'score' | 'urban' | 'overlap' | 'exit
   return curves - 10 * (l.urban ?? 0) - 0.15 * (l.exitKm ?? 0) - 30 * Math.max(0, l.overlap - OVERLAP_FREE);
 }
 
+/** Facteur route / vol d'oiseau autour des cols (mesuré autour de Marseille) */
+const ATTRACTOR_ROAD_K = 1.45;
+/** Vitesse moyenne réelle en montagne (km/h) pour passer d'une durée à une distance, selon les virages */
+const ATTRACTOR_KMH: Record<Curviness, number> = { calm: 45, twisty: 35, very: 30 };
+/** Largeur de la boucle autour de l'axe départ → attracteur (0 = aller-retour, 1 = cercle) */
+const WIDTH_MIN = 0.45;
+const WIDTH_MAX = 2;
+/** Plans « attracteurs » essayés au plus (le reste : éventail ou cercle) */
+const MAX_ATTRACTOR_PLANS = 5;
+/** Position des points latéraux sur l'axe départ → col */
+const SIDE_AT = 0.7;
+
+/** Longueur estimée (km) d'une boucle départ → côté → attracteur → côté → départ */
+const singleKm = (rKm: number, w: number) => ATTRACTOR_ROAD_K * rKm * (2 + 1.14 * w);
+const widthFor = (rKm: number, km: number) => (km / (ATTRACTOR_ROAD_K * rKm) - 2) / 1.14;
+
+type Plan = {
+  id: string;
+  via: () => Promise<LatLng[] | null>;
+  /** Même plan, corrigé pour une boucle de `km` km (la précédente a fait `gotKm`) : un seul réessai */
+  retune?: (gotKm: number, km: number) => Plan | null;
+  kind: 'attractor' | 'fan' | 'circle';
+};
+
+/**
+ * Plans passant par les cols, routes et points de vue réputés : un attracteur à bonne distance
+ * (deux points sur les côtés pour faire une vraie boucle), ou deux attracteurs proches l'un de
+ * l'autre. Un peu de hasard dans le classement pour varier d'une fois sur l'autre.
+ */
+function attractorPlans(start: LatLng, attractors: Attractor[], wantKm: number, costing: string): Plan[] {
+  const single = (a: Attractor, w: number, retried = false): Plan => {
+    const rKm = distanceM(start, a) / 1000;
+    const width = Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, w));
+    const b = bearingDeg(start, a);
+    // Côtés de la boucle près du col (70 % du chemin) : dans les collines plutôt qu'en ville
+    const mid = lerp(start, a, SIDE_AT);
+    const side = (deg: number) => offset(mid, deg, (width * rKm * 1000) / 2);
+    return {
+      id: `col-${a.name}`,
+      kind: 'attractor',
+      via: async () => {
+        const sides = await placeWaypoints(start, [side(b - 90), side(b + 90)], costing);
+        return sides ? [sides[0], a, sides[1]] : null;
+      },
+      retune: retried
+        ? undefined
+        : (gotKm, km) => {
+            // Facteur route réel de cette boucle, puis largeur qui donne la bonne longueur
+            const k = gotKm / singleKm(rKm, width);
+            const next = (km / (k * ATTRACTOR_ROAD_K * rKm) - 2) / 1.14;
+            return Math.abs(next - width) < 0.05 ? null : single(a, next, true);
+          },
+    };
+  };
+  const pair = (a: Attractor, b: Attractor): Plan => ({
+    id: `cols-${a.name}-${b.name}`,
+    kind: 'attractor',
+    via: async () => [a, b],
+  });
+
+  const candidates: { plan: Plan; score: number; names: string[] }[] = [];
+  for (const a of attractors) {
+    const rKm = distanceM(start, a) / 1000;
+    const w = widthFor(rKm, wantKm);
+    if (rKm >= 2 && w >= WIDTH_MIN && w <= WIDTH_MAX)
+      candidates.push({ plan: single(a, w), score: 2 * a.weight - Math.abs(w - 1) + Math.random() * 0.8, names: [a.name] });
+  }
+  for (let i = 0; i < attractors.length; i++) {
+    for (let j = 0; j < attractors.length; j++) {
+      if (i === j) continue;
+      const a = attractors[i];
+      const b = attractors[j];
+      const angle = Math.abs(((bearingDeg(start, b) - bearingDeg(start, a) + 540) % 360) - 180);
+      const km = (ATTRACTOR_ROAD_K * (distanceM(start, a) + distanceM(a, b) + distanceM(b, start))) / 1000;
+      // Vrai triangle (ni aller-retour ni demi-tour), à la bonne longueur ; sens au hasard (i < j ou non)
+      if (angle < 25 || angle > 150 || km < wantKm * 0.75 || km > wantKm * 1.3 || (i < j) === Math.random() < 0.5) continue;
+      candidates.push({
+        plan: pair(a, b),
+        score: 1.2 * (a.weight + b.weight) - 3 * Math.abs(Math.log(km / wantKm)) + Math.random() * 0.8,
+        names: [a.name, b.name],
+      });
+    }
+  }
+  // Les meilleurs, sans repasser deux fois par le même attracteur en tête
+  const chosen: typeof candidates = [];
+  for (const c of candidates.sort((x, y) => y.score - x.score)) {
+    if (chosen.length >= MAX_ATTRACTOR_PLANS) break;
+    if (!chosen.some((o) => o.names[0] === c.names[0] || (o.names.length === c.names.length && o.names.every((n) => c.names.includes(n)))))
+      chosen.push(c);
+  }
+  return chosen.map((c) => c.plan);
+}
+
 /**
  * Génère jusqu'à 3 boucles. `onProgress(n, total)` après chaque calcul.
- * Le rayon est corrigé au fil des essais pour coller à la longueur voulue.
+ * Points de passage : d'abord les cols / routes réputés et spots bien notés (r.attractors), puis
+ * éventail (départ en ville) ou cercle. Durée tenue à -15 % / +20 % de la demande, sinon réessai.
  */
 export async function generateLoops(r: LoopRequest, onProgress?: (done: number, total: number) => void): Promise<Loop[]> {
   const wantKm = targetKm(r.target, r.curviness);
@@ -509,6 +615,7 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
   const want = r.target.kind === 'duration' ? r.target.minutes : r.target.km;
   const measure = (route: NavRoute, score: number) =>
     r.target.kind === 'duration' ? loopDurationMin(route.distanceM, score) : route.distanceM / 1000;
+  const inRange = (m: number) => m >= want * (1 - FIT_UNDER) && m <= want * (1 + FIT_OVER);
   const options = optionsFor(r);
   const { costing } = valhallaCosting(options);
   // Très sinueux : un point de plus (la boucle serpente davantage)
@@ -546,23 +653,36 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
       throw e;
     }
   };
+  // Réessai à la bonne taille (éventail, cercle) : le même plan relit radiusM corrigé
+  const resized = (p: Plan): Plan => ({ ...p, retune: undefined });
   // Départ en ville : éventail vers la campagne ; sinon (ou s'il n'y en a pas) cercle passant par le départ
   const fan = startBuilt ? await fanWaypoints(r.start, wantKm, costing, n).catch(() => []) : [];
-  type Plan = { id: string; via: () => Promise<LatLng[] | null> };
-  const plans: Plan[] = fan.length
-    ? fan.map((f) => ({ id: f.id, via: async () => f.via(radiusM / radius0) }))
+  const fallback: Plan[] = fan.length
+    ? fan.map((f) => ({ id: f.id, kind: 'fan' as const, via: async () => f.via(radiusM / radius0), retune: () => null }))
     : headings.map((h) => ({
         id: `loop-${Math.round(h)}`,
+        kind: 'circle' as const,
         via: () => placeWaypoints(r.start, loopWaypoints(r.start, h, radiusM, n), costing),
+        retune: () => null,
       }));
-  for (let i = 0; i < Math.min(MAX_ROUTES, plans.length) && found.length < ENOUGH; i++) {
+  // Cols : routes lentes, la distance visée se calcule à leur vitesse réelle
+  const attractorKm = r.target.kind === 'duration' ? (r.target.minutes / 60) * ATTRACTOR_KMH[r.curviness] : r.target.km;
+  const plans: Plan[] = [...attractorPlans(r.start, r.attractors ?? [], attractorKm, costing), ...fallback];
+  let valid = 0;
+  for (let i = 0; i < Math.min(MAX_ROUTES, plans.length) && valid < ENOUGH; i++) {
     const plan = plans[i];
     try {
       const planned = await plan.via();
       reached = true;
-      if (!planned) continue; // que de la mer dans cette direction
+      if (!planned) {
+        r.log?.(`${plan.id} : points impossibles à placer`);
+        continue; // que de la mer dans cette direction
+      }
       let { route, via } = await fetchLoopOrDrop(planned);
-      if (crossesWater(route)) continue; // ferry ou traversée : rejetée, direction suivante
+      if (crossesWater(route)) {
+        r.log?.(`${plan.id} : passe sur l'eau, rejetée`);
+        continue; // ferry ou traversée : rejetée, plan suivant
+      }
       // Culs-de-sac aux points de passage : point ramené à l'entrée, boucle recalculée
       const bases = via.map((p) => spurBase(route.points, p));
       if (bases.some(Boolean)) {
@@ -574,11 +694,23 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
         }
       }
       const { score, degPerKm } = curvature(route.points);
-      // Correction de la taille d'après la durée / longueur obtenue (bornée pour rester stable) ;
-      // éventail : longueur à peu près proportionnelle à la taille
-      const ratio = want / Math.max(measure(route, score), 1);
-      radiusM *= Math.min(1.6, Math.max(0.6, fan.length ? ratio : Math.sqrt(ratio)));
-      const town = await urbanStats(route, costing);
+      const got = measure(route, score);
+      const ratio = want / Math.max(got, 1);
+      if (plan.kind !== 'attractor') {
+        // Correction de la taille (bornée pour rester stable) ; éventail : longueur à peu près proportionnelle
+        radiusM *= Math.min(1.6, Math.max(0.6, plan.kind === 'fan' ? ratio : Math.sqrt(ratio)));
+      }
+      const ok = inRange(got);
+      // Hors durée : même plan réessayé à la bonne taille (une fois), juste après
+      if (!ok && plan.retune) {
+        const gotKm = route.distanceM / 1000;
+        const next = plan.kind === 'attractor' ? plan.retune(gotKm, gotKm * ratio) : resized(plan);
+        if (next) plans.splice(i + 1, 0, next);
+      }
+      // Part en ville : calculée pour les boucles proposables (les autres seulement faute de mieux, à la fin)
+      const town = ok ? await urbanStats(route, costing) : null;
+      if (ok) valid++;
+      r.log?.(`${plan.id} : ${Math.round(got)} / ${want}${ok ? '' : ' hors plage'}, ville ${town ? Math.round(town.urban * 100) : '?'} %, aller-retour ${Math.round(overlapRatio(route.points) * 100)} %`);
       found.push({
         id: `${plan.id}-${i}`,
         route,
@@ -589,11 +721,13 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
         durationMin: loopDurationMin(route.distanceM, score),
         urban: town?.urban ?? null,
         exitKm: town?.exitKm ?? null,
+        offTarget: !ok,
       });
     } catch (e) {
       console.warn('Boucle impossible dans cette direction', e);
+      r.log?.(`${plan.id} : échec (${e instanceof Error ? e.message : String(e)})`);
     } finally {
-      onProgress?.(i + 1, MAX_ROUTES);
+      onProgress?.(Math.min(i + 1, MAX_ROUTES), MAX_ROUTES);
     }
   }
   onProgress?.(MAX_ROUTES, MAX_ROUTES);
@@ -605,22 +739,22 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
     );
   }
 
-  // Classement : d'abord la durée (ou longueur) demandée à ±35 %, puis le plaisir (sinuosité voulue,
-  // moins la ville et les allers-retours). Plus de 20 % d'aller-retour : écartée s'il y a mieux.
-  // Départ en ville : jusqu'à 60 % plus longue acceptée (sortir de la ville coûte des kilomètres)
+  // Seules les boucles à la bonne durée (-15 % / +20 %) sont proposées ; sans aucune, les plus
+  // proches de la demande, signalées « hors durée ». Puis le plaisir (sinuosité voulue, moins la
+  // ville et les allers-retours) ; plus de 20 % d'aller-retour : écartée s'il y a mieux.
+  const onTarget = found.filter((l) => !l.offTarget);
   const fit = (l: Loop) => Math.abs(measure(l.route, l.score) - want) / want;
-  const longest = startBuilt ? 1.6 : 1.35;
-  const fits = (l: Loop) => {
-    const m = measure(l.route, l.score);
-    return m >= want * 0.65 && m <= want * longest;
-  };
-  const clean = found.filter((l) => l.overlap <= OVERLAP_MAX);
-  const pool = clean.length ? clean : found;
-  const ranked = pool.sort(
-    (a, b) =>
-      Number(fits(b)) - Number(fits(a)) ||
-      (fits(a) ? plaisirScore(b, r.curviness) - plaisirScore(a, r.curviness) : fit(a) - fit(b)),
-  );
+  const base = onTarget.length ? onTarget : [...found].sort((a, b) => fit(a) - fit(b)).slice(0, 3);
+  if (!onTarget.length) {
+    for (const l of base) {
+      const town = await urbanStats(l.route, costing);
+      l.urban = town?.urban ?? null;
+      l.exitKm = town?.exitKm ?? null;
+    }
+  }
+  const clean = base.filter((l) => l.overlap <= OVERLAP_MAX);
+  const pool = clean.length ? clean : base;
+  const ranked = pool.sort((a, b) => plaisirScore(b, r.curviness) - plaisirScore(a, r.curviness));
   const distinct: Loop[] = [];
   for (const l of ranked) if (!distinct.some((d) => sameRoute(d.route, l.route))) distinct.push(l);
   return distinct.slice(0, 3);

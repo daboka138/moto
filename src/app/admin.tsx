@@ -35,6 +35,7 @@ import {
 import { FEATURE_STATUS_LABELS, refreshFeatures, setFeatureStatus, setUserPremium, useFeatures, type FeatureStatus } from '@/lib/features';
 import { deletePartnerLink, fetchPartnerLinks, savePartnerLink, type PartnerLink, type PartnerLinkDraft } from '@/lib/partners';
 import { pickPlace } from '@/lib/place-picker';
+import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
 type Tab = 'overview' | 'users' | 'moderation' | 'features';
@@ -553,6 +554,9 @@ function Features() {
       <Text style={styles.section}>Liens partenaires (Idées de balades)</Text>
       <PartnerLinks />
 
+      <Text style={styles.section}>Cols et routes réputés (boucles)</Text>
+      <ScenicWaypoints />
+
       <Text style={styles.section}>Défi du mois</Text>
       <Challenges />
     </ScrollView>
@@ -787,6 +791,119 @@ function PartnerLinks() {
       ))}
       <Button title="+ Ajouter un lien partenaire" variant="secondary" onPress={() => edit(EMPTY_LINK(list.length))} />
       <Text style={styles.small}>Clics comptés de façon anonyme (un nombre par lien, rien sur qui clique).</Text>
+    </View>
+  );
+}
+
+// Cols et routes réputés : points de passage choisis en priorité par « Fais-moi une boucle »
+// (avec un peu de hasard). Le point doit être SUR la route : choisi sur la carte, il y est accroché.
+function ScenicWaypoints() {
+  const styles = useStyles();
+  const [list, setList] = useState<ScenicWaypoint[] | null>(null);
+  const [draft, setDraft] = useState<ScenicDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setList(await fetchScenic());
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  if (!list) return null;
+
+  if (draft) {
+    const set = (patch: Partial<ScenicDraft>) => setDraft({ ...draft, ...patch });
+    const placed = Number.isFinite(draft.latitude) && Number.isFinite(draft.longitude);
+    const error = draft.name.trim().length < 2 ? 'Nom trop court' : !placed ? 'Choisis la position' : null;
+    return (
+      <View style={[styles.card, { gap: 8 }]}>
+        <Field label="Nom (ex. Col de la Gineste)" value={draft.name} onChangeText={(v) => set({ name: v })} maxLength={80} />
+        <Field label="Région (ex. Marseille)" value={draft.region} onChangeText={(v) => set({ region: v })} maxLength={60} />
+        <View style={styles.actions}>
+          {SCENIC_KINDS.map((k) => (
+            <Chip key={k.value} label={`${k.emoji} ${k.label}`} selected={draft.kind === k.value} onPress={() => set({ kind: k.value })} />
+          ))}
+        </View>
+        <Chip
+          label={placed ? `📍 ${draft.latitude.toFixed(5)}, ${draft.longitude.toFixed(5)}` : 'Choisir la position sur la route'}
+          selected={placed}
+          onPress={async () => {
+            const place = await pickPlace({ title: draft.name || 'Col ou route', initial: placed ? draft : null });
+            if (place) setDraft((d) => d && { ...d, latitude: place.latitude, longitude: place.longitude });
+          }}
+        />
+        <View style={styles.actions}>
+          <Chip label="Actif" selected={draft.active} onPress={() => set({ active: true })} />
+          <Chip label="Inactif" selected={!draft.active} onPress={() => set({ active: false })} />
+        </View>
+        <Button
+          title={error ?? 'Enregistrer'}
+          disabled={!!error}
+          loading={saving}
+          onPress={async () => {
+            setSaving(true);
+            try {
+              await saveScenic(draft);
+              setDraft(null);
+              await load();
+            } catch (e) {
+              Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+            } finally {
+              setSaving(false);
+            }
+          }}
+        />
+        <Button title="Annuler" variant="ghost" onPress={() => setDraft(null)} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ gap: 8 }}>
+      {list.map((w) => (
+        <Pressable
+          key={w.id}
+          style={[styles.card, { gap: 2, opacity: w.active ? 1 : 0.55 }]}
+          onPress={() =>
+            showActionSheet({
+              title: w.name,
+              options: [
+                { label: 'Modifier', onPress: () => setDraft({ ...w }) },
+                { label: w.active ? 'Désactiver' : 'Activer', onPress: () => saveScenic({ ...w, active: !w.active }).then(load, (e) => Alert.alert('Oups', String(e))) },
+                {
+                  label: 'Supprimer',
+                  destructive: true,
+                  onPress: () =>
+                    Alert.alert('Supprimer ce point ?', w.name, [
+                      { text: 'Annuler', style: 'cancel' },
+                      { text: 'Supprimer', style: 'destructive', onPress: () => deleteScenic(w.id).then(load, (e) => Alert.alert('Oups', String(e))) },
+                    ]),
+                },
+              ],
+            })
+          }>
+          <Text style={styles.label}>
+            {SCENIC_KINDS.find((k) => k.value === w.kind)?.emoji} {w.name}
+          </Text>
+          <Text style={styles.small}>{[w.region || 'Sans région', w.active ? null : 'inactif'].filter(Boolean).join(' · ')}</Text>
+        </Pressable>
+      ))}
+      <Button
+        title="+ Ajouter un col ou une route"
+        variant="secondary"
+        onPress={() => setDraft({ name: '', region: '', kind: 'col', latitude: NaN, longitude: NaN, active: true })}
+      />
+      <Text style={styles.small}>
+        Utilisés en priorité (avec un peu de hasard) comme points de passage des boucles, avec les spots « belle route » et « point de vue » notés 4/5 ou plus.
+      </Text>
     </View>
   );
 }

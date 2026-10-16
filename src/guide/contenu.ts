@@ -499,13 +499,15 @@ export const FICHES: Fiche[] = [
     astuces: [
       'Pas satisfait ? Relance : les boucles changent à chaque fois.',
       'La boucle part et revient au lieu de départ. « Créer une balade » en fait le point de RDV.',
+      'Les boucles passent en priorité par les cols et routes réputés de la région et par les spots « belle route » / « point de vue » bien notés (un peu de hasard pour varier).',
+      'Chaque boucle affiche sa part en ville, et sa durée reste entre -15 % et +20 % de ta demande.',
       'Jamais de ferry ni de passage en mer. Départ en ville : l’app sort par les axes directs (sans autoroute) vers la campagne et le relief, puis prend les petites routes.',
       'Position refusée ou indisponible : le choix du départ s’ouvre tout seul.',
       '« 💡 Besoin d’idées ? » : des articles de partenaires sur les belles routes de ta région.',
     ],
     limites: [
       'La durée est une estimation selon la sinuosité.',
-      'Départ en pleine ville : la boucle peut être un peu plus longue que demandé, le temps de sortir de la ville.',
+      'Départ en pleine ville : sortir de la ville prend du temps, une boucle courte peut rester en partie urbaine (le % en ville est affiché). Sans boucle à la bonne durée, la plus proche est proposée et signalée.',
     ],
     web: 'Sur le web, tu peux calculer une boucle et créer une balade ; « Partir » ouvre l’app Android.',
     motsCles: ['loop', 'virages', 'sinueux', 'balade rapide', 'départ', 'lieu de départ', 'rendez-vous', 'idées'],

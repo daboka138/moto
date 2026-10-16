@@ -23,6 +23,7 @@ import {
   type LoopTarget,
 } from '@/lib/loop';
 import { mainCategory } from '@/lib/profile';
+import { loopAttractors } from '@/lib/scenic';
 import { formatDistance } from '@/lib/routing';
 import { useSession } from '@/lib/session';
 import { FeatureGate } from '@/components/feature-gate';
@@ -99,7 +100,9 @@ function LoopScreenContent() {
     setProgress(0);
     setLoops(null);
     try {
-      const result = await generateLoops({ start, target, curviness, avoidHighways, scooter50 }, (done, total) =>
+      // Cols / routes réputés et spots bien notés autour du départ (rien de bloquant si indisponible)
+      const attractors = await loopAttractors(start).catch(() => []);
+      const result = await generateLoops({ start, target, curviness, avoidHighways, scooter50, attractors }, (done, total) =>
         setProgress(done / total),
       );
       setLoops(result);
@@ -235,8 +238,12 @@ function LoopScreenContent() {
                 </Text>
                 <Text style={styles.hint}>
                   Sinuosité {String(l.score).replace('.', ',')}/10 · {curvinessLabel(l.score)}
+                  {l.urban != null ? ` · ${Math.round(l.urban * 100)} % en ville` : ''}
                   {l.overlap > 0.15 ? ' · un peu d’aller-retour' : ''}
                 </Text>
+                {l.offTarget && (
+                  <Text style={styles.warn}>Pas de boucle à la durée demandée ici : la plus proche est proposée.</Text>
+                )}
               </View>
               <View style={styles.scoreBar}>
                 <View style={[styles.scoreFill, { width: `${l.score * 10}%` }]} />
@@ -268,6 +275,7 @@ const useStyles = makeStyles((Colors) => ({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: 15, fontWeight: '700', color: Colors.text },
   hint: { fontSize: 13, color: Colors.textMuted },
+  warn: { fontSize: 12, color: Colors.warning, fontWeight: '700' },
   progress: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   map: { height: 280, borderRadius: 16, overflow: 'hidden' },
   loopCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2, borderColor: Colors.surface },
