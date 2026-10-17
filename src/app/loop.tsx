@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ExpandableMap } from '@/components/expandable-map';
 import { OpenInApp } from '@/components/open-in-app';
@@ -26,6 +26,8 @@ import { mainCategory } from '@/lib/profile';
 import { loopAttractors } from '@/lib/scenic';
 import { formatDistance } from '@/lib/routing';
 import { useSession } from '@/lib/session';
+import { RouteOptionsFields } from '@/components/route-options-fields';
+import { getRoutePrefs, setRoutePrefs, type RoutePrefs } from '@/lib/route-prefs';
 import { FeatureGate } from '@/components/feature-gate';
 import { PlaceField } from '@/components/form-fields';
 import { PartnerIdeas } from '@/components/partner-ideas';
@@ -67,7 +69,7 @@ const durationLabel = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(
 function LoopScreenContent() {
   const Colors = useColors();
   const styles = useStyles();
-  const { profile } = useSession();
+  const { profile, session } = useSession();
   const scooter50 = mainCategory(profile) === 'cyclo';
   const [me, setMe] = useState<LatLng | null>(null);
   // Lieu de départ choisi (null = ma position)
@@ -77,7 +79,13 @@ function LoopScreenContent() {
   const [minutes, setMinutes] = useState(90);
   const [km, setKm] = useState(80);
   const [curviness, setCurviness] = useState<Curviness>('twisty');
-  const [avoidHighways, setAvoidHighways] = useState(true);
+  // Boucles : autoroute et péages évités par défaut ; « éviter les villes » repris des préférences mémorisées
+  const [routeOpts, setRouteOpts] = useState<RoutePrefs>(() => ({ avoidHighways: true, avoidTolls: true, avoidCities: getRoutePrefs().avoidCities }));
+  const changeRouteOpts = (patch: Partial<RoutePrefs>) => {
+    setRouteOpts((o) => ({ ...o, ...patch }));
+    if (patch.avoidCities !== undefined) setRoutePrefs(session?.user.id, { avoidCities: patch.avoidCities });
+  };
+  const { avoidHighways, avoidTolls, avoidCities } = routeOpts;
   const [progress, setProgress] = useState<number | null>(null);
   const [loops, setLoops] = useState<Loop[] | null>(null);
   const [selected, setSelected] = useState(0);
@@ -132,7 +140,7 @@ function LoopScreenContent() {
     try {
       // Cols / routes réputés et spots bien notés autour du départ (rien de bloquant si indisponible)
       const attractors = await loopAttractors(start).catch(() => []);
-      const result = await generateLoops({ start, target, curviness, avoidHighways, scooter50, attractors }, (done, total) =>
+      const result = await generateLoops({ start, target, curviness, avoidHighways, avoidTolls, avoidCities, scooter50, attractors }, (done, total) =>
         setProgress(done / total),
       );
       setLoops(result);
@@ -208,17 +216,14 @@ function LoopScreenContent() {
         ))}
       </View>
 
-      <View style={[styles.card, styles.switchRow]}>
-        <Text style={styles.label}>Éviter les autoroutes</Text>
-        <Switch
-          value={avoidHighways || scooter50}
-          disabled={scooter50}
-          onValueChange={setAvoidHighways}
-          trackColor={{ true: Colors.accent, false: Colors.border }}
-          thumbColor={Colors.white}
+      <View style={styles.card}>
+        <RouteOptionsFields
+          value={routeOpts}
+          onChange={changeRouteOpts}
+          highwaysLocked={scooter50}
+          citiesHint="Les boucles qui passent le moins en ville sont proposées d’abord (« X % en ville » sur chaque boucle)."
         />
       </View>
-      {scooter50 && <Text style={styles.hint}>50 cm³ : jamais d’autoroute ni de voie rapide.</Text>}
 
       {!start ? (
         locError ? (

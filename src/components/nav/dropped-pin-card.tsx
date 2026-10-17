@@ -18,6 +18,7 @@ export function DroppedPinCard({
   onAddPlace,
   onAddEvent,
   onRegroup,
+  onAddStop,
   onClose,
 }: {
   place: Place;
@@ -32,6 +33,8 @@ export function DroppedPinCard({
   onAddEvent?: () => void;
   /** Balade en cours (ouvreur ou organisateur) : poser le point de regroupement ici */
   onRegroup?: () => void;
+  /** Aperçu d'itinéraire ouvert : ajouter ce point comme étape */
+  onAddStop?: () => void;
   onClose: () => void;
 }) {
   const Colors = useColors();
@@ -62,6 +65,13 @@ export function DroppedPinCard({
         <MaterialCommunityIcons name="navigation-variant" size={20} color={Colors.white} />
         <Text style={styles.goText}>Aller ici</Text>
       </Pressable>
+
+      {onAddStop && (
+        <Pressable style={({ pressed }) => [styles.go, pressed && styles.pressed]} onPress={onAddStop}>
+          <MaterialCommunityIcons name="map-marker-plus" size={20} color={Colors.white} />
+          <Text style={styles.goText}>Ajouter comme étape</Text>
+        </Pressable>
+      )}
 
       {onRegroup && (
         <Pressable style={({ pressed }) => [styles.go, styles.regroup, pressed && styles.pressed]} onPress={onRegroup}>

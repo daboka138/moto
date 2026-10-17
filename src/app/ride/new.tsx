@@ -22,7 +22,10 @@ import { pickPlace } from '@/lib/place-picker';
 import { MEETING_KINDS } from '@/lib/places';
 import { PartnerIdeas } from '@/components/partner-ideas';
 import { SpotSuggestions } from '@/components/spot-suggestions';
-import { ALL_CATEGORIES, MOTO_CATEGORIES, PACE_REMINDER, SURFACES, type MotoCategory, type Surface } from '@/lib/moto';
+import { ALL_CATEGORIES, defaultRouteOptions, MOTO_CATEGORIES, PACE_REMINDER, SURFACES, type MotoCategory, type Surface } from '@/lib/moto';
+import { RouteOptionsFields } from '@/components/route-options-fields';
+import { urbanText } from '@/components/nav/nav-ui';
+import { setRoutePrefs, useRoutePrefs, withRoutePrefs } from '@/lib/route-prefs';
 import {
   createRide,
   levelInfo,
@@ -36,7 +39,7 @@ import { computeRoute, formatDistance, formatDuration, type ComputedRoute } from
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
-const MAX_WAYPOINTS = 8;
+const MAX_WAYPOINTS = 10;
 /** Tracé importé : 1500 points au plus (limite du serveur : 2000) */
 const MAX_IMPORTED_POINTS = 1500;
 /** Durée estimée d'un tracé importé sans horaires : 55 km/h de moyenne */
@@ -90,7 +93,13 @@ export default function NewRideScreen() {
 
   // Tracé recalculé dès que départ, arrivée ou étapes changent
   const stops = start && end ? [start, ...waypoints, end] : null;
-  const routeOptions = rideRouteOptions(categories, surface);
+  // Options de la balade (50 cm³, chemins) + cases cochées (mémorisées pour le membre)
+  const prefs = useRoutePrefs();
+  const baseOptions = rideRouteOptions(categories, surface);
+  const routeOptions =
+    baseOptions || prefs.avoidHighways || prefs.avoidTolls || prefs.avoidCities
+      ? withRoutePrefs(baseOptions ?? defaultRouteOptions(null), prefs)
+      : undefined;
   const stopsKey = stops
     ? JSON.stringify({ stops: stops.map((s) => [s.latitude, s.longitude]), options: routeOptions ?? null })
     : null;
@@ -185,6 +194,16 @@ export default function NewRideScreen() {
     showActionSheet({ title: 'Placer ce point comme…', options });
   };
 
+  // Étapes réordonnées : le tracé passe par elles dans l'ordre affiché
+  const moveStep = (index: number, delta: -1 | 1) =>
+    setWaypoints((ws) => {
+      const to = index + delta;
+      if (to < 0 || to >= ws.length) return ws;
+      const next = [...ws];
+      [next[index], next[to]] = [next[to], next[index]];
+      return next;
+    });
+
   const choose = async (label: string, setter: (p: Place) => void, initial?: Place | null) => {
     const place = await pickPlace({ title: label, initial: initial ?? near, suggest: true });
     if (place) setter(place);
@@ -227,6 +246,13 @@ export default function NewRideScreen() {
         end: end!,
         waypoints,
         route: currentRoute!,
+        // Cases cochées + points évités (villes) : les participants recalculent le même tracé
+        routeOptions: {
+          ...(routeOptions?.avoidHighways ? { avoidHighways: true } : {}),
+          ...(routeOptions?.avoidTolls ? { avoidTolls: true } : {}),
+          ...(routeOptions?.avoidCities ? { avoidCities: true } : {}),
+          ...(!usingImport && currentRoute?.options?.exclude?.length ? { exclude: currentRoute.options.exclude } : {}),
+        },
         meeting: meeting ?? start!,
         meetingAt,
         level,
@@ -278,23 +304,50 @@ export default function NewRideScreen() {
             onPress={() => choose('Point de départ', setStart, start)}
           />
           {waypoints.map((w, i) => (
-            <PlaceField
-              key={i}
-              label={`Étape ${i + 1}`}
-              color={Colors.neutral}
-              value={w}
-              placeholder=""
-              onPress={() => choose(`Étape ${i + 1}`, (p) => setWaypoints((ws) => ws.map((x, j) => (j === i ? p : x))), w)}
-              onClear={() => setWaypoints((ws) => ws.filter((_, j) => j !== i))}
-            />
+            <View key={`${i}-${w.latitude},${w.longitude}`} style={styles.stepRow}>
+              <View style={styles.stepField}>
+                <PlaceField
+                  label={`Étape ${i + 1}`}
+                  color={Colors.neutral}
+                  value={w}
+                  placeholder=""
+                  onPress={() => choose(`Étape ${i + 1}`, (p) => setWaypoints((ws) => ws.map((x, j) => (j === i ? p : x))), w)}
+                  onClear={() => setWaypoints((ws) => ws.filter((_, j) => j !== i))}
+                />
+              </View>
+              {waypoints.length > 1 && (
+                <View style={styles.stepArrows}>
+                  <Pressable
+                    onPress={() => moveStep(i, -1)}
+                    disabled={i === 0}
+                    hitSlop={4}
+                    style={i === 0 && styles.disabled}
+                    accessibilityLabel={`Monter l'étape ${i + 1}`}>
+                    <Ionicons name="chevron-up-circle-outline" size={28} color={Colors.accent} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => moveStep(i, 1)}
+                    disabled={i === waypoints.length - 1}
+                    hitSlop={4}
+                    style={i === waypoints.length - 1 && styles.disabled}
+                    accessibilityLabel={`Descendre l'étape ${i + 1}`}>
+                    <Ionicons name="chevron-down-circle-outline" size={28} color={Colors.accent} />
+                  </Pressable>
+                </View>
+              )}
+            </View>
           ))}
-          {waypoints.length < MAX_WAYPOINTS && (
+          {waypoints.length < MAX_WAYPOINTS ? (
             <Pressable
               style={styles.addStep}
               onPress={() => choose(`Étape ${waypoints.length + 1}`, (p) => setWaypoints((ws) => [...ws, p]))}>
               <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
-              <Text style={styles.addStepText}>Ajouter une étape</Text>
+              <Text style={styles.addStepText}>
+                Ajouter une étape ({waypoints.length}/{MAX_WAYPOINTS})
+              </Text>
             </Pressable>
+          ) : (
+            <Text style={styles.hint}>{MAX_WAYPOINTS} étapes au maximum.</Text>
           )}
           <PlaceField
             label="Arrivée (B)"
@@ -303,6 +356,13 @@ export default function NewRideScreen() {
             value={end}
             placeholder="Choisir le point d'arrivée"
             onPress={() => choose("Point d'arrivée", setEnd, end)}
+          />
+
+          <Text style={styles.label}>Options de route</Text>
+          <RouteOptionsFields
+            value={prefs}
+            onChange={(patch) => setRoutePrefs(session.user.id, patch)}
+            highwaysLocked={categories.includes('cyclo')}
           />
 
           <ExpandableMap
@@ -326,11 +386,19 @@ export default function NewRideScreen() {
           {start && end && (
             <>
               {currentRoute ? (
-                <Text style={styles.routeInfo}>
-                  {formatDistance(currentRoute.distanceM)} · environ {formatDuration(currentRoute.durationS)}
-                  {!currentRoute.onRoads && ' (estimation, calcul d’itinéraire indisponible)'}
-                  {usingImport && ' · tracé du GPX (modifie A, B ou les étapes pour le recalculer)'}
-                </Text>
+                <>
+                  <Text style={styles.routeInfo}>
+                    {formatDistance(currentRoute.distanceM)} · environ {formatDuration(currentRoute.durationS)}
+                    {!currentRoute.onRoads && ' (estimation, calcul d’itinéraire indisponible)'}
+                    {usingImport && ' · tracé du GPX (modifie A, B ou les étapes pour le recalculer)'}
+                  </Text>
+                  {!usingImport && currentRoute.urban && (
+                    <Text style={styles.routeInfoMuted}>{urbanText(currentRoute.urban)}</Text>
+                  )}
+                  {!usingImport && routeOptions && !currentRoute.options && currentRoute.onRoads && (
+                    <Text style={styles.routeInfoMuted}>Options indisponibles pour le moment : itinéraire standard.</Text>
+                  )}
+                </>
               ) : (
                 <View style={styles.computing}>
                   <ActivityIndicator color={Colors.accent} size="small" />
@@ -446,6 +514,10 @@ const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   addStep: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   addStepText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepField: { flex: 1 },
+  stepArrows: { gap: 2 },
+  disabled: { opacity: 0.3 },
   preview: { height: 240, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
   mapHint: { fontSize: 13, color: Colors.textMuted, marginTop: -6 },
   routeInfo: { fontSize: 15, fontWeight: '700', color: Colors.text },

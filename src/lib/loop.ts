@@ -48,6 +48,10 @@ export type LoopRequest = {
   target: LoopTarget;
   curviness: Curviness;
   avoidHighways: boolean;
+  /** Péages évités (par défaut : comme l'autoroute) */
+  avoidTolls?: boolean;
+  /** « Éviter les villes autant que possible » : la part en ville pèse 2,5× plus lourd au classement */
+  avoidCities?: boolean;
   /** 50 cm³ : profil cyclomoteur (jamais d'autoroute ni de voie rapide) */
   scooter50?: boolean;
   /** Points de passage préférés : cols / routes réputés, spots bien notés (lib/scenic.ts) */
@@ -199,7 +203,7 @@ function optionsFor(r: LoopRequest): RouteOptions {
   return {
     scooter50: !!r.scooter50,
     avoidHighways: r.avoidHighways || !!r.scooter50,
-    avoidTolls: r.avoidHighways,
+    avoidTolls: r.avoidTolls ?? r.avoidHighways,
     avoidUnpaved: true,
     preferTrails: false,
     // Sinueux / très sinueux : profil « petites routes » (grands axes évités, relief bienvenu)
@@ -594,9 +598,9 @@ async function urbanStats(route: NavRoute, costing: string): Promise<{ urban: nu
 }
 
 /** Note de classement : sinuosité voulue, moins la ville (part et km avant d'en sortir) et les allers-retours */
-export function plaisirScore(l: Pick<Loop, 'score' | 'urban' | 'overlap' | 'exitKm'>, curviness: Curviness) {
+export function plaisirScore(l: Pick<Loop, 'score' | 'urban' | 'overlap' | 'exitKm'>, curviness: Curviness, avoidCities = false) {
   const curves = curviness === 'calm' ? 10 - l.score : l.score;
-  return curves - 10 * (l.urban ?? 0) - 0.15 * (l.exitKm ?? 0) - 30 * Math.max(0, l.overlap - OVERLAP_FREE);
+  return curves - (avoidCities ? 25 : 10) * (l.urban ?? 0) - 0.15 * (l.exitKm ?? 0) - 30 * Math.max(0, l.overlap - OVERLAP_FREE);
 }
 
 /** Facteur route / vol d'oiseau autour des cols (mesuré autour de Marseille) */
@@ -866,7 +870,7 @@ export async function generateLoops(r: LoopRequest, onProgress?: (done: number, 
       l.exitKm = town?.exitKm ?? null;
     }
   }
-  return pickLoops(found, r.target, r.curviness);
+  return pickLoops(found, r.target, r.curviness, !!r.avoidCities);
 }
 
 /** Ce qui est comparé à la demande, tel qu'affiché : durée estimée (min) ou longueur (km) */
@@ -887,7 +891,7 @@ export function inTargetRange(l: Pick<Loop, 'route' | 'durationMin'>, t: LoopTar
  * durée » est recalculé ici sur la durée AFFICHÉE : jamais de boucle hors marge en tête quand une
  * autre est dans la marge. Puis le plaisir ; plus de 20 % d'aller-retour : écartée s'il y a mieux.
  */
-export function pickLoops(found: Loop[], target: LoopTarget, curviness: Curviness): Loop[] {
+export function pickLoops(found: Loop[], target: LoopTarget, curviness: Curviness, avoidCities = false): Loop[] {
   const flagged = found.map((l) => ({ ...l, offTarget: !inTargetRange(l, target) }));
   const onTarget = flagged.filter((l) => !l.offTarget);
   const base = onTarget.length ? onTarget : [...flagged].sort((a, b) => targetGap(a, target) - targetGap(b, target)).slice(0, 3);
@@ -896,7 +900,7 @@ export function pickLoops(found: Loop[], target: LoopTarget, curviness: Curvines
   const ranked = [...pool].sort(
     (a, b) =>
       Number(a.offTarget) - Number(b.offTarget) ||
-      (a.offTarget ? targetGap(a, target) - targetGap(b, target) : plaisirScore(b, curviness) - plaisirScore(a, curviness)),
+      (a.offTarget ? targetGap(a, target) - targetGap(b, target) : plaisirScore(b, curviness, avoidCities) - plaisirScore(a, curviness, avoidCities)),
   );
   const distinct: Loop[] = [];
   for (const l of ranked) if (!distinct.some((d) => sameRoute(d.route, l.route))) distinct.push(l);

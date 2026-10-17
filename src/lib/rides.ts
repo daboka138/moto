@@ -72,6 +72,8 @@ export type RideDetails = RideSummary & {
   end: Place;
   waypoints: Place[];
   route: [number, number][] | null;
+  /** Options choisies par l'organisateur (et points évités) : même tracé pour les participants */
+  routeOptions: RideRouteOptions;
   participants: RideParticipant[];
   startedAt: string | null;
   endedAt: string | null;
@@ -112,12 +114,28 @@ export const PASSENGER_MODES: Record<PassengerMode, { label: string; short: stri
 /** Rappel affiché partout où il est question de passager */
 export const PASSENGER_GEAR_NOTICE = 'Équipement obligatoire pour le passager : casque homologué et gants certifiés.';
 
+/** Options d'itinéraire d'une balade (group_rides.route_options) */
+export type RideRouteOptions = {
+  avoidHighways?: boolean;
+  avoidTolls?: boolean;
+  avoidCities?: boolean;
+  /** Points évités pour sortir des villes ([lat, lng], 50 max) */
+  exclude?: [number, number][];
+};
+
+/** « Sans autoroute · Sans péage · Évite les villes » (null si aucune option) */
+export function routeOptionsLabel(o: RideRouteOptions): string | null {
+  const parts = [o.avoidHighways && 'Sans autoroute', o.avoidTolls && 'Sans péage', o.avoidCities && 'Évite les villes'].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 export type RideDraft = {
   title: string;
   start: Place;
   end: Place;
   waypoints: Place[];
   route: ComputedRoute;
+  routeOptions: RideRouteOptions;
   meeting: Place;
   meetingAt: Date;
   level: RideLevel;
@@ -150,6 +168,7 @@ type Row = {
   end_lng: number;
   waypoints: { label: string; lat: number; lng: number }[];
   route: [number, number][] | null;
+  route_options?: RideRouteOptions | null;
   distance_m: number | null;
   duration_s: number | null;
   started_at: string | null;
@@ -261,6 +280,7 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
     end: { label: r.end_label, latitude: r.end_lat, longitude: r.end_lng },
     waypoints: (r.waypoints ?? []).map((w) => ({ label: w.label, latitude: w.lat, longitude: w.lng })),
     route: r.route,
+    routeOptions: r.route_options ?? {},
     participants: r.participants
       .filter((p) => p.profile)
       .map((p) => ({
@@ -320,6 +340,7 @@ export async function createRide(userId: string, d: RideDraft): Promise<string> 
       end_lng: d.end.longitude,
       waypoints: d.waypoints.map((w) => ({ label: w.label, lat: w.latitude, lng: w.longitude })),
       route: d.route.points,
+      route_options: d.routeOptions,
       distance_m: d.route.distanceM,
       duration_s: d.route.durationS,
       // Au nom d'un club : ses membres sont invités par le serveur

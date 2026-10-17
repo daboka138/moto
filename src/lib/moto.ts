@@ -66,6 +66,10 @@ export type RouteOptions = {
   /** Recherche volontiers les chemins (trail) */
   preferTrails: boolean;
   style: 'fast' | 'fun';
+  /** Éviter les villes autant que possible (Valhalla : tronçons en ville dense évités, voir navigation.ts) */
+  avoidCities?: boolean;
+  /** Points évités ([lat, lng]) : trouvés en évitant les villes, gardés pour recalculer le même tracé */
+  exclude?: [number, number][];
 };
 
 /** Options préremplies selon la catégorie de la moto (modifiables à chaque trajet). */

@@ -10,7 +10,7 @@ import { WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { categoryInfo, PACE_REMINDER, surfaceInfo, type MotoCategory } from '@/lib/moto';
-import { formatRideDate, levelInfo, PASSENGER_MODES, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
+import { formatRideDate, levelInfo, PASSENGER_MODES, routeOptionsLabel, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 import { roundedNow, useRouteWeather } from '@/lib/weather';
 
@@ -138,6 +138,7 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
             <InfoRow key={i} icon="ellipse-outline" color={Colors.neutral} text={`${i + 1}. ${w.label}`} />
           ))}
           <InfoRow icon="ellipse" color={Colors.danger} text={ride.end.label} />
+          {routeOptionsLabel(ride.routeOptions) && <InfoRow icon="options" text={routeOptionsLabel(ride.routeOptions)!} />}
           {ride.distanceM !== null && (
             <InfoRow
               icon="navigate"

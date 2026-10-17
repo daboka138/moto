@@ -21,7 +21,7 @@ import {
   startRide,
   type RideDetails,
 } from '@/lib/rides';
-import { IS_WEB } from '@/lib/app-link';
+import { IS_WEB, openInApp } from '@/lib/app-link';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { canUse } from '@/lib/features';
 import { saveGpxFile } from '@/lib/gpx-file';
@@ -199,6 +199,14 @@ export default function RideScreen() {
       {(isOrganizer || ride.joined) && <Button title="💬 Discussion de la balade" onPress={openChat} loading={busy} />}
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
+      )}
+      {/* Même tracé que l'organisateur : départ, étapes dans l'ordre, arrivée, mêmes options */}
+      {(isOrganizer || ride.joined) && ride.status !== 'ended' && (
+        <Button
+          title="🧭 Naviguer sur le tracé"
+          variant="secondary"
+          onPress={() => (IS_WEB ? openInApp(`/?ride=${ride.id}`) : router.navigate({ pathname: '/', params: { ride: ride.id } }))}
+        />
       )}
       {(isOrganizer || ride.joined) && ride.status !== 'ended' && canStartNow(ride.meetingAt) && canUse('convoy_tools') && (
         <Button

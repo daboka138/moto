@@ -1,6 +1,6 @@
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { RouteOptions } from '@/lib/moto';
-import { fetchValhalla, needsValhalla } from '@/lib/navigation';
+import { fetchValhallaRoute, needsValhalla } from '@/lib/navigation';
 
 // Calcul d'itinéraire via le serveur de démo public OSRM.
 // OK pour le dev, à remplacer par un service avec clé (ou un OSRM hébergé) avant la prod.
@@ -12,6 +12,10 @@ export type ComputedRoute = {
   durationS: number;
   /** false si OSRM n'a pas répondu : tracé en ligne droite et durée estimée */
   onRoads: boolean;
+  /** Options appliquées (Valhalla), avec les points évités pour sortir des villes */
+  options?: RouteOptions;
+  /** « Éviter les villes » : part en ville dense avant / après (0-1) */
+  urban?: { before: number; after: number };
 };
 
 const MAX_POINTS = 500;
@@ -26,8 +30,10 @@ export async function computeRoute(stops: LatLng[], options?: RouteOptions): Pro
   if (stops.length < 2) throw new Error('Il faut au moins un départ et une arrivée');
   if (options && needsValhalla(options)) {
     try {
-      const r = await fetchValhalla(stops, options);
+      const r = await fetchValhallaRoute(stops, options);
       return {
+        options: r.options ?? options,
+        urban: r.urban,
         points: downsample(
           r.points.map((p) => [p.latitude, p.longitude] as [number, number]),
           MAX_POINTS,

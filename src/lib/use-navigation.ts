@@ -19,6 +19,7 @@ import {
 } from '@/lib/navigation';
 import { curvature, loopDurationMin } from '@/lib/loop';
 import type { SearchResult } from '@/lib/search';
+import { setRoutePrefs, withRoutePrefs, type RoutePrefs } from '@/lib/route-prefs';
 import { getSimulation } from '@/lib/simulation';
 import { endTripShares, shareTripWith, updateTripShares } from '@/lib/trip-share';
 import { newTripStats, recordFix, saveTrip, summarize, type TripStats, type TripSummary } from '@/lib/trips';
@@ -113,6 +114,8 @@ function thresholds(speedKmh: number) {
 // ---------- Navigation en cours, gardée sur le téléphone ----------
 
 const ACTIVE_KEY = 'moto.activeNav';
+/** Étapes au plus (en plus de l'arrivée) */
+export const MAX_STOPS = 12;
 
 type SavedNav = {
   destination: SearchResult;
@@ -248,10 +251,20 @@ export function useNavigation(
     }
   };
 
-  /** Aperçu vers une destination, avec des étapes déjà prévues (tracé GPX importé) */
-  const choose = (dest: SearchResult, via: SearchResult[] = []) => {
-    // Chaque nouveau trajet repart des options de la moto
-    const opts = defaultRouteOptions(category);
+  /**
+   * Aperçu vers une destination, avec des étapes déjà prévues (tracé GPX importé, balade).
+   * `extra` : options imposées (balade : autoroute / péages / villes évités, points évités).
+   */
+  const choose = (dest: SearchResult, via: SearchResult[] = [], extra?: Partial<RouteOptions>) => {
+    // Chaque nouveau trajet repart des options de la moto et des cases mémorisées du membre
+    const base = withRoutePrefs(defaultRouteOptions(category));
+    const opts: RouteOptions = extra
+      ? withRoutePrefs({ ...base, exclude: extra.exclude }, {
+          avoidHighways: base.avoidHighways || !!extra.avoidHighways,
+          avoidTolls: base.avoidTolls || !!extra.avoidTolls,
+          avoidCities: !!base.avoidCities || !!extra.avoidCities,
+        })
+      : base;
     const v = defaultVariant(opts);
     setOptions(opts);
     setVariant(v);
@@ -266,11 +279,21 @@ export function useNavigation(
     const next = { ...options, ...patch };
     // 50 cm³ : l'autoroute reste interdite quoi qu'il arrive
     if (next.scooter50) next.avoidHighways = true;
+    // Cases mémorisées pour les prochains trajets (et la création de balade)
+    const remembered: Partial<RoutePrefs> = {};
+    if (patch.avoidHighways !== undefined && !next.scooter50) remembered.avoidHighways = patch.avoidHighways;
+    if (patch.avoidTolls !== undefined) remembered.avoidTolls = patch.avoidTolls;
+    if (patch.avoidCities !== undefined) remembered.avoidCities = patch.avoidCities;
+    if (Object.keys(remembered).length) setRoutePrefs(userId, remembered);
     setOptions(next);
     if (destination && phase === 'preview') computeChoices(destination, stops, next, variant);
   };
 
-  const selectVariant = (v: RouteVariant) => setVariant(v);
+  // « Éviter autoroutes » ou « Rapide » choisi : mémorisé comme case « Éviter l'autoroute » (variante par défaut ensuite)
+  const selectVariant = (v: RouteVariant) => {
+    setVariant(v);
+    if (!options.scooter50 && v !== 'fun') setRoutePrefs(userId, { avoidHighways: v === 'noHighway' });
+  };
 
   // ---------- Navigation ----------
 
@@ -340,7 +363,7 @@ export function useNavigation(
   });
 
   const addStop = (place: SearchResult) => {
-    if (!destination) return;
+    if (!destination || stops.length >= MAX_STOPS) return;
     const next = insertStop(route, stops, place);
     setStops(next);
     if (phase === 'preview') computeChoices(destination, next, options, variant);
@@ -353,6 +376,17 @@ export function useNavigation(
     setStops(next);
     if (phase === 'preview') computeChoices(destination, next, options, variant);
     else if (phase === 'navigating') reroute(next, destination, options, variant);
+  };
+
+  /** Change l'ordre des étapes (flèches ↑↓) : le tracé passe par elles dans l'ordre choisi */
+  const moveStop = (index: number, delta: -1 | 1) => {
+    const to = index + delta;
+    if (!destination || to < 0 || to >= stops.length) return;
+    const next = [...stops];
+    [next[index], next[to]] = [next[to], next[index]];
+    setStops(next);
+    if (phase === 'preview') computeChoices(destination, next, options, variant);
+    else if (phase === 'navigating') reroute(next, destination, options, variant, 'Ordre des étapes modifié');
   };
 
   /** Partage mon trajet en direct avec un ami (fiche dans Messages) */
@@ -482,6 +516,7 @@ export function useNavigation(
     stop,
     addStop,
     removeStop,
+    moveStop,
     share,
     clearSummary: () => setSummary(null),
   };

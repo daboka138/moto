@@ -1,3 +1,5 @@
+Balades et GPS : jusqu'à 10 étapes dans l'ordre que tu veux (↑↓), options Éviter l'autoroute / les péages / les villes gardées pour la prochaine fois, et « Naviguer sur le tracé » depuis la fiche.
+Version web : le bandeau « Nouvelle version disponible » disparaît bien après Recharger.
 Carte plus lisible : les repères proches se regroupent en pastilles (« 12 ») qui s'éclatent en zoomant, et par défaut seulement les sorties des 7 prochains jours et les spots bien notés.
 Carte : elle s'ouvre centrée sur toi (ou ta dernière position, ou ta ville), et reste utilisable sans localisation.
 Correction : les fiches des balades s'ouvrent de nouveau (« Balade introuvable » par erreur), avec un message clair si une balade est privée ou terminée.

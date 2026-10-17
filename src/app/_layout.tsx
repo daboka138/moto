@@ -21,6 +21,7 @@ import { UpdateBanner } from '@/components/update-banner';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
 import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
+import { loadRoutePrefs } from '@/lib/route-prefs';
 import { signOut } from '@/lib/auth';
 import { setAuthNotice, useAuthLinkState } from '@/lib/auth-link';
 import { DrivingLockProvider } from '@/lib/driving-lock';
@@ -233,6 +234,10 @@ function AccountSync() {
   const { session } = useSession();
   useFeaturesSync(session?.user.id);
   useGoodPointsSync(session?.user.id);
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (userId) loadRoutePrefs(userId).catch(() => {});
+  }, [userId]);
   return null;
 }
 

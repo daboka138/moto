@@ -49,6 +49,8 @@ export type NavRoute = {
   alternatives?: NavRoute[];
   /** Valhalla : le tracé prend un ferry ou un train-auto (malgré use_ferry 0 s'il n'y a pas d'autre chemin) */
   hasFerry?: boolean;
+  /** « Éviter les villes » : part du tracé en ville dense avant / après (0-1) */
+  urban?: { before: number; after: number };
 };
 
 const TIMEOUT_MS = 12_000;
@@ -67,7 +69,7 @@ async function fetchJson(url: string, init?: RequestInit) {
 
 /** L'itinéraire standard OSRM suffit-il pour ces options ? */
 export function needsValhalla(o: RouteOptions) {
-  return o.scooter50 || o.avoidHighways || o.avoidTolls || o.style === 'fun' || o.preferTrails;
+  return o.scooter50 || o.avoidHighways || o.avoidTolls || o.style === 'fun' || o.preferTrails || !!o.avoidCities || !!o.exclude?.length;
 }
 
 /**
@@ -77,7 +79,7 @@ export function needsValhalla(o: RouteOptions) {
 export async function fetchNavRoute(stops: LatLng[], options: RouteOptions): Promise<NavRoute> {
   if (needsValhalla(options)) {
     try {
-      return await fetchValhalla(stops, options);
+      return await fetchValhallaRoute(stops, options);
     } catch (e) {
       if (options.scooter50) throw new Error('Itinéraire 50 cm³ indisponible pour le moment (serveur injoignable)');
       console.warn('Valhalla indisponible, itinéraire standard', e);
@@ -332,6 +334,10 @@ export async function fetchValhalla(
     costing,
     costing_options: { [costing]: options },
     directions_options: { language: 'fr-FR', units: 'kilometers' },
+    // Points évités (sortir des villes) : Valhalla contourne les tronçons de route où ils tombent
+    ...(routeOptions.exclude?.length
+      ? { exclude_locations: routeOptions.exclude.slice(0, MAX_EXCLUDE).map(([lat, lon]) => ({ lat, lon })) }
+      : {}),
     // Itinéraire Plaisir de A à B : 2 tracés de plus, le plus sinueux sera gardé
     ...(routeOptions.style === 'fun' && stops.length === 2 ? { alternates: 2 } : {}),
   };
@@ -346,6 +352,101 @@ export async function fetchValhalla(
     .filter((a) => a.trip?.legs?.length)
     .map((a) => valhallaTrip(a.trip!, routeOptions));
   return alternatives.length ? { ...main, alternatives } : main;
+}
+
+// ---------- Éviter les villes ----------
+//
+// Valhalla n'a pas d'option « éviter les villes », et le serveur public limite exclude_polygons à
+// 10 km de périmètre en tout (une seule petite commune). On mesure donc la densité urbaine du
+// tracé (trace_attributes, edge.density, comme pour les boucles), puis on pose des points à
+// éviter (exclude_locations) tous les ~400 m sur les tronçons en ville dense, à plus de 2 km du
+// départ, de l'arrivée et des étapes (on doit bien y entrer). Deux passes au plus ; le nouveau
+// tracé n'est gardé que s'il ne dépasse pas 1,5× la durée du premier.
+
+/** Densité Valhalla (0-15) à partir de laquelle un tronçon est en ville dense (même seuil que les boucles) */
+export const DENSE_EDGE = 9;
+/** Points évités au plus (limite gardée aussi par le serveur PasseRyder : group_rides.route_options) */
+export const MAX_EXCLUDE = 50;
+const EXCLUDE_EVERY_KM = 0.4;
+const EXCLUDE_AWAY_FROM_STOPS_M = 2000;
+const CITY_DETOUR_MAX = 1.5;
+
+type DensityEdges = {
+  shape?: string;
+  edges?: { length: number; density?: number; begin_shape_index?: number; end_shape_index?: number }[];
+};
+
+/** Part du tracé en ville dense (0-1) et points à éviter proposés (null : mesure impossible) */
+export async function cityStretches(
+  route: NavRoute,
+  stops: LatLng[],
+  costing: string,
+): Promise<{ urban: number; candidates: [number, number][] } | null> {
+  try {
+    const res = await postValhalla<DensityEdges>('trace_attributes', {
+      encoded_polyline: encodePolyline6(route.points),
+      shape_match: 'walk_or_snap',
+      costing,
+      filters: {
+        attributes: ['edge.length', 'edge.density', 'edge.begin_shape_index', 'edge.end_shape_index', 'shape'],
+        action: 'include',
+      },
+    });
+    const edges = res.edges ?? [];
+    const total = edges.reduce((a, e) => a + e.length, 0);
+    if (!total) return null;
+    const shape = res.shape ? decodePolyline6(res.shape) : [];
+    let dense = 0;
+    let sinceLast = Infinity;
+    const candidates: [number, number][] = [];
+    for (const e of edges) {
+      if ((e.density ?? 0) < DENSE_EDGE) continue;
+      dense += e.length;
+      sinceLast += e.length;
+      if (sinceLast < EXCLUDE_EVERY_KM || e.begin_shape_index === undefined) continue;
+      const mid = shape[Math.floor((e.begin_shape_index + (e.end_shape_index ?? e.begin_shape_index)) / 2)];
+      if (!mid || stops.some((s) => distanceM(s, mid) < EXCLUDE_AWAY_FROM_STOPS_M)) continue;
+      candidates.push([Math.round(mid.latitude * 1e5) / 1e5, Math.round(mid.longitude * 1e5) / 1e5]);
+      sinceLast = 0;
+    }
+    return { urban: dense / total, candidates };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Itinéraire Valhalla ; avec avoidCities, contourne les villes autant que possible (voir plus haut).
+ * Les points évités trouvés sont gardés dans route.options.exclude (balade : même tracé pour tous).
+ * route.urban : part en ville avant / après (affichée « 34 % → 5 % en ville »).
+ */
+export async function fetchValhallaRoute(stops: LatLng[], options: RouteOptions): Promise<NavRoute> {
+  const base = await fetchValhalla(stops, options);
+  if (!options.avoidCities) return base;
+  const { costing } = valhallaCosting(options);
+  const first = await cityStretches(base, stops, costing);
+  if (!first) return base;
+  let best: NavRoute = base;
+  let urban = first.urban;
+  let candidates = first.candidates;
+  let exclude = options.exclude ?? [];
+  for (let pass = 0; pass < 2 && urban > 0.03 && candidates.length && exclude.length < MAX_EXCLUDE; pass++) {
+    const next = [...exclude, ...candidates].slice(0, MAX_EXCLUDE);
+    let tried: NavRoute;
+    try {
+      tried = await fetchValhalla(stops, { ...options, exclude: next });
+    } catch {
+      break; // plus de chemin sans ces rues : on garde le tracé précédent
+    }
+    if (tried.durationS > base.durationS * CITY_DETOUR_MAX) break;
+    const stats = await cityStretches(tried, stops, costing);
+    if (!stats || stats.urban >= urban) break;
+    best = tried;
+    exclude = next;
+    urban = stats.urban;
+    candidates = stats.candidates;
+  }
+  return { ...best, options: { ...options, exclude }, urban: { before: first.urban, after: urban } };
 }
 
 type ValhallaTrip = {

@@ -50,6 +50,7 @@ import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
+import { errorMessage } from '@/lib/errors';
 import { finishHomecoming, sendHomecomingPosition, useHomecoming } from '@/lib/homecoming';
 import type { Place } from '@/lib/geocoding';
 import type { LivePositionInput } from '@/lib/live-location';
@@ -104,6 +105,8 @@ const HOMECOMING_POSITION_MS = 60_000;
 const HOMECOMING_ARRIVED_M = 150;
 /** Tracé GPX suivi en navigation : points de passage imposés au calcul d'itinéraire */
 const GPX_VIA_POINTS = 6;
+/** Balade : déjà au départ (< 300 m), on ne repasse pas par lui */
+const RIDE_START_SKIP_M = 300;
 
 export default function MapScreen() {
   const Colors = useColors();
@@ -865,16 +868,20 @@ export default function MapScreen() {
     });
   };
 
-  const chooseDestination = (r: Parameters<typeof nav.choose>[0], via?: Parameters<typeof nav.choose>[1]) => {
+  const chooseDestination = (
+    r: Parameters<typeof nav.choose>[0],
+    via?: Parameters<typeof nav.choose>[1],
+    extra?: Parameters<typeof nav.choose>[2],
+  ) => {
     setFollow(false);
     setSelectedId(null);
     setDropped(null);
-    nav.choose(r, via);
+    nav.choose(r, via, extra);
   };
 
   // Lien depuis le site web (« Aller ici » → passeryder://?goLat=…&goLng=…&goLabel=…) :
   // aperçu de l'itinéraire dès que ma position est connue
-  const goParams = useLocalSearchParams<{ goLat?: string; goLng?: string; goLabel?: string; gpx?: string }>();
+  const goParams = useLocalSearchParams<{ goLat?: string; goLng?: string; goLabel?: string; gpx?: string; ride?: string }>();
   const goKey = goParams.goLat && goParams.goLng ? `${goParams.goLat},${goParams.goLng}` : null;
   const handledGo = useRef<string | null>(null);
   const hasFix = !!location;
@@ -916,6 +923,30 @@ export default function MapScreen() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goParams.gpx, hasFix]);
+
+  // Fiche balade › « Naviguer sur le tracé » : départ, étapes dans l'ordre, arrivée, options de l'organisateur
+  const handledRide = useRef<string | null>(null);
+  useEffect(() => {
+    const rideId = goParams.ride;
+    if (!rideId || !hasFix || !userId || handledRide.current === rideId) return;
+    handledRide.current = rideId;
+    fetchRide(rideId, userId)
+      .then((ride) => {
+        if (!ride) {
+          Alert.alert('Balade introuvable', 'Elle a peut-être été supprimée.');
+          return;
+        }
+        const nearStart = !!position && distanceM(position, ride.start) < RIDE_START_SKIP_M;
+        const via = [
+          ...(nearStart ? [] : [{ ...ride.start, label: `Départ : ${ride.start.label}`, source: 'lieu' as const }]),
+          ...ride.waypoints.map((w, i) => ({ ...w, label: `Étape ${i + 1} : ${w.label}`, source: 'lieu' as const })),
+        ];
+        const dest = { ...ride.end, label: `Arrivée : ${ride.end.label}`, source: 'lieu' as const };
+        chooseDestination(dest, via, ride.routeOptions);
+      })
+      .catch((e) => Alert.alert('Tracé indisponible', errorMessage(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goParams.ride, hasFix, userId]);
 
   const removeMine = async (id: string) => {
     const target = reports.find((r) => r.id === id);
@@ -1169,6 +1200,14 @@ export default function MapScreen() {
                 onAddPlace={() => communityFromDropped('/place/new')}
                 onAddEvent={() => communityFromDropped('/event/new')}
                 onRegroup={convoy?.canRegroup ? regroupAtDropped : undefined}
+                onAddStop={
+                  nav.phase === 'preview'
+                    ? () => {
+                        nav.addStop({ ...dropped.place, source: 'lieu' });
+                        setDropped(null);
+                      }
+                    : undefined
+                }
                 onClose={() => setDropped(null)}
               />
             </View>
@@ -1263,6 +1302,7 @@ export default function MapScreen() {
                 onChangeOptions={nav.updateOptions}
                 onAddStop={() => setStopPicker({ kind: null })}
                 onRemoveStop={nav.removeStop}
+                onMoveStop={nav.moveStop}
                 onFavorite={favoriteMenu}
                 weather={previewWeather}
                 fuel={previewFuel}

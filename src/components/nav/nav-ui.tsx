@@ -55,6 +55,7 @@ export function RoutePreviewSheet({
   onChangeOptions,
   onAddStop,
   onRemoveStop,
+  onMoveStop,
   onFavorite,
   onStart,
   onCancel,
@@ -75,6 +76,7 @@ export function RoutePreviewSheet({
   onChangeOptions: (patch: Partial<RouteOptions>) => void;
   onAddStop: () => void;
   onRemoveStop: (index: number) => void;
+  onMoveStop?: (index: number, delta: -1 | 1) => void;
   onFavorite: () => void;
   onStart: () => void;
   onCancel: () => void;
@@ -125,6 +127,7 @@ export function RoutePreviewSheet({
               <Text style={styles.muted}>
                 {shortDistance(route.distanceM)} · arrivée {clock(etaFrom(route.durationS))} · {variantInfo(variant).label}
               </Text>
+              {route.urban && <Text style={styles.small}>{urbanText(route.urban)}</Text>}
             </View>
           ) : null}
           {/* Alertes avant de partir : météo, carburant */}
@@ -178,13 +181,13 @@ export function RoutePreviewSheet({
       )}
 
       <Text style={styles.section}>Étapes</Text>
-      <StopList stops={stops} onRemove={onRemoveStop} />
+      <StopList stops={stops} onRemove={onRemoveStop} onMove={onMoveStop} />
       {fuel && !fuel.needed && route && (
         <Text style={styles.small}>⛽ Autonomie ~{Math.round(fuel.leftKm)} km : pas besoin de plein pour ce trajet.</Text>
       )}
       <Pressable style={({ pressed }) => [styles.addStop, pressed && styles.pressed]} onPress={onAddStop}>
         <Ionicons name="add-circle" size={24} color={Colors.accent} />
-        <Text style={styles.addStopText}>Ajouter un arrêt (essence, café…)</Text>
+        <Text style={styles.addStopText}>Ajouter une étape (adresse, essence, café…)</Text>
       </Pressable>
 
       <Text style={styles.section}>Options</Text>
@@ -197,6 +200,11 @@ export function RoutePreviewSheet({
       <View style={styles.optionChips}>
         {options.scooter50 && <OptionChip label="Sans autoroute (obligatoire en 50)" active locked onPress={() => {}} />}
         <OptionChip label="Sans péage" active={options.avoidTolls} onPress={() => onChangeOptions({ avoidTolls: !options.avoidTolls })} />
+        <OptionChip
+          label="Éviter les villes"
+          active={!!options.avoidCities}
+          onPress={() => onChangeOptions({ avoidCities: !options.avoidCities })}
+        />
         <OptionChip
           label="Sans non-goudronné"
           active={options.avoidUnpaved}
@@ -250,7 +258,23 @@ function VariantCard({ choice, fast, selected, onPress }: { choice: RouteChoice;
   );
 }
 
-function StopList({ stops, onRemove }: { stops: SearchResult[]; onRemove: (index: number) => void }) {
+/** « En ville : 34 % → 5 % » (Éviter les villes) */
+export function urbanText(u: { before: number; after: number }) {
+  const pct = (x: number) => `${Math.round(x * 100)} %`;
+  if (u.before < 0.03) return 'Presque pas de ville sur ce trajet';
+  if (u.after >= u.before - 0.02) return `En ville : ${pct(u.after)} (pas de contournement raisonnable)`;
+  return `En ville : ${pct(u.before)} → ${pct(u.after)}`;
+}
+
+function StopList({
+  stops,
+  onRemove,
+  onMove,
+}: {
+  stops: SearchResult[];
+  onRemove: (index: number) => void;
+  onMove?: (index: number, delta: -1 | 1) => void;
+}) {
   const Colors = useColors();
   const styles = useStyles();
   if (!stops.length) return <Text style={styles.small}>Aucun arrêt prévu.</Text>;
@@ -271,6 +295,26 @@ function StopList({ stops, onRemove }: { stops: SearchResult[]; onRemove: (index
               </Text>
             )}
           </View>
+          {onMove && stops.length > 1 && (
+            <>
+              <Pressable
+                style={[styles.iconButton, i === 0 && styles.pressed]}
+                disabled={i === 0}
+                onPress={() => onMove(i, -1)}
+                hitSlop={4}
+                accessibilityLabel={`Monter l'étape ${s.label}`}>
+                <Ionicons name="arrow-up-circle-outline" size={28} color={Colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={[styles.iconButton, i === stops.length - 1 && styles.pressed]}
+                disabled={i === stops.length - 1}
+                onPress={() => onMove(i, 1)}
+                hitSlop={4}
+                accessibilityLabel={`Descendre l'étape ${s.label}`}>
+                <Ionicons name="arrow-down-circle-outline" size={28} color={Colors.textMuted} />
+              </Pressable>
+            </>
+          )}
           <Pressable style={styles.iconButton} onPress={() => onRemove(i)} hitSlop={8} accessibilityLabel={`Retirer l'arrêt ${s.label}`}>
             <Ionicons name="close-circle" size={28} color={Colors.textMuted} />
           </Pressable>
