@@ -32,7 +32,7 @@ import { NotificationsProvider } from '@/lib/notifications';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 import { StoriesProvider } from '@/lib/stories-context';
-import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
+import { usePageStyle } from '@/lib/use-wide-layout';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -127,19 +127,9 @@ function RootNavigator() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
-  // Web sur grand écran : les écrans de contenu en colonne centrée (les onglets gèrent la leur)
-  const wide = useWideLayout();
-  const contentStyle = {
-    backgroundColor: Colors.background,
-    ...(wide && {
-      width: '100%' as const,
-      maxWidth: CONTENT_MAX_WIDTH,
-      alignSelf: 'center' as const,
-      borderLeftWidth: 1,
-      borderRightWidth: 1,
-      borderColor: Colors.border,
-    }),
-  };
+  // Web : les écrans ouverts par-dessus prennent toute la page (fond opaque, jamais la carte derrière),
+  // contenu centré sur grand écran (les onglets gèrent le leur)
+  const contentStyle = usePageStyle(Colors.background);
 
   useEffect(() => {
     if (session !== undefined) SplashScreen.hideAsync();

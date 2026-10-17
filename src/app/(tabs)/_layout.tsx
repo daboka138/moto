@@ -7,7 +7,7 @@ import { useColors } from '@/constants/theme';
 import { useGuideState } from '@/guide/state';
 import { useNotificationsBadge } from '@/lib/notifications';
 import { useInbox } from '@/lib/use-inbox';
-import { CONTENT_MAX_WIDTH, useWideLayout } from '@/lib/use-wide-layout';
+import { TAB_RAIL_WIDTH, usePageStyle, useWideLayout } from '@/lib/use-wide-layout';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -27,6 +27,8 @@ export default function TabsLayout() {
   const badge = (n: number) => (n > 0 ? (n > 99 ? '99+' : n) : undefined);
   // Web sur grand écran : onglets en colonne à gauche, contenu centré (sauf la carte, plein écran)
   const wide = useWideLayout();
+  // Chaque onglet de contenu prend toute la page (fond opaque : la carte n'apparaît jamais derrière)
+  const pageStyle = usePageStyle(Colors.background, wide ? TAB_RAIL_WIDTH : 0);
   // Premier lancement : présentation de l'app (une seule fois, relançable dans Paramètres › Aide)
   const { welcomeDone } = useGuideState();
   if (!welcomeDone) return <Redirect href="/welcome" />;
@@ -34,18 +36,11 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: pageStyle,
         ...(wide && {
           tabBarPosition: 'left',
           tabBarVariant: 'material',
           tabBarLabelPosition: 'below-icon',
-          sceneStyle: {
-            width: '100%',
-            maxWidth: CONTENT_MAX_WIDTH,
-            alignSelf: 'center',
-            borderLeftWidth: 1,
-            borderRightWidth: 1,
-            borderColor: Colors.border,
-          },
         }),
         // Barre toujours visible, y compris clavier ouvert
         tabBarHideOnKeyboard: false,
@@ -57,7 +52,7 @@ export default function TabsLayout() {
         tabBarAllowFontScaling: false,
         tabBarItemStyle: { paddingHorizontal: 0 },
         tabBarStyle: wide
-          ? { backgroundColor: Colors.surface, borderRightColor: Colors.border, width: 100, paddingTop: 16 }
+          ? { backgroundColor: Colors.surface, borderRightColor: Colors.border, width: TAB_RAIL_WIDTH, paddingTop: 16 }
           : {
               backgroundColor: Colors.surface,
               borderTopColor: Colors.border,
@@ -69,7 +64,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), ...(wide && { sceneStyle: { flex: 1 } }) }}
+        options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), sceneStyle: { flex: 1, backgroundColor: Colors.background } }}
       />
       <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
       <Tabs.Screen name="rides" options={{ title: 'Sorties', tabBarIcon: icon('flag', 'flag-outline') }} />
