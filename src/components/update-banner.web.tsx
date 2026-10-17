@@ -19,8 +19,8 @@ function readReloadedFor(): string | null {
 }
 
 /**
- * Recharge vraiment la dernière version : service worker mis à jour puis désinscrit, caches vidés,
- * page rechargée avec un paramètre anti-cache (retiré au chargement suivant par history.replaceState).
+ * Recharge vraiment la dernière version : service worker désinscrit (réinscrit par index.html), caches
+ * vidés, page d'accueil redemandée au serveur (cache HTTP rafraîchi), puis rechargement.
  */
 async function hardReload(build: string) {
   try {
@@ -45,21 +45,7 @@ async function hardReload(build: string) {
   } catch {
     // hors connexion : le rechargement dira la même chose
   }
-  const url = new URL(window.location.href);
-  url.searchParams.set('_v', build);
-  window.location.replace(url.toString());
-}
-
-/** Retire le paramètre anti-cache ?_v= de l'adresse affichée */
-function cleanUrl() {
-  try {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has('_v')) return;
-    url.searchParams.delete('_v');
-    window.history.replaceState(window.history.state, '', url.toString());
-  } catch {
-    // rien
-  }
+  window.location.reload();
 }
 
 /**
@@ -91,7 +77,6 @@ export function UpdateBanner() {
   }, []);
 
   useEffect(() => {
-    cleanUrl();
     const first = setTimeout(check, 0);
     const timer = setInterval(check, CHECK_EVERY_MS);
     const onVisible = () => {
