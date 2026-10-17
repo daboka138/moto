@@ -8,13 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatWallpaper } from '@/components/chat-wallpaper';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { TripShareCard } from '@/components/trip-share-card';
-import { VoiceMessage, VoiceRecordButton } from '@/components/voice-message';
+import { RecordingWave, VoiceMessage, VoiceMicButton } from '@/components/voice-message';
 import { makeStyles, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { formatVoiceDuration, messageTime, type Message } from '@/lib/messages';
 import { pickImage, type PickedImage } from '@/lib/pick-image';
 import type { WallPhoto } from '@/lib/wall';
-import { voiceRecordingSupported, type RecordedVoice } from '@/lib/voice-recorder';
+import { useVoiceRecorder } from '@/lib/use-voice-recorder';
+import type { RecordedVoice } from '@/lib/voice-recorder';
 import type { Wallpaper } from '@/lib/wallpapers';
 
 export type ChatPerson = { username: string; avatarUrl: string };
@@ -48,7 +49,7 @@ type Props = {
   reactionsOf: (m: Message) => ReactionSummary;
   onReact: (m: Message, emoji: string) => void;
   onSend: (text: string, image?: PickedImage) => Promise<void>;
-  /** Message vocal enregistré (micro maintenu) */
+  /** Message vocal enregistré (micro maintenu, ou tap puis écoute) */
   onSendVoice?: (voice: RecordedVoice) => Promise<void>;
   onMessageLongPress?: (m: Message) => void;
   /** Appui sur un de mes messages : détail « Vu à … » / « Vu par … » */
@@ -83,15 +84,24 @@ export function ChatView(p: Props) {
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   // Web : bouton « ⋯ » sur le message survolé
   const [hoverId, setHoverId] = useState<string | null>(null);
-  // Enregistrement vocal en cours (durée, glissé pour annuler) et petite aide / erreur
-  const [rec, setRec] = useState<{ elapsedMs: number; cancelling: boolean } | null>(null);
+  // Petite aide / erreur des messages vocaux
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
-  const canRecord = !!p.onSendVoice && voiceRecordingSupported();
-  const showHint = (m: string) => {
+  const showHint = (m: string, long?: boolean) => {
     setVoiceHint(m);
-    setTimeout(() => setVoiceHint((h) => (h === m ? null : h)), 3500);
+    setTimeout(() => setVoiceHint((h) => (h === m ? null : h)), long ? 9000 : 3500);
   };
+  // Messages vocaux : 🎤 toujours affiché à gauche d'Envoyer (explique quand l'enregistrement est impossible)
+  const voice = useVoiceRecorder({
+    onInfo: showHint,
+    onSend: (v) => {
+      setSending(true);
+      p.onSendVoice?.(v).finally(() => setSending(false));
+    },
+  });
+  const rec = voice.state.phase === 'recording' ? voice.state : null;
+  const voicePreview = voice.state.phase === 'preview' ? voice.state.voice : null;
+  const showMic = !!p.onSendVoice && !p.editing && !voicePreview;
   const byId = new Map((p.messages ?? []).map((m) => [m.id, m]));
 
   // Citation d'un message (réponse) : auteur + début du texte
@@ -417,18 +427,37 @@ export function ChatView(p: Props) {
               </View>
             )}
             <View style={styles.inputBar}>
-              {!p.editing && !rec && (
-                <Pressable onPress={sendPhoto} hitSlop={8} disabled={sending}>
+              {!p.editing && !rec && !voicePreview && (
+                <Pressable onPress={sendPhoto} hitSlop={8} disabled={sending} style={styles.sideButton}>
                   <Ionicons name="image-outline" size={28} color={Colors.accent} />
+                </Pressable>
+              )}
+              {rec?.mode === 'tap' && (
+                <Pressable onPress={voice.cancel} hitSlop={8} style={styles.sideButton} accessibilityLabel="Supprimer l’enregistrement">
+                  <Ionicons name="trash-outline" size={24} color={Colors.danger} />
+                </Pressable>
+              )}
+              {voicePreview && (
+                <Pressable
+                  onPress={voice.discardPreview}
+                  hitSlop={8}
+                  style={styles.sideButton}
+                  accessibilityLabel="Supprimer le message vocal">
+                  <Ionicons name="trash-outline" size={24} color={Colors.danger} />
                 </Pressable>
               )}
               {rec ? (
                 <View style={styles.recording}>
                   <View style={styles.recDot} />
                   <Text style={styles.recTime}>{formatVoiceDuration(rec.elapsedMs)}</Text>
+                  <RecordingWave elapsedMs={rec.elapsedMs} />
                   <Text style={[styles.recHint, rec.cancelling && styles.recCancel]} numberOfLines={1}>
-                    {rec.cancelling ? 'Relâche pour annuler' : '‹ Glisse pour annuler'}
+                    {rec.mode === 'tap' ? 'Touche ■ pour arrêter' : rec.cancelling ? 'Relâche pour annuler' : '‹ Glisse pour annuler'}
                   </Text>
+                </View>
+              ) : voicePreview ? (
+                <View style={styles.recording}>
+                  <VoiceMessage url={voicePreview.uri} durationMs={voicePreview.durationMs} mine={false} />
                 </View>
               ) : (
               <TextInput
@@ -441,20 +470,20 @@ export function ChatView(p: Props) {
                 maxLength={2000}
               />
               )}
-              {canRecord && !p.editing && (!text.trim() || !!rec) ? (
-                <VoiceRecordButton
-                  onState={setRec}
-                  onError={showHint}
-                  onRecorded={(v) => {
-                    setSending(true);
-                    p.onSendVoice?.(v).finally(() => setSending(false));
-                  }}
-                />
+              {showMic && <VoiceMicButton recorder={voice} />}
+              {voicePreview || rec?.mode === 'tap' ? (
+                <Pressable
+                  style={[styles.sendButton, sending && styles.sendDisabled]}
+                  onPress={voicePreview ? voice.sendPreview : voice.stopAndSend}
+                  disabled={sending}
+                  accessibilityLabel="Envoyer le message vocal">
+                  {sending ? <ActivityIndicator color={Colors.white} size="small" /> : <Ionicons name="send" size={18} color={Colors.white} />}
+                </Pressable>
               ) : (
               <Pressable
-                style={[styles.sendButton, (!text.trim() || sending) && styles.sendDisabled]}
+                style={[styles.sendButton, (!text.trim() || sending || !!rec) && styles.sendDisabled]}
                 onPress={() => send()}
-                disabled={!text.trim() || sending}
+                disabled={!text.trim() || sending || !!rec}
                 accessibilityLabel={p.editing ? 'Enregistrer la modification' : 'Envoyer'}>
                 {sending ? (
                   <ActivityIndicator color={Colors.white} size="small" />
@@ -571,6 +600,9 @@ const useStyles = makeStyles((Colors) => ({
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginBottom: 6,
+    marginHorizontal: 12,
+    maxWidth: 520,
+    textAlign: 'center',
     overflow: 'hidden',
   },
   bubble: { borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, gap: 2, flexShrink: 1, minWidth: 0 },
@@ -662,9 +694,10 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
   },
   sendDisabled: { opacity: 0.4 },
-  recording: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6 },
+  sideButton: { height: 40, justifyContent: 'center' },
+  recording: { flex: 1, minWidth: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6 },
   recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.danger },
   recTime: { fontSize: 16, fontWeight: '800', color: Colors.text, minWidth: 40 },
-  recHint: { flex: 1, fontSize: 14, color: Colors.textMuted, textAlign: 'right' },
+  recHint: { flex: 1, minWidth: 0, fontSize: 14, color: Colors.textMuted, textAlign: 'right' },
   recCancel: { color: Colors.danger, fontWeight: '800' },
 }));

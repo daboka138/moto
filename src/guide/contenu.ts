@@ -634,7 +634,7 @@ export const FICHES: Fiche[] = [
       'Onglet Messages › « Nouveau message », puis choisis un ami.',
       'Groupe : « Nouveau message » › « Nouveau groupe » : un nom, une photo si tu veux, puis tes amis (50 membres au plus).',
       'Écris ton message ou ajoute une photo.',
-      'Message vocal : maintiens le micro 🎤 (quand la saisie est vide), parle, relâche pour envoyer ; glisse vers la gauche pour annuler. 2 min max. Touche ▶ pour écouter.',
+      'Message vocal : le micro 🎤 est juste à gauche du bouton Envoyer, dans toutes les conversations. Deux façons : maintiens-le, parle, relâche = c’est envoyé (glisse vers la gauche pour annuler) ; ou touche-le une fois = ça enregistre (bouton rouge + chrono), touche-le encore = ça s’arrête, écoute ▶ puis « Envoyer » ou 🗑️. 2 min max.',
       'Appui long sur un message (sur ordinateur : clic droit, ou le bouton « ⋯ » au survol) : réagis (❤️ 😂 😮 😢 👍 🔥 🏍️, re-toucher pour retirer), puis ✏️ Modifier (tes messages, pendant 1 h), 📋 Copier, ↩️ Répondre, 🗑️ Supprimer (pour toi, ou pour tout le monde pendant 1 h), ou signaler.',
       'Message modifié : « modifié » s’affiche sur la bulle et les autres voient la nouvelle version tout de suite.',
       'Les discussions des balades auxquelles tu participes apparaissent aussi ici.',
@@ -651,7 +651,8 @@ export const FICHES: Fiche[] = [
     ],
     limites: [
       'Saisie désactivée en navigation au-dessus de 10 km/h.',
-      'Enregistrer un vocal : sur la version web pour l’instant (bientôt dans l’app Android). L’écoute marche partout.',
+      'Enregistrer un vocal : sur la version web (app.passeryder.fr) pour l’instant, il arrive avec la prochaine version de l’app Android. L’écoute marche partout.',
+      'Au premier vocal, le navigateur demande le micro : choisis « Autoriser ». Refusé par erreur ? Touche le cadenas 🔒 à gauche de l’adresse › Autorisations › Micro › Autoriser, puis recharge la page.',
       'Tu ne peux ajouter dans un groupe que tes amis, et jamais quelqu’un qui t’a bloqué ou que tu as bloqué.',
     ],
     motsCles: ['chat', 'discussion', 'photo', 'groupe', 'réaction', 'vu', 'lu', 'supprimer', 'modifier', 'sourdine', 'répondre', 'copier', 'fond', 'fond d’écran', 'wallpaper', 'vocal', 'micro', 'audio', 'commu', 'communauté', 'épinglé'],
