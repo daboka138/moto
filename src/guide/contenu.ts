@@ -123,6 +123,24 @@ export const FICHES: Fiche[] = [
     limites: ['Les motards se cherchent par pseudo uniquement, jamais par nom.'],
   },
   {
+    id: 'histoire',
+    theme: 'communaute',
+    emoji: '📜',
+    titre: 'Histoire de la moto',
+    but: 'Découvrir les premiers deux-roues et l’histoire des grandes marques.',
+    etapes: [
+      'App : dans le Mur, touche la bannière « 📜 Histoire de la moto » sous la recherche. Web : onglet « Histoire ».',
+      'Commence par le chapitre « Les débuts du deux-roues » : de la draisienne de 1817 à la première moto vendue en série.',
+      'Plus bas, les fiches des marques : cherche un nom ou un pays, trie par marques les plus connues, ordre alphabétique, pays ou date de création.',
+      'Chaque fiche raconte la création, les fondateurs, les grandes étapes (frise), les modèles mythiques, des anecdotes et la situation actuelle.',
+    ],
+    astuces: [
+      'Une erreur ? « Signaler une erreur dans cette fiche » envoie un message à l’équipe.',
+      'Les images sont libres de droits (Wikimedia Commons) : auteur et licence sont indiqués sous chaque photo.',
+    ],
+    motsCles: ['histoire', 'marque', 'culture', 'harley', 'honda', 'ducati', 'triumph', 'yamaha', 'draisienne'],
+  },
+  {
     id: 'notifications',
     theme: 'demarrer',
     emoji: '🔔',

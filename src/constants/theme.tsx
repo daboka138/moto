@@ -186,6 +186,30 @@ export const SIGN_INK = '#18181B';
 
 // ---------- Thème actif ----------
 
+/** Drapeaux des pays (Histoire de la moto, components/history/flag.tsx) : couleurs officielles simplifiées */
+export const FlagColors = {
+  white: '#FFFFFF',
+  frBlue: '#0055A4',
+  frRed: '#EF4135',
+  itGreen: '#009246',
+  itRed: '#CE2B37',
+  deBlack: '#000000',
+  deRed: '#DD0000',
+  deGold: '#FFCE00',
+  atRed: '#C8102E',
+  seBlue: '#006AA7',
+  seYellow: '#FECC02',
+  jpRed: '#BC002D',
+  gbBlue: '#012169',
+  gbRed: '#C8102E',
+  usBlue: '#3C3B6E',
+  usRed: '#B22234',
+  inSaffron: '#FF9933',
+  inGreen: '#138808',
+  inNavy: '#000080',
+  border: 'rgba(0,0,0,0.15)',
+};
+
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type Scheme = 'light' | 'dark';
 

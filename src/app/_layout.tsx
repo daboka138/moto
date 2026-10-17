@@ -205,6 +205,10 @@ function RootNavigator() {
           <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
           <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
           <Stack.Screen name="help/index" options={{ headerShown: true, title: 'Aide' }} />
+          <Stack.Screen name="history/index" options={{ headerShown: true, title: 'Histoire de la moto' }} />
+          <Stack.Screen name="history/[slug]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="history/chapitre/[slug]" options={{ headerShown: true, title: '' }} />
+          <Stack.Screen name="history/credits" options={{ headerShown: true, title: 'Crédits des images' }} />
           <Stack.Screen name="help/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
           <Stack.Screen name="chat/wallpaper" options={{ headerShown: true, title: 'Fond d’écran' }} />

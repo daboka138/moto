@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
+import { HistoryAdmin } from '@/components/admin/history-admin';
 import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import {
@@ -44,7 +45,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'features';
+type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'history';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -75,8 +76,21 @@ export default function AdminScreen() {
         <Chip label="Inscrits" selected={tab === 'users'} onPress={() => setTab('users')} />
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
         <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
+        <Chip label="Histoire" selected={tab === 'history'} onPress={() => setTab('history')} />
       </View>
-      {tab === 'overview' ? <Overview /> : tab === 'users' ? <Users /> : tab === 'moderation' ? <Moderation /> : <Features />}
+      {tab === 'overview' ? (
+        <Overview />
+      ) : tab === 'users' ? (
+        <Users />
+      ) : tab === 'moderation' ? (
+        <Moderation />
+      ) : tab === 'history' ? (
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <HistoryAdmin />
+        </ScrollView>
+      ) : (
+        <Features />
+      )}
     </View>
   );
 }

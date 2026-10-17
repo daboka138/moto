@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FriendSuggestions } from '@/components/friend-suggestions';
@@ -179,6 +179,17 @@ export default function FeedScreen() {
         <Ionicons name="search" size={20} color={Colors.textMuted} />
         <Text style={styles.searchPlaceholder}>Rechercher un motard, une balade, un lieu…</Text>
       </Pressable>
+      {/* Histoire de la moto (sur le web : onglet « Histoire ») */}
+      {Platform.OS !== 'web' && (
+        <Pressable style={styles.historyBanner} onPress={() => router.push('/history')} accessibilityRole="button">
+          <Text style={styles.historyEmoji}>📜</Text>
+          <View style={styles.historyBody}>
+            <Text style={styles.historyTitle}>Histoire de la moto</Text>
+            <Text style={styles.historyText}>Des premiers deux-roues aux grandes marques : Honda, Ducati, Harley…</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.accent} />
+        </Pressable>
+      )}
 
       {!rows ? (
         <View style={styles.center}>
@@ -284,6 +295,22 @@ const useStyles = makeStyles((Colors) => ({
     borderColor: Colors.border,
   },
   searchPlaceholder: { flex: 1, fontSize: 15, color: Colors.textMuted },
+  historyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  historyEmoji: { fontSize: 28 },
+  historyBody: { flex: 1, gap: 2 },
+  historyTitle: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  historyText: { fontSize: 13, color: Colors.textMuted },
   screen: { flex: 1, backgroundColor: Colors.background },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
   findButton: {

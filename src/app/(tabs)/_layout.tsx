@@ -87,6 +87,11 @@ export default function TabsLayout() {
           tabBarBadgeStyle: badgeStyle,
         }}
       />
+      {/* Histoire de la moto : onglet sur le web seulement (dans l'app : bannière du Mur) */}
+      <Tabs.Screen
+        name="histoire"
+        options={{ title: 'Histoire', tabBarIcon: icon('book', 'book-outline'), href: Platform.OS === 'web' ? undefined : null }}
+      />
       <Tabs.Screen name="profile" options={{ title: 'Profil', tabBarIcon: icon('person', 'person-outline') }} />
     </Tabs>
   );
