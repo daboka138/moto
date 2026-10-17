@@ -1,3 +1,4 @@
+Recherche : Station, Café / Resto, Parking moto et Garage moto répondent en une seconde, et « Parking moto » ne montre que de vrais parkings motos.
 Version web : Mur, Sorties, Notifs, Messages et Profil prennent toute la page (plus de carte derrière).
 Messages vocaux : le micro 🎤 est maintenant toujours à gauche d'Envoyer. Maintiens pour parler, ou touche une fois pour démarrer et une 2e fois pour arrêter, écouter puis envoyer.
 Parkings moto, recherche des restos et commerces, danger en 1 tap en roulant, passagers, niveaux Pépère → Arsouille, suggestions d'amis, vocaux et groupe de la commu.

@@ -198,7 +198,8 @@ export const FICHES: Fiche[] = [
       'Appuie sur « Démarrer ».',
     ],
     astuces: [
-      'Sous la barre : ⛽ Station, 🍴 Café / Resto, 🅿️ Parking moto, 🔧 Garage moto. Un tap = les plus proches de toi.',
+      'Sous la barre : ⛽ Station, 🍴 Café / Resto, 🅿️ Parking moto, 🔧 Garage moto. Un tap = les plus proches de toi, en une seconde environ.',
+      '🅿️ Parking moto : uniquement de vrais parkings pour motos (OpenStreetMap) et les spots « parking » de la commu, jamais les parkings voiture.',
       'Pas trouvé ? « Chercher plus loin » en bas des résultats.',
       'Les options sont préremplies selon ta moto principale.',
       'La météo sur le trajet s’affiche dans l’aperçu : pluie, vent, froid.',

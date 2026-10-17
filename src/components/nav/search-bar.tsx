@@ -57,7 +57,13 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
   const [history, setHistory] = useState(readHistory);
   // Catégorie touchée (ou reconnue dans la recherche : « parking moto »)
   const [chip, setChip] = useState<NearbyCategory | null>(null);
-  const [nearby, setNearby] = useState<{ cat: NearbyCategory; key: string; results: SearchResult[]; error?: boolean } | null>(null);
+  const [nearby, setNearby] = useState<{
+    cat: NearbyCategory;
+    key: string;
+    results: SearchResult[];
+    loading?: boolean;
+    error?: boolean;
+  } | null>(null);
 
   const q = query.trim();
   const typedCategory = q.length >= 3 ? categoryFromQuery(q) : null;
@@ -94,7 +100,8 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
     if (!category || !near) return;
     let cancelled = false;
     const key = nearKey ?? '';
-    searchNearby(category, near)
+    // Résultats affichés dès qu'une source répond (cache, spots, Photon), complétés ensuite
+    searchNearby(category, near, (results) => !cancelled && setNearby({ cat: category, key, results, loading: true }))
       .then((results) => !cancelled && setNearby({ cat: category, key, results }))
       .catch((e) => {
         console.warn('Recherche autour de moi impossible', e);
@@ -201,14 +208,28 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
               </Text>
               {!near ? (
                 <Text style={styles.empty}>Position inconnue : active la localisation pour voir ce qui est autour de toi.</Text>
-              ) : !shownNearby ? (
+              ) : !shownNearby || (shownNearby.loading && shownNearby.results.length === 0) ? (
                 <ActivityIndicator color={Colors.accent} style={styles.spinner} />
               ) : shownNearby.results.length === 0 ? (
                 <Text style={styles.empty}>
-                  {shownNearby.error ? 'Recherche indisponible pour le moment, réessaie dans un instant.' : 'Rien trouvé à moins de 20 km.'}
+                  {shownNearby.error
+                    ? 'Recherche indisponible pour le moment, réessaie dans un instant.'
+                    : category === 'parking'
+                      ? 'Aucun parking moto connu à moins de 5 km.'
+                      : 'Rien trouvé à moins de 20 km.'}
                 </Text>
               ) : (
-                shownNearby.results.map((r, i) => <ResultRow key={`n${i}`} result={r} onPress={() => select(r)} />)
+                <>
+                  {shownNearby.results.map((r, i) => (
+                    <ResultRow key={`n${i}`} result={r} onPress={() => select(r)} />
+                  ))}
+                  {shownNearby.loading && (
+                    <View style={styles.moreRow}>
+                      <ActivityIndicator size="small" color={Colors.accent} />
+                      <Text style={styles.moreText}>Recherche d’autres lieux…</Text>
+                    </View>
+                  )}
+                </>
               )}
             </>
           )}
@@ -336,6 +357,8 @@ const useStyles = makeStyles((Colors) => ({
   sectionPad: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 2 },
   clear: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
   spinner: { padding: 12 },
+  moreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  moreText: { fontSize: 13, color: Colors.textMuted },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

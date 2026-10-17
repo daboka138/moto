@@ -79,17 +79,18 @@ function toPlace(r: PlaceRow): CommunityPlace {
 }
 
 /** Lieux dans un rayon approximatif (carré) autour d'un point */
-export async function fetchPlacesAround(center: LatLng, radiusKm = 80): Promise<CommunityPlace[]> {
+export async function fetchPlacesAround(center: LatLng, radiusKm = 80, kinds?: PlaceKind[]): Promise<CommunityPlace[]> {
   const dLat = radiusKm / 111;
   const dLng = radiusKm / (111 * Math.cos((center.latitude * Math.PI) / 180));
-  const { data, error } = await supabase
+  let query = supabase
     .from('places')
     .select(FIELDS)
     .gte('latitude', center.latitude - dLat)
     .lte('latitude', center.latitude + dLat)
     .gte('longitude', center.longitude - dLng)
-    .lte('longitude', center.longitude + dLng)
-    .limit(300);
+    .lte('longitude', center.longitude + dLng);
+  if (kinds) query = query.in('kind', kinds);
+  const { data, error } = await query.limit(300);
   if (error) throw error;
   return ((data ?? []) as unknown as PlaceRow[]).map(toPlace);
 }

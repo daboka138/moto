@@ -24,6 +24,7 @@ export type SearchResult = LatLng & {
 const BAN = 'https://data.geopf.fr/geocodage';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const PHOTON = 'https://photon.komoot.io/api/';
+const PHOTON_REVERSE = 'https://photon.komoot.io/reverse';
 const USER_AGENT = 'PasseRyder/1.0 (https://passeryder.fr)';
 const TIMEOUT_MS = 10_000;
 const HISTORY_KEY = 'moto.searchHistory';
@@ -151,7 +152,9 @@ function fromPhoton(f: PhotonFeature, near: LatLng | null): SearchResult | null 
   if (key === 'boundary' || (key === 'place' && /^(country|state|region|county|province)$/.test(value))) return null;
   // Mobilier sans intérêt comme destination (distributeur automatique « Pizza », banc…)
   if (key === 'amenity' && /^(vending_machine|bench|waste_basket|recycling|post_box|telephone|drinking_water|parcel_locker)$/.test(value)) return null;
-  const isAddress = !p.name && !!p.street;
+  // Lieu connu sans nom (parking moto, station…) : nommé par sa catégorie, pas pris pour une adresse
+  const known = key !== 'place' && key !== 'highway' ? CATEGORIES[key]?.[value] : undefined;
+  const isAddress = !p.name && !!p.street && !known;
   const cat: [string, string] =
     CATEGORIES[key]?.[value] ??
     (key === 'highway' ? ['🛣️', 'Rue'] : null) ??
@@ -160,14 +163,14 @@ function fromPhoton(f: PhotonFeature, near: LatLng | null): SearchResult | null 
     ['📍', 'Lieu'];
   const street = [p.housenumber, p.street].filter(Boolean).join(' ');
   const town = [p.postcode, p.city ?? p.district].filter(Boolean).join(' ');
-  const label = p.name ?? (street || town);
+  const label = p.name ?? (known ? known[1] : street || town);
   if (!label) return null;
   const point = { latitude: f.geometry.coordinates[1], longitude: f.geometry.coordinates[0] };
-  const address = (p.name ? [street, town] : [town]).filter(Boolean).join(', ');
+  const address = (p.name || known ? [street, town] : [town]).filter(Boolean).join(', ');
   return {
     ...point,
     label,
-    detail: [cat[1], address].filter(Boolean).join(' · '),
+    detail: (p.name ? [cat[1], address] : [address || cat[1]]).filter(Boolean).join(' · '),
     emoji: cat[0],
     source: isAddress || key === 'highway' || key === 'place' ? 'adresse' : 'lieu',
     distanceM: near ? distanceM(near, point) : undefined,
@@ -194,7 +197,30 @@ export async function searchPhoton(query: string, near: LatLng | null): Promise<
     .filter((r): r is SearchResult => !!r);
 }
 
-type BanFeature = { geometry: { coordinates: [number, number] }; properties: { label: string; context?: string } };
+/**
+ * Lieux d'une catégorie OSM autour d'un point (Photon reverse + osm_tag) : < 1 s, bien plus rapide
+ * qu'Overpass. Position envoyée arrondie (~1 km) ; tri par vraie distance ici.
+ * tags : « amenity:fuel », « shop:motorcycle »… (plusieurs = l'un OU l'autre)
+ */
+export async function photonAround(tags: string[], near: LatLng, radiusKm: number, limit = 20): Promise<SearchResult[]> {
+  const params = new URLSearchParams({
+    lat: near.latitude.toFixed(2),
+    lon: near.longitude.toFixed(2),
+    radius: String(radiusKm),
+    limit: String(limit),
+    lang: 'fr',
+  });
+  for (const t of tags) params.append('osm_tag', t);
+  const json = await getJson<{ features?: PhotonFeature[] }>(`${PHOTON_REVERSE}?${params}`, 'Recherche de lieux');
+  return (json.features ?? [])
+    .map((f) => fromPhoton(f, near))
+    .filter((r): r is SearchResult => !!r)
+    .map((r) => ({ ...r, source: 'lieu' as const }))
+    .filter((r) => (r.distanceM ?? 0) <= radiusKm * 1000 + 1500)
+    .sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
+}
+
+type BanFeature ={ geometry: { coordinates: [number, number] }; properties: { label: string; context?: string } };
 type NominatimPlace = { lat: string; lon: string; name?: string; display_name: string };
 
 let lastNominatimCall = 0;

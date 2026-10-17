@@ -1,12 +1,16 @@
 import { distanceM, type LatLng } from '@/lib/geo';
-import { nearestParkings, parkingFacts, parkingTitle } from '@/lib/moto-parkings';
+import { cachedParkings, nearestParkings, parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { fetchPlacesAround, type PlaceKind } from '@/lib/places';
 import { overpass } from '@/lib/pois';
-import type { SearchResult } from '@/lib/search';
+import { photonAround, type SearchResult } from '@/lib/search';
 
 // Recherche « autour de moi » en 1 tap (sous la barre de recherche) : stations, cafés / restos,
-// parkings moto, garages moto. Lieux OpenStreetMap (Overpass) + spots PasseRyder de la même
-// catégorie, du plus proche au plus loin (5 km, élargi à 20 km s'il y en a trop peu).
+// parkings moto, garages moto, du plus proche au plus loin. Objectif : une liste en moins de 2 s.
+// - Spots PasseRyder de la catégorie (Supabase, filtrés par type côté serveur)
+// - Stations / restos / garages : Photon (komoot, < 1 s) ; Overpass seulement si Photon échoue
+// - Parkings moto : UNIQUEMENT de vrais parkings moto (amenity=motorcycle_parking) + spots « parking » :
+//   fichiers préparés (France, lib/moto-parkings), sinon Photon + Overpass
+// Les résultats arrivent au fur et à mesure (onUpdate) et sont gardés 24 h par zone de ~1 km.
 
 export type NearbyCategory = 'fuel' | 'food' | 'parking' | 'moto_garage';
 
@@ -16,6 +20,13 @@ export const NEARBY_CATEGORIES: { value: NearbyCategory; label: string; emoji: s
   { value: 'parking', label: 'Parking moto', emoji: '🅿️' },
   { value: 'moto_garage', label: 'Garage moto', emoji: '🔧' },
 ];
+
+const PHOTON_TAGS: Record<NearbyCategory, string[]> = {
+  fuel: ['amenity:fuel'],
+  food: ['amenity:cafe', 'amenity:restaurant', 'amenity:fast_food', 'amenity:bar'],
+  parking: ['amenity:motorcycle_parking'],
+  moto_garage: ['shop:motorcycle', 'shop:motorcycle_repair', 'craft:motorcycle_repair'],
+};
 
 const OSM_FILTERS: Record<Exclude<NearbyCategory, 'parking'>, string[]> = {
   fuel: ['["amenity"="fuel"]'],
@@ -37,13 +48,10 @@ const FALLBACK: Record<NearbyCategory, string> = {
   moto_garage: 'Garage moto',
 };
 
-/** Emoji d'un lieu OSM selon ses tags */
-function emojiOf(tags: Record<string, string>, cat: NearbyCategory) {
-  if (cat === 'food') return tags.amenity === 'cafe' || tags.amenity === 'bar' ? '☕' : '🍴';
-  return NEARBY_CATEGORIES.find((c) => c.value === cat)!.emoji;
-}
-
 const MAX = 10;
+const CACHE_KEY = 'moto.nearby.v1';
+const CACHE_TTL_MS = 24 * 3600_000;
+const CACHE_MAX = 40;
 
 /** Recherche « parking moto », « garage moto »… tapée dans la barre → catégorie */
 export function categoryFromQuery(q: string): NearbyCategory | null {
@@ -54,10 +62,79 @@ export function categoryFromQuery(q: string): NearbyCategory | null {
   return null;
 }
 
-async function osmAround(cat: Exclude<NearbyCategory, 'parking'>, near: LatLng, radius: number): Promise<SearchResult[]> {
+const emojiOf = (cat: NearbyCategory) => NEARBY_CATEGORIES.find((c) => c.value === cat)!.emoji;
+
+// ---------- Cache par zone (~1 km) ----------
+
+type CacheEntry = { t: number; results: SearchResult[] };
+const cacheId = (cat: NearbyCategory, near: LatLng) => `${cat}:${near.latitude.toFixed(2)},${near.longitude.toFixed(2)}`;
+
+function readCache(): Record<string, CacheEntry> {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function cached(cat: NearbyCategory, near: LatLng): SearchResult[] | null {
+  const e = readCache()[cacheId(cat, near)];
+  if (!e || Date.now() - e.t > CACHE_TTL_MS) return null;
+  // Distances recalculées depuis ma position actuelle
+  return e.results.map((r) => ({ ...r, distanceM: distanceM(near, r) })).sort((a, b) => a.distanceM! - b.distanceM!);
+}
+
+function store(cat: NearbyCategory, near: LatLng, results: SearchResult[]) {
+  if (!results.length) return;
+  try {
+    const c = readCache();
+    c[cacheId(cat, near)] = { t: Date.now(), results };
+    const keys = Object.keys(c).sort((a, b) => c[b].t - c[a].t);
+    for (const k of keys.slice(CACHE_MAX)) delete c[k];
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch {
+    // stockage indisponible : pas de cache
+  }
+}
+
+// ---------- Sources ----------
+
+async function spotsAround(cat: NearbyCategory, near: LatLng, radius: number): Promise<SearchResult[]> {
+  const spots = await fetchPlacesAround(near, radius / 1000, SPOT_KINDS[cat]).catch(() => []);
+  return spots
+    .map((s) => ({
+      latitude: s.latitude,
+      longitude: s.longitude,
+      label: s.name,
+      detail: `Spot PasseRyder${s.rating != null ? ` · ★ ${s.rating.toFixed(1).replace('.', ',')}` : ''}`,
+      source: 'lieu' as const,
+      emoji: emojiOf(cat),
+      distanceM: distanceM(near, s),
+    }))
+    .filter((s) => s.distanceM <= radius);
+}
+
+/** Parking OSM (cache de l'appareil ou Overpass) → résultat */
+const fromParking = (p: MotoParking & { distanceM: number }): SearchResult => ({
+  latitude: p.latitude,
+  longitude: p.longitude,
+  label: parkingTitle(p),
+  detail: [p.address, parkingFacts(p)].filter(Boolean).join(' · ') || undefined,
+  source: 'lieu',
+  emoji: '🅿️',
+  distanceM: p.distanceM,
+});
+
+async function photonCat(cat: NearbyCategory, near: LatLng, radius: number): Promise<SearchResult[]> {
+  const list = await photonAround(PHOTON_TAGS[cat], near, radius / 1000);
+  // Parking « nommé » d'un simple numéro (« 7 ») : Parking moto n° 7
+  return cat === 'parking' ? list.map((r) => (/^\d+$/.test(r.label) ? { ...r, label: `Parking moto n° ${r.label}` } : r)) : list;
+}
+
+async function overpassCat(cat: Exclude<NearbyCategory, 'parking'>, near: LatLng, radius: number): Promise<SearchResult[]> {
   const ll = `${near.latitude.toFixed(3)},${near.longitude.toFixed(3)}`;
   const body = OSM_FILTERS[cat].map((f) => `nwr${f}(around:${radius},${ll});`).join('');
-  const elements = await overpass(`[out:json][timeout:20];(${body});out center tags 150;`);
+  const elements = await overpass(`[out:json][timeout:8];(${body});out center tags 80;`, { timeoutMs: 8000 });
   const out: SearchResult[] = [];
   for (const el of elements) {
     const lat = el.lat ?? el.center?.lat;
@@ -66,60 +143,95 @@ async function osmAround(cat: Exclude<NearbyCategory, 'parking'>, near: LatLng, 
     const tags = el.tags ?? {};
     const name = tags.name || tags.brand || FALLBACK[cat];
     const street = [tags['addr:housenumber'], tags['addr:street']].filter(Boolean).join(' ');
-    const brand = tags.brand && tags.brand !== name ? tags.brand : null;
     const point = { latitude: lat, longitude: lon };
     out.push({
       ...point,
       label: name,
-      detail: [brand, street, tags['addr:city']].filter(Boolean).join(' · ') || undefined,
+      detail: [street, tags['addr:city']].filter(Boolean).join(', ') || undefined,
       source: 'lieu',
-      emoji: emojiOf(tags, cat),
+      emoji: cat === 'food' && (tags.amenity === 'cafe' || tags.amenity === 'bar') ? '☕' : emojiOf(cat),
       distanceM: distanceM(near, point),
     });
   }
   return out;
 }
 
-async function spotsAround(cat: NearbyCategory, near: LatLng, radius: number): Promise<SearchResult[]> {
-  const spots = await fetchPlacesAround(near, radius / 1000).catch(() => []);
-  return spots
-    .filter((s) => SPOT_KINDS[cat].includes(s.kind))
-    .map((s) => ({
-      latitude: s.latitude,
-      longitude: s.longitude,
-      label: s.name,
-      detail: `Spot PasseRyder${s.rating != null ? ` · ★ ${s.rating.toFixed(1).replace('.', ',')}` : ''}`,
-      source: 'lieu' as const,
-      emoji: NEARBY_CATEGORIES.find((c) => c.value === cat)!.emoji,
-      distanceM: distanceM(near, s),
-    }))
-    .filter((s) => s.distanceM <= radius);
+/** Spots d'abord (ils ont des avis), puis lieux OSM sans doublon (< 60 m), du plus proche au plus loin */
+function merge(spots: SearchResult[], ...others: SearchResult[][]): SearchResult[] {
+  const out = [...spots];
+  for (const list of others)
+    for (const r of list) if (!out.some((o) => distanceM(o, r) < (spots.includes(o) ? 60 : 12))) out.push(r);
+  return out.sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0)).slice(0, MAX);
 }
 
-/** Lieux de la catégorie autour d'un point, du plus proche au plus loin */
-export async function searchNearby(cat: NearbyCategory, near: LatLng): Promise<SearchResult[]> {
-  const run = async (radius: number) => {
-    const [osm, spots] = await Promise.all([
-      cat === 'parking'
-        ? nearestParkings(near, MAX).then((list) =>
-            list.map((p) => ({
-              latitude: p.latitude,
-              longitude: p.longitude,
-              label: parkingTitle(p),
-              detail: [p.address, parkingFacts(p)].filter(Boolean).join(' · ') || undefined,
-              source: 'lieu' as const,
-              emoji: '🅿️',
-              distanceM: p.distanceM,
-            })),
-          )
-        : osmAround(cat, near, radius),
-      spotsAround(cat, near, Math.max(radius, 15000)),
-    ]);
-    // Un spot PasseRyder à moins de 60 m d'un lieu OSM le remplace (il a des avis)
-    const merged = [...spots, ...osm.filter((o) => !spots.some((s) => distanceM(s, o) < 60))];
-    return merged.sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0));
+/**
+ * Lieux de la catégorie autour d'un point, du plus proche au plus loin.
+ * onUpdate reçoit les résultats au fur et à mesure (cache, spots, Photon…) ; la promesse rend la liste finale.
+ */
+export async function searchNearby(
+  cat: NearbyCategory,
+  near: LatLng,
+  onUpdate?: (results: SearchResult[]) => void,
+): Promise<SearchResult[]> {
+  const hit = cached(cat, near);
+  if (hit) {
+    onUpdate?.(hit.slice(0, MAX));
+    return hit.slice(0, MAX);
+  }
+
+  let spots: SearchResult[] = [];
+  let osm: SearchResult[] = [];
+  let extra: SearchResult[] = [];
+  const push = () => onUpdate?.(merge(spots, osm, extra));
+
+  if (cat === 'parking') {
+    extra = cachedParkings(near, 5000).map(fromParking);
+    if (extra.length) push();
+  }
+
+  const spotsP = spotsAround(cat, near, 15000).then((s) => {
+    spots = s;
+    push();
+  });
+
+  let failures = 0;
+  const quick = async (radius: number) => {
+    try {
+      osm = await photonCat(cat, near, radius);
+      push();
+    } catch (e) {
+      failures++;
+      console.warn('Recherche autour de moi impossible (Photon)', e);
+      if (cat !== 'parking') {
+        try {
+          osm = await overpassCat(cat, near, radius);
+          push();
+        } catch {
+          failures++;
+        }
+      }
+    }
   };
-  const first = await run(5000);
-  if (first.length >= 3 || cat === 'parking') return first.slice(0, MAX);
-  return (await run(20000)).slice(0, MAX);
+
+  // Parkings : Overpass (plus complet que Photon) en parallèle, intégré dès qu'il répond
+  const fullP =
+    cat === 'parking'
+      ? nearestParkings(near, 5000)
+          .then((list) => {
+            extra = merge([], extra, list.map(fromParking));
+            push();
+          })
+          .catch(() => {
+            failures++;
+          })
+      : Promise.resolve();
+
+  // Une seule requête : Photon rend les plus proches d'abord (20 km ; parkings : 5 km, inutile plus loin)
+  await Promise.all([quick(cat === 'parking' ? 5000 : 20000), spotsP]);
+  await fullP;
+
+  const final = merge(spots, osm, extra);
+  if (!final.length && failures >= (cat === 'parking' ? 2 : 1)) throw new Error('Recherche indisponible pour le moment.');
+  store(cat, near, final);
+  return final;
 }
