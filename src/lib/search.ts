@@ -3,9 +3,12 @@ import { Platform } from 'react-native';
 import { distanceM, type LatLng } from '@/lib/geo';
 
 // Recherche de destination :
+// - lieux ET adresses pendant la frappe : Photon (komoot, OpenStreetMap). Gratuit, sans clé, fait
+//   pour l'autocomplétion, trouve restos, commerces, lieux nommés ; biais de proximité sur ma position.
+//   Usage raisonnable demandé (sinon ralenti) : 350 ms après la dernière frappe, 3 lettres minimum.
 // - adresses : API Adresse (Base Adresse Nationale, désormais servie par la
 //   Géoplateforme IGN : l'ancienne URL api-adresse.data.gouv.fr y redirige). Gratuite, sans clé.
-// - lieux (restos, stations…) : Nominatim (OpenStreetMap). Sa charte interdit
+// - repli lieux (bouton « Chercher dans les lieux ») : Nominatim (OpenStreetMap). Sa charte interdit
 //   l'autocomplétion : on ne l'appelle que sur demande explicite, 1 requête à la fois.
 
 export type SearchResult = LatLng & {
@@ -20,6 +23,7 @@ export type SearchResult = LatLng & {
 
 const BAN = 'https://data.geopf.fr/geocodage';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const PHOTON = 'https://photon.komoot.io/api/';
 const USER_AGENT = 'PasseRyder/1.0 (https://passeryder.fr)';
 const TIMEOUT_MS = 10_000;
 const HISTORY_KEY = 'moto.searchHistory';
@@ -49,15 +53,144 @@ export async function searchAddresses(query: string, near: LatLng | null): Promi
     params.set('lon', String(near.longitude));
   }
   const json = await getJson<{ features?: BanFeature[] }>(`${BAN}/search?${params}`, "Recherche d'adresse");
-  return (json.features ?? []).map(
-    (f) => ({
+  return (json.features ?? []).map((f) => {
+    const point = { latitude: f.geometry.coordinates[1], longitude: f.geometry.coordinates[0] };
+    return {
+      ...point,
       label: f.properties.label,
       detail: f.properties.context,
-      latitude: f.geometry.coordinates[1],
-      longitude: f.geometry.coordinates[0],
       source: 'adresse' as const,
-    }),
-  );
+      emoji: '🏠',
+      distanceM: near ? distanceM(near, point) : undefined,
+    };
+  });
+}
+
+type PhotonFeature = {
+  geometry: { coordinates: [number, number] };
+  properties: {
+    osm_key?: string;
+    osm_value?: string;
+    type?: string;
+    name?: string;
+    housenumber?: string;
+    street?: string;
+    postcode?: string;
+    city?: string;
+    district?: string;
+    county?: string;
+    countrycode?: string;
+  };
+};
+
+/** Catégorie d'un lieu OSM : emoji + libellé (« 🍴 Restaurant ») */
+const CATEGORIES: Record<string, Record<string, [string, string]>> = {
+  amenity: {
+    restaurant: ['🍴', 'Restaurant'],
+    fast_food: ['🍔', 'Restauration rapide'],
+    cafe: ['☕', 'Café'],
+    bar: ['🍺', 'Bar'],
+    pub: ['🍺', 'Bar'],
+    fuel: ['⛽', 'Station-service'],
+    charging_station: ['🔌', 'Borne de recharge'],
+    motorcycle_parking: ['🅿️', 'Parking moto'],
+    parking: ['🅿️', 'Parking'],
+    pharmacy: ['💊', 'Pharmacie'],
+    hospital: ['🏥', 'Hôpital'],
+    toilets: ['🚻', 'Toilettes'],
+    bank: ['🏧', 'Banque'],
+    atm: ['🏧', 'Distributeur'],
+    townhall: ['🏛️', 'Mairie'],
+    place_of_worship: ['⛪', 'Lieu de culte'],
+  },
+  shop: {
+    supermarket: ['🛒', 'Supermarché'],
+    convenience: ['🛒', 'Épicerie'],
+    bakery: ['🥖', 'Boulangerie'],
+    motorcycle: ['🏍️', 'Magasin moto'],
+    motorcycle_repair: ['🔧', 'Garage moto'],
+    car_repair: ['🔧', 'Garage'],
+    tyres: ['🔧', 'Pneus'],
+  },
+  craft: { motorcycle_repair: ['🔧', 'Garage moto'] },
+  tourism: {
+    hotel: ['🏨', 'Hôtel'],
+    motel: ['🏨', 'Hôtel'],
+    guest_house: ['🏨', 'Chambre d’hôtes'],
+    camp_site: ['⛺', 'Camping'],
+    viewpoint: ['📸', 'Point de vue'],
+    museum: ['🏛️', 'Musée'],
+    attraction: ['⭐', 'Attraction'],
+  },
+  place: {
+    city: ['🏙️', 'Ville'],
+    town: ['🏙️', 'Ville'],
+    village: ['🏘️', 'Village'],
+    hamlet: ['🏘️', 'Hameau'],
+    suburb: ['🏘️', 'Quartier'],
+    locality: ['📍', 'Lieu-dit'],
+  },
+  natural: { peak: ['⛰️', 'Sommet'], beach: ['🏖️', 'Plage'] },
+  mountain_pass: { yes: ['⛰️', 'Col'] },
+};
+const KEY_DEFAULTS: Record<string, [string, string]> = {
+  shop: ['🛒', 'Commerce'],
+  amenity: ['📍', 'Lieu'],
+  tourism: ['⭐', 'Tourisme'],
+  leisure: ['🌳', 'Loisirs'],
+  natural: ['🌲', 'Nature'],
+  craft: ['🔧', 'Artisan'],
+};
+const PHOTON_COUNTRIES = ['FR', 'BE', 'CH', 'LU', 'MC', 'AD', 'ES', 'IT', 'DE'];
+
+/** Résultat Photon → lieu (null pour ce qui ne sert pas : frontières, pays, régions…) */
+function fromPhoton(f: PhotonFeature, near: LatLng | null): SearchResult | null {
+  const p = f.properties;
+  const key = p.osm_key ?? '';
+  const value = p.osm_value ?? '';
+  if (key === 'boundary' || (key === 'place' && /^(country|state|region|county|province)$/.test(value))) return null;
+  // Mobilier sans intérêt comme destination (distributeur automatique « Pizza », banc…)
+  if (key === 'amenity' && /^(vending_machine|bench|waste_basket|recycling|post_box|telephone|drinking_water|parcel_locker)$/.test(value)) return null;
+  const isAddress = !p.name && !!p.street;
+  const cat: [string, string] =
+    CATEGORIES[key]?.[value] ??
+    (key === 'highway' ? ['🛣️', 'Rue'] : null) ??
+    (isAddress ? ['🏠', 'Adresse'] : null) ??
+    KEY_DEFAULTS[key] ??
+    ['📍', 'Lieu'];
+  const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+  const town = [p.postcode, p.city ?? p.district].filter(Boolean).join(' ');
+  const label = p.name ?? (street || town);
+  if (!label) return null;
+  const point = { latitude: f.geometry.coordinates[1], longitude: f.geometry.coordinates[0] };
+  const address = (p.name ? [street, town] : [town]).filter(Boolean).join(', ');
+  return {
+    ...point,
+    label,
+    detail: [cat[1], address].filter(Boolean).join(' · '),
+    emoji: cat[0],
+    source: isAddress || key === 'highway' || key === 'place' ? 'adresse' : 'lieu',
+    distanceM: near ? distanceM(near, point) : undefined,
+  };
+}
+
+/** Lieux (restos, commerces, lieux nommés) et adresses pendant la frappe (Photon), proches de moi d'abord */
+export async function searchPhoton(query: string, near: LatLng | null): Promise<SearchResult[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  const params = new URLSearchParams({ q, limit: '10', lang: 'fr' });
+  if (near) {
+    params.set('lat', near.latitude.toFixed(5));
+    params.set('lon', near.longitude.toFixed(5));
+    // Biais de proximité fort : le resto du coin passe avant un homonyme à 500 km
+    params.set('zoom', '12');
+    params.set('location_bias_scale', '0.3');
+  }
+  const json = await getJson<{ features?: PhotonFeature[] }>(`${PHOTON}?${params}`, 'Recherche de lieux');
+  return (json.features ?? [])
+    .filter((f) => !f.properties.countrycode || PHOTON_COUNTRIES.includes(f.properties.countrycode))
+    .map((f) => fromPhoton(f, near))
+    .filter((r): r is SearchResult => !!r);
 }
 
 type BanFeature = { geometry: { coordinates: [number, number] }; properties: { label: string; context?: string } };
@@ -73,16 +206,18 @@ async function nominatimGet<T>(path: string, params: URLSearchParams): Promise<T
   return getJson<T>(`${NOMINATIM}/${path}?${params}`, 'Recherche de lieux');
 }
 
-async function nominatim(params: URLSearchParams): Promise<SearchResult[]> {
+async function nominatim(params: URLSearchParams, near: LatLng | null): Promise<SearchResult[]> {
   const json = await nominatimGet<NominatimPlace[]>('search', params);
   return json.map((p) => {
     const parts = p.display_name.split(', ');
+    const point = { latitude: Number(p.lat), longitude: Number(p.lon) };
     return {
+      ...point,
       label: p.name || parts[0],
       detail: parts.slice(1, 4).join(', '),
-      latitude: Number(p.lat),
-      longitude: Number(p.lon),
       source: 'lieu' as const,
+      emoji: '📍',
+      distanceM: near ? distanceM(near, point) : undefined,
     };
   });
 }
@@ -110,11 +245,11 @@ export async function searchPlaces(query: string, near: LatLng | null): Promise<
     const local = new URLSearchParams(params);
     local.set('viewbox', `${near.longitude - d},${near.latitude + d},${near.longitude + d},${near.latitude - d}`);
     local.set('bounded', '1');
-    const results = await nominatim(local);
+    const results = await nominatim(local, near);
     if (results.length) return results;
-    return (await nominatim(params)).filter((r) => distanceM(near, r) <= MAX_PLACE_DISTANCE_M);
+    return (await nominatim(params, near)).filter((r) => distanceM(near, r) <= MAX_PLACE_DISTANCE_M);
   }
-  return nominatim(params);
+  return nominatim(params, null);
 }
 
 /**

@@ -852,6 +852,7 @@ export default function MapScreen() {
               near={position}
               onSelect={chooseDestination}
               below={nav.phase === 'idle' ? <QuickPlaces near={position} onSelect={chooseDestination} /> : null}
+              categories={nav.phase === 'idle'}
             />
           )}
 

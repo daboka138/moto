@@ -192,7 +192,7 @@ function NewHomecoming() {
       ) : (
         <>
           {home && <Chip label="🏠 Maison" onPress={() => setDest(home)} />}
-          <SearchBar near={me} onSelect={setDest} placeholder="Adresse d’arrivée" />
+          <SearchBar near={me} onSelect={setDest} placeholder="Adresse d’arrivée" categories={false} />
         </>
       )}
 

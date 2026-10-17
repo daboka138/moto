@@ -30,7 +30,11 @@ export type RoutePoi = SearchResult & {
   offRouteM: number;
 };
 
-const SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+const SERVERS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
 const USER_AGENT = 'PasseRyder/1.0 (https://passeryder.fr)';
 const TIMEOUT_MS = 20_000;
 /** On cherche sur les 50 prochains km, à moins d'1 km du tracé */
