@@ -423,6 +423,9 @@ export function ChatView(p: Props) {
   );
 }
 
+/** Web : mots très longs et liens coupés proprement au lieu de déborder (pas de scroll horizontal) */
+const wrapAnywhere = (Platform.OS === 'web' ? { overflowWrap: 'anywhere', wordBreak: 'break-word' } : {}) as object;
+
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
@@ -455,7 +458,7 @@ const useStyles = makeStyles((Colors) => ({
   },
   titleBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.accentOnSoft },
   headerSub: { fontSize: 12, color: Colors.textMuted },
-  list: { padding: 12, gap: 4 },
+  list: { padding: 12, gap: 4, ...(Platform.OS === 'web' ? ({ overflowX: 'hidden' } as object) : {}) },
   empty: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
   systemLine: { alignItems: 'center', paddingVertical: 6 },
   system: {
@@ -473,10 +476,12 @@ const useStyles = makeStyles((Colors) => ({
   lineOther: { justifyContent: 'flex-start' },
   senderAvatarBox: { width: 28 },
   senderAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.border },
-  column: { maxWidth: '78%', gap: 2 },
+  // Bulles à 80 % max ; minWidth 0 + flexShrink : sur le web, un élément flex ne rétrécit pas tout seul
+  // (react-native-web) et les longues lignes débordaient à droite au lieu de passer à la ligne
+  column: { maxWidth: '80%', minWidth: 0, flexShrink: 1, gap: 2 },
   columnMine: { alignItems: 'flex-end' },
   sender: { fontSize: 12, color: Colors.textMuted, marginLeft: 8, marginTop: 6 },
-  bubbleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  bubbleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: '100%', minWidth: 0 },
   bubbleRowMine: { justifyContent: 'flex-end' },
   more: { padding: 4, borderRadius: 14, backgroundColor: Colors.surface },
   moreHidden: { opacity: 0 },
@@ -492,7 +497,7 @@ const useStyles = makeStyles((Colors) => ({
   quoteMine: { borderLeftColor: Colors.white, backgroundColor: Colors.accentDark },
   quoteWho: { fontSize: 12, fontWeight: '800', color: Colors.accent },
   quoteWhoMine: { color: Colors.white },
-  quoteText: { fontSize: 13, color: Colors.textMuted },
+  quoteText: { fontSize: 13, color: Colors.textMuted, ...wrapAnywhere },
   quoteTextMine: { color: Colors.accentSoft },
   flash: {
     alignSelf: 'center',
@@ -506,14 +511,14 @@ const useStyles = makeStyles((Colors) => ({
     marginBottom: 6,
     overflow: 'hidden',
   },
-  bubble: { borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
+  bubble: { borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, gap: 2, flexShrink: 1, minWidth: 0 },
   bubbleMine: { backgroundColor: Colors.accent, borderBottomRightRadius: 6 },
   bubbleOther: { backgroundColor: Colors.surface, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: Colors.border },
   bubblePhoto: { padding: 4 },
   bubbleDeleted: { opacity: 0.75 },
   photo: { width: 220, height: 220, borderRadius: 14, backgroundColor: Colors.border },
   photoLoading: { alignItems: 'center', justifyContent: 'center' },
-  body: { fontSize: 16, lineHeight: 21, color: Colors.text, paddingHorizontal: 2 },
+  body: { fontSize: 16, lineHeight: 21, color: Colors.text, paddingHorizontal: 2, ...wrapAnywhere },
   bodyMine: { color: Colors.white },
   deleted: { fontSize: 15, fontStyle: 'italic', color: Colors.textMuted },
   deletedMine: { color: Colors.accentSoft },
