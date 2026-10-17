@@ -37,6 +37,9 @@ export type Message = {
   senderId: string;
   body: string | null;
   imagePath: string | null;
+  /** Message vocal (bucket privé chat) et sa durée */
+  audioPath: string | null;
+  audioDurationMs: number | null;
   createdAt: string;
   /** Fiche « trajet partagé en direct » (lib/trip-share.ts) */
   tripShareId?: string | null;
@@ -127,6 +130,8 @@ type MessageRow = {
   sender_id: string;
   body: string | null;
   image_path: string | null;
+  audio_path?: string | null;
+  audio_duration_ms?: number | null;
   created_at: string;
   trip_share_id?: string | null;
   kind?: 'user' | 'system';
@@ -142,6 +147,8 @@ export function toMessage(r: MessageRow): Message {
     senderId: r.sender_id,
     body: r.body,
     imagePath: r.image_path,
+    audioPath: r.audio_path ?? null,
+    audioDurationMs: r.audio_duration_ms ?? null,
     createdAt: r.created_at,
     tripShareId: r.trip_share_id ?? null,
     kind: r.kind ?? 'user',
@@ -151,7 +158,7 @@ export function toMessage(r: MessageRow): Message {
   };
 }
 
-const MESSAGE_FIELDS = 'id, conversation_id, sender_id, body, image_path, created_at, trip_share_id, kind, edited_at, deleted_at, reply_to_id';
+const MESSAGE_FIELDS = 'id, conversation_id, sender_id, body, image_path, audio_path, audio_duration_ms, created_at, trip_share_id, kind, edited_at, deleted_at, reply_to_id';
 
 export async function fetchMessages(conversationId: string, limit = 100): Promise<Message[]> {
   const { data, error } = await supabase
@@ -230,6 +237,45 @@ export async function sendMessage(
     });
   if (error) {
     if (imagePath) await supabase.storage.from(BUCKET).remove([imagePath]);
+    throw new Error(error.message.includes('row-level security') ? 'Tu ne peux pas écrire dans cette conversation.' : error.message);
+  }
+}
+
+/** « 0:12 » */
+export function formatVoiceDuration(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Durée max d'un message vocal */
+export const VOICE_MAX_MS = 120_000;
+
+/**
+ * Message vocal : fichier dans chat/<moi>/voice-…, texte « 🎤 Message vocal (0:12) » (aperçus, push,
+ * anciennes versions de l'app).
+ */
+export async function sendVoiceMessage(
+  userId: string,
+  conversationId: string,
+  audio: { data: Blob | ArrayBuffer; mimeType: string; durationMs: number },
+  replyToId?: string | null,
+) {
+  const contentType = audio.mimeType.split(';')[0];
+  const ext = contentType.includes('webm') ? 'webm' : contentType.includes('ogg') ? 'ogg' : contentType.includes('mpeg') ? 'mp3' : 'm4a';
+  const path = `${userId}/voice-${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, audio.data, { contentType });
+  if (upErr) throw new Error(`Envoi du message vocal impossible : ${upErr.message}`);
+  const durationMs = Math.min(VOICE_MAX_MS, Math.round(audio.durationMs));
+  const { error } = await supabase.from('messages').insert({
+    conversation_id: conversationId,
+    sender_id: userId,
+    body: `🎤 Message vocal (${formatVoiceDuration(durationMs)})`,
+    audio_path: path,
+    audio_duration_ms: durationMs,
+    reply_to_id: replyToId ?? null,
+  });
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]);
     throw new Error(error.message.includes('row-level security') ? 'Tu ne peux pas écrire dans cette conversation.' : error.message);
   }
 }
@@ -321,7 +367,7 @@ export async function openRideConversation(rideId: string): Promise<string> {
   return data as string;
 }
 
-/** URL signées des photos de messages (bucket privé) */
+/** URL signées des photos et vocaux de messages (bucket privé) */
 export async function signChatImages(paths: string[]): Promise<Map<string, string>> {
   if (!paths.length) return new Map();
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, 3600);

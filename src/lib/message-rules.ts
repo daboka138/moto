@@ -22,7 +22,15 @@ export function timestampMs(iso: string): number {
   return t;
 }
 
-type Editable = { senderId: string; body: string | null; createdAt: string; kind: 'user' | 'system'; tripShareId?: string | null; deletedAt: string | null };
+type Editable = {
+  senderId: string;
+  body: string | null;
+  createdAt: string;
+  kind: 'user' | 'system';
+  tripShareId?: string | null;
+  audioPath?: string | null;
+  deletedAt: string | null;
+};
 
 /**
  * Âge d'un message ; horloge du téléphone en retard (âge négatif) ou date illisible = « tout juste
@@ -43,6 +51,7 @@ export function canEditMessage(m: Editable, meId: string, now = Date.now()) {
     m.kind === 'user' &&
     !m.deletedAt &&
     !m.tripShareId &&
+    !m.audioPath &&
     !!m.body &&
     ageMs(m.createdAt, now) < EDIT_WINDOW_MS
   );

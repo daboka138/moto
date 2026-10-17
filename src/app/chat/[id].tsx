@@ -21,6 +21,7 @@ import {
   markConversationRead,
   reactToMessage,
   sendMessage,
+  sendVoiceMessage,
   setConversationMute,
   signChatImages,
   toMessage,
@@ -33,6 +34,7 @@ import { canDeleteForAll, canEditMessage } from '@/lib/message-rules';
 import { useMessages } from '@/lib/messages-context';
 import { askBlock, askReport } from '@/lib/moderation';
 import type { PickedImage } from '@/lib/pick-image';
+import type { RecordedVoice } from '@/lib/voice-recorder';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
 import { useChatWallpaper, useWallpaperPhotoUrl } from '@/lib/wallpapers';
@@ -87,7 +89,7 @@ function RealChat({ id }: { id: string }) {
   const [receipts, setReceipts] = useState(true);
 
   const signNew = useCallback(async (list: Message[]) => {
-    const paths = list.map((m) => m.imagePath).filter((p): p is string => !!p);
+    const paths = list.flatMap((m) => [m.imagePath, m.audioPath]).filter((p): p is string => !!p);
     if (!paths.length) return;
     try {
       const signed = await signChatImages(paths);
@@ -188,6 +190,16 @@ function RealChat({ id }: { id: string }) {
     const list = await fetchMessages(id, 20);
     setMessages((cur) => ({ id, list: merge(cur?.id === id ? cur.list : [], list) }));
     signNew(list);
+  };
+
+  const sendVoice = async (audio: RecordedVoice) => {
+    try {
+      await sendVoiceMessage(userId, id, audio, replying?.id);
+      setReplying(null);
+      await latest();
+    } catch (e) {
+      Alert.alert('Envoi impossible', errorMessage(e));
+    }
   };
 
   const send = async (text: string, image?: PickedImage) => {
@@ -295,7 +307,7 @@ function RealChat({ id }: { id: string }) {
           setEditing(m);
         },
       });
-    if (m.body && !m.tripShareId)
+    if (m.body && !m.tripShareId && !m.audioPath)
       actions.push({
         label: '📋 Copier',
         onPress: () =>
@@ -413,6 +425,7 @@ function RealChat({ id }: { id: string }) {
         reactionsOf={reactionsOf}
         onReact={react}
         onSend={send}
+        onSendVoice={sendVoice}
         onMessageLongPress={(m) => setMenuForId(m.id)}
         onMyMessagePress={showStatus}
         editing={editing}

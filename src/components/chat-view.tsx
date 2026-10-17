@@ -8,11 +8,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatWallpaper } from '@/components/chat-wallpaper';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { TripShareCard } from '@/components/trip-share-card';
+import { VoiceMessage, VoiceRecordButton } from '@/components/voice-message';
 import { makeStyles, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
-import { messageTime, type Message } from '@/lib/messages';
+import { formatVoiceDuration, messageTime, type Message } from '@/lib/messages';
 import { pickImage, type PickedImage } from '@/lib/pick-image';
 import type { WallPhoto } from '@/lib/wall';
+import { voiceRecordingSupported, type RecordedVoice } from '@/lib/voice-recorder';
 import type { Wallpaper } from '@/lib/wallpapers';
 
 export type ChatPerson = { username: string; avatarUrl: string };
@@ -46,6 +48,8 @@ type Props = {
   reactionsOf: (m: Message) => ReactionSummary;
   onReact: (m: Message, emoji: string) => void;
   onSend: (text: string, image?: PickedImage) => Promise<void>;
+  /** Message vocal enregistré (micro maintenu) */
+  onSendVoice?: (voice: RecordedVoice) => Promise<void>;
   onMessageLongPress?: (m: Message) => void;
   /** Appui sur un de mes messages : détail « Vu à … » / « Vu par … » */
   onMyMessagePress?: (m: Message) => void;
@@ -75,6 +79,14 @@ export function ChatView(p: Props) {
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   // Web : bouton « ⋯ » sur le message survolé
   const [hoverId, setHoverId] = useState<string | null>(null);
+  // Enregistrement vocal en cours (durée, glissé pour annuler) et petite aide / erreur
+  const [rec, setRec] = useState<{ elapsedMs: number; cancelling: boolean } | null>(null);
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
+  const canRecord = !!p.onSendVoice && voiceRecordingSupported();
+  const showHint = (m: string) => {
+    setVoiceHint(m);
+    setTimeout(() => setVoiceHint((h) => (h === m ? null : h)), 3500);
+  };
   const byId = new Map((p.messages ?? []).map((m) => [m.id, m]));
 
   // Citation d'un message (réponse) : auteur + début du texte
@@ -226,7 +238,9 @@ export function ChatView(p: Props) {
                       <ActivityIndicator color={Colors.textMuted} />
                     </View>
                   ))}
-                {item.tripShareId ? (
+                {item.audioPath ? (
+                  <VoiceMessage url={p.imageUrl(item.audioPath)} durationMs={item.audioDurationMs} mine={mine} />
+                ) : item.tripShareId ? (
                   <TripShareCard id={item.tripShareId} mine={mine} fallback={item.body} />
                 ) : (
                   !!item.body && <Text style={[styles.body, mine && styles.bodyMine]}>{item.body}</Text>
@@ -358,7 +372,7 @@ export function ChatView(p: Props) {
           </View>
         ) : (
           <>
-            {!!p.flash && <Text style={styles.flash}>{p.flash}</Text>}
+            {!!(p.flash ?? voiceHint) && <Text style={styles.flash}>{p.flash ?? voiceHint}</Text>}
             {p.replying && !p.editing && (
               <View style={styles.editBar}>
                 <Ionicons name="arrow-undo-outline" size={18} color={Colors.accent} />
@@ -388,11 +402,20 @@ export function ChatView(p: Props) {
               </View>
             )}
             <View style={styles.inputBar}>
-              {!p.editing && (
+              {!p.editing && !rec && (
                 <Pressable onPress={sendPhoto} hitSlop={8} disabled={sending}>
                   <Ionicons name="image-outline" size={28} color={Colors.accent} />
                 </Pressable>
               )}
+              {rec ? (
+                <View style={styles.recording}>
+                  <View style={styles.recDot} />
+                  <Text style={styles.recTime}>{formatVoiceDuration(rec.elapsedMs)}</Text>
+                  <Text style={[styles.recHint, rec.cancelling && styles.recCancel]} numberOfLines={1}>
+                    {rec.cancelling ? 'Relâche pour annuler' : '‹ Glisse pour annuler'}
+                  </Text>
+                </View>
+              ) : (
               <TextInput
                 style={styles.input}
                 value={text}
@@ -402,6 +425,17 @@ export function ChatView(p: Props) {
                 multiline
                 maxLength={2000}
               />
+              )}
+              {canRecord && !p.editing && (!text.trim() || !!rec) ? (
+                <VoiceRecordButton
+                  onState={setRec}
+                  onError={showHint}
+                  onRecorded={(v) => {
+                    setSending(true);
+                    p.onSendVoice?.(v).finally(() => setSending(false));
+                  }}
+                />
+              ) : (
               <Pressable
                 style={[styles.sendButton, (!text.trim() || sending) && styles.sendDisabled]}
                 onPress={() => send()}
@@ -413,6 +447,7 @@ export function ChatView(p: Props) {
                   <Ionicons name={p.editing ? 'checkmark' : 'send'} size={18} color={Colors.white} />
                 )}
               </Pressable>
+              )}
             </View>
           </>
         )}
@@ -600,4 +635,9 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
   },
   sendDisabled: { opacity: 0.4 },
+  recording: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 6 },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.danger },
+  recTime: { fontSize: 16, fontWeight: '800', color: Colors.text, minWidth: 40 },
+  recHint: { flex: 1, fontSize: 14, color: Colors.textMuted, textAlign: 'right' },
+  recCancel: { color: Colors.danger, fontWeight: '800' },
 }));
