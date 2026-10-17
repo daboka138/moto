@@ -5,7 +5,9 @@ import { ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, T
 import { makeStyles, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { distanceM, type LatLng } from '@/lib/geo';
+import { searchPlaces as searchSpots } from '@/lib/global-search';
 import { categoryFromQuery, NEARBY_CATEGORIES, searchNearby, type NearbyCategory } from '@/lib/nearby';
+import { placeKindInfo } from '@/lib/places';
 import { formatDistance } from '@/lib/routing';
 import {
   addToHistory,
@@ -31,14 +33,44 @@ type Props = {
 const sameSpot = (a: SearchResult, b: SearchResult) =>
   distanceM(a, b) < 80 && (a.label === b.label || a.source === 'adresse' || b.source === 'adresse');
 
-/** Lieux d'abord (restos, commerces…), puis adresses de la BAN, puis le reste de Photon */
-function mergeResults(photon: SearchResult[], ban: SearchResult[]): SearchResult[] {
+/** Un lieu « proche » passe devant tout le reste, du plus près au plus loin */
+const NEAR_M = 50_000;
+const byDistance = (a: SearchResult, b: SearchResult) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity);
+const isNear = (r: SearchResult) => r.distanceM != null && r.distanceM <= NEAR_M;
+
+/**
+ * Ordre des suggestions : spots PasseRyder proches, lieux proches (restos, commerces…) du plus près au
+ * plus loin, puis villes / adresses (BAN d'abord), puis les lieux lointains et le reste.
+ */
+function mergeResults(spots: SearchResult[], photon: SearchResult[], ban: SearchResult[]): SearchResult[] {
   const places = photon.filter((r) => r.source === 'lieu');
   const photonAddresses = photon.filter((r) => r.source === 'adresse' && !ban.some((b) => sameSpot(b, r)));
+  const ordered = [
+    ...spots.filter(isNear).sort(byDistance),
+    ...places.filter(isNear).sort(byDistance),
+    ...photonAddresses.filter((r) => r.emoji === '🏙️' || r.emoji === '🏘️'),
+    ...ban,
+    ...photonAddresses,
+    ...spots.filter((r) => !isNear(r)),
+    ...places.filter((r) => !isNear(r)),
+  ];
   const out: SearchResult[] = [];
-  for (const r of [...places, ...ban, ...photonAddresses]) if (!out.some((o) => sameSpot(o, r))) out.push(r);
+  for (const r of ordered) if (!out.some((o) => o === r || sameSpot(o, r))) out.push(r);
   return out.slice(0, 10);
 }
+
+/** Recherche sans majuscules ni accents (historique) */
+const fold = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+/** Suggestions déjà calculées (retour arrière, même recherche) : affichées sans attendre */
+const liveCache = new Map<string, SearchResult[]>();
+const liveKey = (q: string, nearKey: string | null) => `${fold(q)}|${nearKey ?? ''}`;
+/** Suggestions dès 2 lettres (Photon, spots) ; adresses BAN dès 3 */
+const MIN_LIVE = 2;
 
 /**
  * Recherche de destination : lieux et adresses en direct (Photon + API Adresse), catégories en 1 tap
@@ -70,23 +102,47 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
   const category = typedCategory ?? (q.length < 3 ? chip : null);
   const nearKey = near ? `${near.latitude.toFixed(3)},${near.longitude.toFixed(3)}` : null;
 
-  // Lieux + adresses, 350 ms après la dernière frappe (Photon et BAN en parallèle, chacun en repli de l'autre)
+  // Lieux + adresses + spots, 250 ms après la dernière frappe (en parallèle, chacun en repli des autres)
   useEffect(() => {
-    if (q.length < 3) return;
+    if (q.length < MIN_LIVE) return;
     let cancelled = false;
+    const cacheKey = liveKey(q, nearKey);
+    if (liveCache.has(cacheKey)) return;
     const timer = setTimeout(async () => {
-      const [photon, ban] = await Promise.all([
+      const [photon, ban, spots] = await Promise.all([
         searchPhoton(q, near).catch((e) => {
           console.warn('Recherche de lieux impossible (Photon)', e);
           return [] as SearchResult[];
         }),
-        searchAddresses(q, near).catch((e) => {
-          console.warn('Recherche d’adresse impossible', e);
-          return [] as SearchResult[];
-        }),
+        q.length >= 3
+          ? searchAddresses(q, near).catch((e) => {
+              console.warn('Recherche d’adresse impossible', e);
+              return [] as SearchResult[];
+            })
+          : Promise.resolve([] as SearchResult[]),
+        searchSpots(q)
+          .then((list) =>
+            list.map(
+              (s): SearchResult => ({
+                latitude: s.latitude,
+                longitude: s.longitude,
+                label: s.name,
+                detail: [`Spot PasseRyder · ${placeKindInfo(s.kind).short}`, s.rating != null ? `★ ${s.rating.toFixed(1).replace('.', ',')}` : null]
+                  .filter(Boolean)
+                  .join(' · '),
+                source: 'lieu',
+                emoji: placeKindInfo(s.kind).emoji,
+                distanceM: near ? distanceM(near, s) : undefined,
+              }),
+            ),
+          )
+          .catch(() => [] as SearchResult[]),
       ]);
-      if (!cancelled) setLive({ query: q, results: mergeResults(photon, ban) });
-    }, 350);
+      const results = mergeResults(spots, photon, ban);
+      liveCache.set(cacheKey, results);
+      if (liveCache.size > 60) liveCache.delete(liveCache.keys().next().value!);
+      if (!cancelled) setLive({ query: q, results });
+    }, 250);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -137,12 +193,20 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
     onSelect(r);
   };
 
-  const shownLive = live?.query === q ? live.results : null;
+  // Pendant le chargement, les suggestions précédentes restent affichées (pas de clignotement)
+  const cachedLive = q.length >= MIN_LIVE ? liveCache.get(liveKey(q, nearKey)) : undefined;
+  const liveFresh = live?.query === q || !!cachedLive;
+  const shownLive = cachedLive ?? (live && q.length >= MIN_LIVE ? live.results : null);
   const shownPlaces = places?.query === q ? places.results.filter((p) => !shownLive?.some((l) => sameSpot(l, p))) : null;
+  // Destinations récentes qui correspondent à la frappe, en tête
+  const historyHits =
+    q.length >= MIN_LIVE
+      ? history.filter((h) => fold(h.label).includes(fold(q)) || fold(h.detail ?? '').includes(fold(q))).slice(0, 3)
+      : [];
   const shownNearby = category && nearby?.cat === category && nearby.key === (nearKey ?? '') ? nearby : null;
   // La liste ne dépend pas du clavier : le fermer (bouton retour Android) retire le focus,
   // et la liste disparaissait avant l'appui sur un résultat. Elle reste tant qu'une recherche est tapée.
-  const open = !locked && (focused || q.length >= 3 || !!chip);
+  const open = !locked && (focused || q.length >= MIN_LIVE || !!chip);
   const withDistance = (r: SearchResult) => ({ ...r, distanceM: r.distanceM ?? (near ? distanceM(near, r) : undefined) });
   const catInfo = category ? NEARBY_CATEGORIES.find((c) => c.value === category)! : null;
 
@@ -233,7 +297,7 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
               )}
             </>
           )}
-          {q.length < 3 ? (
+          {q.length < MIN_LIVE ? (
             !chip &&
             (history.length > 0 ? (
               <>
@@ -258,15 +322,24 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
           ) : (
             <>
               {catInfo && <Text style={[styles.section, styles.sectionPad]}>Autres résultats</Text>}
+              {historyHits.map((h, i) => (
+                <ResultRow key={`hh${i}`} icon="time-outline" result={withDistance(h)} onPress={() => select(h)} />
+              ))}
               {shownLive === null ? (
                 <ActivityIndicator color={Colors.accent} style={styles.spinner} />
               ) : (
-                shownLive.map((r, i) => <ResultRow key={`a${i}`} result={r} onPress={() => select(r)} />)
+                <View style={!liveFresh && styles.stale}>
+                  {shownLive
+                    .filter((r) => !historyHits.some((h) => sameSpot(h, r)))
+                    .map((r, i) => (
+                      <ResultRow key={`a${i}`} result={r} onPress={() => select(r)} />
+                    ))}
+                </View>
               )}
               {shownPlaces?.map((r, i) => (
                 <ResultRow key={`p${i}`} result={r} onPress={() => select(r)} />
               ))}
-              {!shownPlaces && (
+              {!shownPlaces && q.length >= 3 && (
                 <Pressable style={styles.placesButton} onPress={searchPlacesNow} disabled={placesLoading}>
                   {placesLoading ? (
                     <ActivityIndicator color={Colors.accent} />
@@ -278,7 +351,9 @@ export function SearchBar({ near, onSelect, placeholder = 'Où va-t-on ?', below
                   )}
                 </Pressable>
               )}
-              {shownPlaces?.length === 0 && shownLive?.length === 0 && <Text style={styles.empty}>Aucun résultat.</Text>}
+              {liveFresh && shownLive?.length === 0 && historyHits.length === 0 && (!places || shownPlaces?.length === 0) && (
+                <Text style={styles.empty}>{q.length < 3 ? 'Continue à taper…' : 'Aucun résultat.'}</Text>
+              )}
             </>
           )}
         </ScrollView>
@@ -357,6 +432,7 @@ const useStyles = makeStyles((Colors) => ({
   sectionPad: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 2 },
   clear: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
   spinner: { padding: 12 },
+  stale: { opacity: 0.55 },
   moreRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
   moreText: { fontSize: 13, color: Colors.textMuted },
   row: {

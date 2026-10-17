@@ -192,7 +192,7 @@ export const FICHES: Fiche[] = [
     titre: 'Aller quelque part',
     but: 'Calculer un itinéraire moto et choisir le plus agréable.',
     etapes: [
-      'Sur la Carte, tape une adresse, une ville, un resto, un commerce ou un lieu dans la barre de recherche (catégorie et distance sur chaque résultat). Ou fais un appui long sur la carte › « Aller ici ».',
+      'Sur la Carte, tape une adresse, une ville, un resto, un commerce, un spot ou un lieu dans la barre de recherche : les suggestions arrivent dès 2 lettres, les plus proches de toi d’abord (icône, nom, adresse et distance). Tes destinations récentes qui correspondent passent en tête. Ou fais un appui long sur la carte › « Aller ici ».',
       'Choisis parmi 2 ou 3 itinéraires : Rapide, Plaisir (sinueux, petites routes, sans autoroute) ou Éviter autoroutes. Sous chaque choix : le temps en plus et les virages en plus par rapport au plus rapide (« +18 min · 3× plus de virages »).',
       'Dans « Options », coche si besoin Sans péage ou Sans non-goudronné.',
       'Appuie sur « Démarrer ».',

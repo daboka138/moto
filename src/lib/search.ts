@@ -5,7 +5,8 @@ import { distanceM, type LatLng } from '@/lib/geo';
 // Recherche de destination :
 // - lieux ET adresses pendant la frappe : Photon (komoot, OpenStreetMap). Gratuit, sans clé, fait
 //   pour l'autocomplétion, trouve restos, commerces, lieux nommés ; biais de proximité sur ma position.
-//   Usage raisonnable demandé (sinon ralenti) : 350 ms après la dernière frappe, 3 lettres minimum.
+//   Usage raisonnable demandé (sinon ralenti) : 250 ms après la dernière frappe, 2 lettres minimum,
+//   résultats gardés en mémoire (retour arrière sans nouvelle requête).
 // - adresses : API Adresse (Base Adresse Nationale, désormais servie par la
 //   Géoplateforme IGN : l'ancienne URL api-adresse.data.gouv.fr y redirige). Gratuite, sans clé.
 // - repli lieux (bouton « Chercher dans les lieux ») : Nominatim (OpenStreetMap). Sa charte interdit
@@ -180,7 +181,7 @@ function fromPhoton(f: PhotonFeature, near: LatLng | null): SearchResult | null 
 /** Lieux (restos, commerces, lieux nommés) et adresses pendant la frappe (Photon), proches de moi d'abord */
 export async function searchPhoton(query: string, near: LatLng | null): Promise<SearchResult[]> {
   const q = query.trim();
-  if (q.length < 3) return [];
+  if (q.length < 2) return [];
   const params = new URLSearchParams({ q, limit: '10', lang: 'fr' });
   if (near) {
     // Position arrondie (~1 km) : assez pour classer les résultats, sans envoyer où je suis exactement
