@@ -34,6 +34,7 @@ import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 import { REPORT_TYPES } from '@/lib/reports';
 import { setSimulation, SIMULATION_SPEEDS, useSimulation } from '@/lib/simulation';
+import { fetchInSuggestions, setInSuggestions } from '@/lib/suggestions';
 import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
 import { errorMessage } from '@/lib/errors';
 import { fetchReadReceipts, setReadReceipts } from '@/lib/messages';
@@ -140,6 +141,7 @@ export default function SettingsScreen() {
           onChange={toggleDiscoverable}
         />
         <ReadReceiptsRow userId={userId} />
+        <SuggestionsRow userId={userId} />
       </View>
 
       <GoodPointsSection />
@@ -555,6 +557,32 @@ function NotificationsSection({ userId }: { userId: string | undefined }) {
         ))}
       </View>
     </>
+  );
+}
+
+/** « Motards que tu pourrais connaître » : apparaître (ou non) chez les autres */
+function SuggestionsRow({ userId }: { userId: string | undefined }) {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    fetchInSuggestions(userId)
+      .then(setOn)
+      .catch(() => setOn(true));
+  }, [userId]);
+  return (
+    <SwitchRow
+      label="Apparaître dans les suggestions"
+      description="Les motards avec qui tu as des amis, un club ou des balades en commun peuvent te voir dans « Motards que tu pourrais connaître ». Jamais ta position, jamais en mode fantôme."
+      value={on ?? true}
+      disabled={on === null}
+      onChange={(next) => {
+        setOn(next);
+        setInSuggestions(next).catch((e) => {
+          setOn(!next);
+          Alert.alert('Réglage impossible', errorMessage(e));
+        });
+      }}
+    />
   );
 }
 

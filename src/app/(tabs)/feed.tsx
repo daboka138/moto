@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FriendSuggestions } from '@/components/friend-suggestions';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
 import { StoryRow } from '@/components/story-row';
@@ -18,9 +19,15 @@ import { fetchUpcomingRides, joinRide, type RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
 import { useStories } from '@/lib/stories-context';
 import { confirmJoinRide } from '@/lib/join-ride';
+import { fetchFriendSuggestions, type FriendSuggestion } from '@/lib/suggestions';
 import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
 
 type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; rides: RideSummary[] };
+
+/** Fil : publications + carrousel « Motards que tu pourrais connaître » tous les ~8 posts */
+type FeedRow = FeedItem | { kind: 'suggestions'; key: string; slice: number };
+const SUGGESTIONS_EVERY = 8;
+const SUGGESTIONS_PER_CAROUSEL = 6;
 
 /** Onglet Mur : fil d'actualité de mes amis. */
 export default function FeedScreen() {
@@ -35,6 +42,7 @@ export default function FeedScreen() {
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const { refresh: refreshStories } = useStories();
+  const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([]);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -49,6 +57,10 @@ export default function FeedScreen() {
       const [photos, rides] = await Promise.all([fetchPhotosOf(friends.map((f) => f.id)), fetchUpcomingRides(userId)]);
       setReal({ userId, friends, photos, rides });
       setError(false);
+      // Suggestions : à part, une erreur ne bloque pas le fil
+      fetchFriendSuggestions(18)
+        .then(setSuggestions)
+        .catch((e) => console.warn('Suggestions indisponibles', e));
     } catch (e) {
       console.warn('Chargement du fil impossible', e);
       setError(true);
@@ -67,6 +79,30 @@ export default function FeedScreen() {
   const friends = current?.friends ?? [];
   const items = current ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends)]) : null;
 
+  // Carrousels : après le 3e post (ou le dernier si le fil est court), puis tous les ~8 posts,
+  // une tranche différente de suggestions à chaque fois
+  const first = items ? Math.min(2, items.length - 1) : 0;
+  const rows: FeedRow[] | null = items
+    ? items.flatMap((item, i): FeedRow[] => {
+        if (i < first || (i - first) % SUGGESTIONS_EVERY !== 0) return [item];
+        const slice = (i - first) / SUGGESTIONS_EVERY;
+        if (slice * SUGGESTIONS_PER_CAROUSEL >= suggestions.length) return [item];
+        return [item, { kind: 'suggestions', key: `suggestions-${slice}`, slice }];
+      })
+    : null;
+  const carousel = (slice: number) =>
+    userId ? (
+      <FriendSuggestions
+        userId={userId}
+        suggestions={suggestions.slice(slice * SUGGESTIONS_PER_CAROUSEL, (slice + 1) * SUGGESTIONS_PER_CAROUSEL)}
+        onChange={(next) => {
+          const shown = suggestions.slice(slice * SUGGESTIONS_PER_CAROUSEL, (slice + 1) * SUGGESTIONS_PER_CAROUSEL);
+          const removed = new Set(shown.filter((x) => !next.some((n) => n.id === x.id)).map((x) => x.id));
+          setSuggestions((all) => all.filter((x) => !removed.has(x.id)));
+        }}
+      />
+    ) : null;
+
   const openPerson = (p: FeedPerson) => router.push({ pathname: '/user/[id]', params: { id: p.id } });
   const openRide = (r: RideSummary) => router.push({ pathname: '/ride/[id]', params: { id: r.id } });
 
@@ -84,7 +120,8 @@ export default function FeedScreen() {
       }
     });
 
-  const renderItem = ({ item }: { item: FeedItem }) => {
+  const renderItem = ({ item }: { item: FeedRow }) => {
+    if (item.kind === 'suggestions') return carousel(item.slice);
     if (item.kind === 'photo') {
       return (
         <View style={styles.card}>
@@ -143,13 +180,13 @@ export default function FeedScreen() {
         <Text style={styles.searchPlaceholder}>Rechercher un motard, une balade, un lieu…</Text>
       </Pressable>
 
-      {!items ? (
+      {!rows ? (
         <View style={styles.center}>
           {error ? <Text style={styles.muted}>Impossible de charger le fil.</Text> : <ActivityIndicator color={Colors.accent} />}
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={rows}
           keyExtractor={(i) => i.key}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -165,6 +202,8 @@ export default function FeedScreen() {
           }
           ListHeaderComponent={<StoryRow />}
           ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+            {carousel(0)}
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
               <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Ton Mur est encore vide'}</Text>
@@ -179,6 +218,7 @@ export default function FeedScreen() {
                 variant="secondary"
                 onPress={() => router.push(friends.length ? '/story/new' : '/friends')}
               />
+            </View>
             </View>
           }
         />
@@ -260,6 +300,7 @@ const useStyles = makeStyles((Colors) => ({
   list: { paddingBottom: 32, gap: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
+  emptyWrap: { gap: 16 },
   empty: { alignItems: 'stretch', gap: 10, padding: 32 },
   emptyTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   card: { backgroundColor: Colors.surface, paddingVertical: 12, gap: 10 },
