@@ -612,6 +612,7 @@ export const FICHES: Fiche[] = [
       'Appui long sur un message (sur ordinateur : clic droit, ou le bouton « ⋯ » au survol) : réagis (❤️ 😂 😮 😢 👍 🔥 🏍️, re-toucher pour retirer), puis ✏️ Modifier (tes messages, pendant 1 h), 📋 Copier, ↩️ Répondre, 🗑️ Supprimer (pour toi, ou pour tout le monde pendant 1 h), ou signaler.',
       'Message modifié : « modifié » s’affiche sur la bulle et les autres voient la nouvelle version tout de suite.',
       'Les discussions des balades auxquelles tu participes apparaissent aussi ici.',
+      'À ton inscription, tu reçois un message de bienvenue de @admin (badge « Créateur de PasseRyder ») : c’est Dimitri, qui a créé l’appli. Réponds-lui directement pour un bug, une idée ou une question.',
     ],
     astuces: [
       'Sous tes messages : ✓ envoyé, ✓✓ reçu, ✓✓ bleu vu. Touche un de tes messages pour l’heure de lecture (ou « Vu par » en groupe).',

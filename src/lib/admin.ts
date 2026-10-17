@@ -268,3 +268,52 @@ export async function saveAppSetting(key: string, value: string) {
   const { error } = await supabase.from('app_settings').upsert({ key, value }, { onConflict: 'key' });
   if (error) throw new Error(error.message);
 }
+
+// ---------- Message de bienvenue (envoyé par le serveur à la création du profil) ----------
+
+export type WelcomeSettings = {
+  enabled: boolean;
+  body: string;
+  testUsername: string | null;
+  senderUsername: string | null;
+  sent: number;
+  replied: number;
+  /** Inscrits existants qui ne l'ont pas reçu */
+  pending: number;
+};
+
+export async function fetchWelcome(): Promise<WelcomeSettings> {
+  const { data, error } = await supabase.rpc('admin_welcome');
+  if (error) throw new Error(error.message);
+  const d = data as Record<string, unknown>;
+  return {
+    enabled: !!d.enabled,
+    body: String(d.body ?? ''),
+    testUsername: (d.test_username as string | null) ?? null,
+    senderUsername: (d.sender_username as string | null) ?? null,
+    sent: Number(d.sent ?? 0),
+    replied: Number(d.replied ?? 0),
+    pending: Number(d.pending ?? 0),
+  };
+}
+
+export async function saveWelcome(enabled: boolean, body: string, testUsername: string) {
+  const { error } = await supabase.rpc('admin_set_welcome', { p_enabled: enabled, p_body: body, p_test_username: testUsername });
+  if (error) throw new Error(error.message);
+}
+
+/** Envoie le texte saisi au compte de test (enregistré dans les réglages) */
+export async function sendWelcomeTest(body: string) {
+  const { error } = await supabase.rpc('admin_welcome_test', { p_body: body });
+  if (error) throw new Error(error.message);
+}
+
+/** Inscrits existants sans bienvenue : renvoie le nombre de messages envoyés */
+export async function welcomeBackfill(): Promise<number> {
+  const { data, error } = await supabase.rpc('admin_welcome_backfill');
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
+}
+
+/** Aperçu : {pseudo} remplacé comme côté serveur */
+export const welcomePreview = (body: string, pseudo: string) => body.replaceAll('{pseudo}', pseudo);

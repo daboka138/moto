@@ -16,6 +16,12 @@ import {
   fetchAdminReports,
   fetchAppSetting,
   fetchReferralStats,
+  fetchWelcome,
+  saveWelcome,
+  sendWelcomeTest,
+  welcomeBackfill,
+  welcomePreview,
+  type WelcomeSettings,
   saveAppSetting,
   type ReferralStats,
   fetchAdminStats,
@@ -551,6 +557,9 @@ function Features() {
       <Text style={styles.section}>Distribution de l’app</Text>
       <Distribution />
 
+      <Text style={styles.section}>Message de bienvenue</Text>
+      <Welcome />
+
       <Text style={styles.section}>Liens partenaires (Idées de balades)</Text>
       <PartnerLinks />
 
@@ -652,6 +661,159 @@ function Distribution() {
             }
           }}
         />
+      )}
+    </View>
+  );
+}
+
+// Message privé envoyé PAR le serveur, depuis le compte créateur, à la création du profil de chaque
+// nouvel inscrit (une seule fois). {pseudo} = pseudo de la personne.
+function Welcome() {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [saved, setSaved] = useState<WelcomeSettings | null>(null);
+  const [body, setBody] = useState('');
+  const [testUser, setTestUser] = useState('');
+  const [busy, setBusy] = useState<'save' | 'test' | 'backfill' | 'toggle' | null>(null);
+
+  const reload = useCallback(
+    () =>
+      fetchWelcome()
+        .then((w) => {
+          setSaved(w);
+          setBody(w.body);
+          setTestUser(w.testUsername ?? '');
+        })
+        .catch((e) => Alert.alert('Oups', e instanceof Error ? e.message : String(e))),
+    [],
+  );
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  if (!saved) return <ActivityIndicator color={Colors.accent} />;
+  const cleanTest = testUser.trim().replace(/^@+/, '');
+  const dirty = body.trim() !== saved.body || cleanTest !== (saved.testUsername ?? '');
+  const run = async (kind: NonNullable<typeof busy>, fn: () => Promise<void>) => {
+    setBusy(kind);
+    try {
+      await fn();
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const save = () => saveWelcome(saved.enabled, body, cleanTest);
+
+  return (
+    <View style={[styles.card, { gap: 10 }]}>
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>{saved.enabled ? 'Activé' : 'Désactivé'}</Text>
+          <Text style={styles.small}>
+            Envoyé par @{saved.senderUsername ?? '?'} à chaque nouvel inscrit, à la fin de son inscription (une seule fois).
+          </Text>
+        </View>
+        {busy === 'toggle' ? (
+          <ActivityIndicator color={Colors.accent} />
+        ) : (
+          <Switch
+            value={saved.enabled}
+            onValueChange={(on) =>
+              run('toggle', async () => {
+                await saveWelcome(on, saved.body, saved.testUsername ?? '');
+                setSaved({ ...saved, enabled: on });
+              })
+            }
+          />
+        )}
+      </View>
+
+      <View style={styles.grid}>
+        <Stat label="Bienvenues envoyées" value={saved.sent} />
+        <Stat label="Ont répondu" value={saved.replied} />
+      </View>
+
+      <Field
+        label="Texte du message ({pseudo} = pseudo de la personne)"
+        value={body}
+        onChangeText={setBody}
+        multiline
+        maxLength={2000}
+        style={{ minHeight: 160, textAlignVertical: 'top' }}
+      />
+      <Text style={styles.small}>Aperçu</Text>
+      <View style={styles.welcomeBubble}>
+        <Text style={styles.welcomeText}>{welcomePreview(body, cleanTest || 'Lucas')}</Text>
+      </View>
+
+      <Field
+        label="Compte de test (pseudo, pas le compte admin)"
+        value={testUser}
+        onChangeText={setTestUser}
+        autoCapitalize="none"
+        autoCorrect={false}
+        placeholder="@moncomptetest"
+      />
+      {dirty && (
+        <Button
+          title="Enregistrer"
+          loading={busy === 'save'}
+          disabled={!body.trim()}
+          onPress={() =>
+            run('save', async () => {
+              await save();
+              await reload();
+            })
+          }
+        />
+      )}
+      <Button
+        title={cleanTest ? `M’envoyer un test (à @${cleanTest})` : 'M’envoyer un test'}
+        variant="secondary"
+        loading={busy === 'test'}
+        disabled={!cleanTest || !body.trim()}
+        onPress={() =>
+          run('test', async () => {
+            // Le compte de test est lu par le serveur : enregistré d'abord s'il a changé
+            if (cleanTest !== (saved.testUsername ?? '')) {
+              await saveWelcome(saved.enabled, saved.body, cleanTest);
+              setSaved({ ...saved, testUsername: cleanTest });
+            }
+            await sendWelcomeTest(body);
+            Alert.alert('Test envoyé', `Ouvre les messages de @${cleanTest} pour le voir (texte en cours de saisie, non compté).`);
+          })
+        }
+      />
+      <Button
+        title={`Envoyer aux inscrits existants qui ne l’ont pas encore reçu (${saved.pending})`}
+        variant="secondary"
+        loading={busy === 'backfill'}
+        disabled={saved.pending === 0 || !saved.enabled || dirty}
+        onPress={() =>
+          Alert.alert(
+            'Envoyer la bienvenue ?',
+            `${saved.pending} inscrit${saved.pending > 1 ? 's' : ''} ${saved.pending > 1 ? 'vont' : 'va'} recevoir le message enregistré (avec une notification).`,
+            [
+              { text: 'Annuler', style: 'cancel' },
+              {
+                text: 'Envoyer',
+                onPress: () =>
+                  run('backfill', async () => {
+                    const n = await welcomeBackfill();
+                    await reload();
+                    Alert.alert('Envoyé', `${n} message${n > 1 ? 's' : ''} de bienvenue envoyé${n > 1 ? 's' : ''}.`);
+                  }),
+              },
+            ],
+          )
+        }
+      />
+      {(!saved.enabled || dirty) && saved.pending > 0 && (
+        <Text style={styles.small}>{dirty ? 'Enregistre le texte avant l’envoi aux inscrits existants.' : 'Active la bienvenue pour l’envoyer aux inscrits existants.'}</Text>
       )}
     </View>
   );
@@ -1114,4 +1276,6 @@ const useStyles = makeStyles((Colors) => ({
   actionDanger: { backgroundColor: Colors.danger },
   actionText: { fontWeight: '800', color: Colors.text, fontSize: 13 },
   actionTextDanger: { color: Colors.white },
+  welcomeBubble: { backgroundColor: Colors.background, borderRadius: 16, borderBottomLeftRadius: 6, padding: 12 },
+  welcomeText: { fontSize: 15, lineHeight: 21, color: Colors.text },
 }));

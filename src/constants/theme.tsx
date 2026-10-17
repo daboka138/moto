@@ -20,6 +20,8 @@ export const LightColors = {
   accent: ACCENT,
   accentDark: ACCENT_DARK,
   accentSoft: '#E0F2FE',
+  /** Texte / icône posés sur accentSoft (badges) */
+  accentOnSoft: '#0369A1',
   /** Messages : « Vu » sous la bulle (✓✓ bleu) */
   seenTick: '#1D4ED8',
   /** Messages : ✓✓ vu, sur ma bulle (bleu ciel dans les deux thèmes) */
@@ -80,6 +82,7 @@ export type Palette = typeof LightColors;
 export const DarkColors: Palette = {
   ...LightColors,
   accentSoft: '#0C2D40',
+  accentOnSoft: '#7DD3FC',
   seenTick: '#93C5FD',
   seenTickOnBubble: '#0B3B8C',
 

@@ -7,6 +7,7 @@ import { ChatView, type ChatPerson, type MessageStatus, type ReactionSummary } f
 import { MessageMenu, type MessageAction } from '@/components/message-menu';
 import { WallpaperViewer } from '@/components/wallpaper-viewer';
 import { copyText } from '@/lib/clipboard';
+import { CREATOR_BADGE, useCreatorId } from '@/lib/creator';
 import { errorMessage } from '@/lib/errors';
 import {
   deleteMessageForAll,
@@ -66,6 +67,7 @@ function RealChat({ id }: { id: string }) {
   const userId = session?.user.id ?? '';
   const { conversations, refresh } = useMessages();
   const conv = conversations.find((c) => c.id === id);
+  const creatorId = useCreatorId();
   const [messages, setMessages] = useState<{ id: string; list: Message[] } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   // Réactions : message → (membre → emoji)
@@ -399,6 +401,7 @@ function RealChat({ id }: { id: string }) {
         avatarIcon={conv?.kind === 'group' ? 'people' : 'flag'}
         isGroup={isGroup}
         subtitle={subtitle}
+        titleBadge={conv?.kind === 'direct' && !!creatorId && conv.otherId === creatorId ? CREATOR_BADGE : null}
         onTitlePress={conv ? openTitle : undefined}
         onMenu={conv ? menu : undefined}
         onWallpaper={showWallpaper}

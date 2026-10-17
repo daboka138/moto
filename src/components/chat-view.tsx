@@ -31,6 +31,8 @@ type Props = {
   isGroup: boolean;
   /** Sous-titre (membres d'un groupe, sourdine…) */
   subtitle?: string | null;
+  /** Petit badge à côté du nom (« Créateur de PasseRyder ») */
+  titleBadge?: string | null;
   onTitlePress?: () => void;
   onMenu?: () => void;
   /** Icône 👁 de la barre du haut : voir le fond d'écran (ou le choisir) */
@@ -288,9 +290,19 @@ export function ChatView(p: Props) {
             </View>
           )}
           <View style={styles.flex}>
-            <Text style={styles.headerText} numberOfLines={1}>
-              {p.title}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.headerText, styles.shrink]} numberOfLines={1}>
+                {p.title}
+              </Text>
+              {!!p.titleBadge && (
+                <View style={styles.titleBadge}>
+                  <Ionicons name="shield-checkmark" size={11} color={Colors.accentOnSoft} />
+                  <Text style={styles.titleBadgeText} numberOfLines={1}>
+                    {p.titleBadge}
+                  </Text>
+                </View>
+              )}
+            </View>
             {!!p.subtitle && (
               <Text style={styles.headerSub} numberOfLines={1}>
                 {p.subtitle}
@@ -429,6 +441,19 @@ const useStyles = makeStyles((Colors) => ({
   headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },
   groupAvatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
   headerText: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shrink: { flexShrink: 1 },
+  titleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    flexShrink: 0,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: Colors.accentSoft,
+  },
+  titleBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.accentOnSoft },
   headerSub: { fontSize: 12, color: Colors.textMuted },
   list: { padding: 12, gap: 4 },
   empty: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
