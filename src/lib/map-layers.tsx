@@ -12,6 +12,8 @@ const KEYS = {
   places: 'moto.map.showPlaces',
   parkings: 'moto.map.showParkings',
   hiddenPlaceKinds: 'moto.map.hiddenPlaceKinds',
+  allDates: 'moto.map.allDates',
+  allSpots: 'moto.map.allSpots',
   style: 'moto.map.style',
 };
 
@@ -53,7 +55,18 @@ type MapLayers = {
   setHiddenPlaceKinds: (v: PlaceKind[]) => void;
   mapStyle: MapStyle;
   setMapStyle: (v: MapStyle) => void;
+  /** Balades et événements de toutes les dates (sinon : 7 prochains jours, + ceux où je suis inscrit) */
+  allDates: boolean;
+  setAllDates: (v: boolean) => void;
+  /** Tous les spots (sinon : notés ★ 4 et plus, + les miens) */
+  allSpots: boolean;
+  setAllSpots: (v: boolean) => void;
 };
+
+/** Par défaut, balades et événements des 7 prochains jours seulement */
+export const MAP_DEFAULT_DAYS = 7;
+/** Par défaut, spots notés au moins 4 */
+export const MAP_MIN_SPOT_RATING = 4;
 
 const MapLayersContext = createContext<MapLayers | null>(null);
 
@@ -62,6 +75,15 @@ function read(key: string) {
     return localStorage.getItem(key) !== '0';
   } catch {
     return true;
+  }
+}
+
+/** Réglage désactivé par défaut */
+function readOff(key: string) {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
   }
 }
 
@@ -80,6 +102,9 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showParkings, setParkings] = useState(() => read(KEYS.parkings));
   const [hiddenPlaceKinds, setHidden] = useState(readHiddenKinds);
   const [mapStyle, setStyle] = useState(readStyle);
+  // Désactivés par défaut (absents = « 0 »)
+  const [allDates, setDates] = useState(() => readOff(KEYS.allDates));
+  const [allSpots, setSpots] = useState(() => readOff(KEYS.allSpots));
   return (
     <MapLayersContext.Provider
       value={{
@@ -111,6 +136,16 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
           } catch {
             // pas grave
           }
+        },
+        allDates,
+        setAllDates: (v) => {
+          setDates(v);
+          write(KEYS.allDates, v);
+        },
+        allSpots,
+        setAllSpots: (v) => {
+          setSpots(v);
+          write(KEYS.allSpots, v);
         },
         mapStyle,
         setMapStyle: (v) => {

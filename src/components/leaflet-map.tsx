@@ -5,6 +5,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { mapCss, MAPTILER_KEY, OSM_COPYRIGHT, TILES } from '@/components/map-style';
 import type { MapProps } from '@/components/map-types';
 import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette } from '@/constants/theme';
+import { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from '@/lib/map-cluster';
 import { useMapDark } from '@/lib/use-map-dark';
 
 export type { MapMarker, MapPin, MapPosition, MapRoute } from '@/components/map-types';
@@ -407,11 +408,47 @@ function buildHtml(Colors: Palette, dark: boolean) {
     if (count !== renderedCount) { renderedCount = count; post({ type: 'markers', count: count }); }
   };
 
+  ${CLUSTER_JS}
   var pins = {};
+  var pinList = [];
   window.setPins = function (list) {
+    pinList = list;
+    renderPins();
+  };
+  /** Groupe de repères : pastille avec le nombre (couleur du type le plus présent), toucher = zoom dessus */
+  function addCluster(group) {
+    var lat = 0, lng = 0, counts = {}, top = 'meeting';
+    group.forEach(function (p) {
+      lat += p.latitude; lng += p.longitude;
+      counts[p.kind] = (counts[p.kind] || 0) + 1;
+      if (counts[p.kind] > (counts[top] || 0)) top = p.kind;
+    });
+    var size = group.length < 10 ? 36 : group.length < 100 ? 44 : 52;
+    var el = document.createElement('div');
+    el.className = 'cluster ' + top;
+    el.textContent = clusterLabel(group.length);
+    var icon = L.divIcon({ className: 'cluster-wrap', html: el, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+    var marker = L.marker([lat / group.length, lng / group.length], { icon: icon, zIndexOffset: 400 }).addTo(map);
+    marker.on('click', function () {
+      var b = L.latLngBounds(group.map(function (p) { return [p.latitude, p.longitude]; }));
+      var z = map.getZoom();
+      if (b.getNorthEast().equals(b.getSouthWest())) map.setView(b.getCenter(), Math.min(z + 3, 18));
+      else map.fitBounds(b, { padding: [60, 60], maxZoom: Math.max(z + 1, Math.min(z + 4, ${CLUSTER_MAX_ZOOM})) });
+    });
+    pins['cluster:' + Object.keys(pins).length] = marker;
+  }
+  function renderPins() {
     Object.keys(pins).forEach(function (id) { map.removeLayer(pins[id]); });
     pins = {};
-    list.forEach(function (p) {
+    var z = map.getZoom();
+    var loose = [], grouped = [];
+    pinList.forEach(function (p) { (p.cluster && z < ${CLUSTER_MAX_ZOOM} ? grouped : loose).push(p); });
+    var items = grouped.map(function (p) { var pt = map.project([p.latitude, p.longitude], z); return { x: pt.x, y: pt.y, p: p }; });
+    clusterPoints(items, ${CLUSTER_RADIUS_PX}).forEach(function (g) {
+      if (g.length > 1) addCluster(g.map(function (o) { return o.p; }));
+      else loose.push(g[0].p);
+    });
+    loose.forEach(function (p) {
       var el = document.createElement('div');
       var icon;
       if (p.sign) {
@@ -439,7 +476,9 @@ function buildHtml(Colors: Palette, dark: boolean) {
       marker.on('click', function () { post({ type: 'pin', id: p.id }); });
       pins[p.id] = marker;
     });
-  };
+  }
+  // Regroupement recalculé à chaque changement de zoom (pas pendant un simple déplacement)
+  map.on('zoomend', function () { if (pinList.length) renderPins(); });
 
   var routeLayer = L.layerGroup().addTo(map);
   // Tracés dessinés sur un canvas, pas en SVG : pendant un zoom au doigt, le WebView Android

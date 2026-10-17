@@ -52,6 +52,17 @@ export function mapCss(Colors: Palette) {
     font: 900 15px sans-serif;
   }
   .pin.parking::after { content: '🏍'; font-size: 9px; margin-left: 1px; align-self: flex-end; margin-bottom: 3px; }
+  /* Repères regroupés : pastille avec le nombre, plus grosse quand il y en a beaucoup */
+  .cluster-wrap { background: none; border: none; }
+  .cluster {
+    width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%;
+    background: ${Colors.accent}; color: ${Colors.white}; border: 3px solid ${Colors.white};
+    font: 800 13px sans-serif; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 4px ${Colors.accent}55, 0 2px 6px ${Colors.markerShadow};
+  }
+  .cluster.parking { background: ${Colors.parkingPin}; box-shadow: 0 0 0 4px ${Colors.parkingPin}55, 0 2px 6px ${Colors.markerShadow}; }
+  .cluster.place { background: ${Colors.placePin}; box-shadow: 0 0 0 4px ${Colors.placePin}55, 0 2px 6px ${Colors.markerShadow}; }
+  .cluster.event { background: ${Colors.eventPin}; box-shadow: 0 0 0 4px ${Colors.eventPin}55, 0 2px 6px ${Colors.markerShadow}; }
   .pin.report {
     background: ${Colors.white}; border: 3px solid ${Colors.danger}; color: ${Colors.text}; font-size: 18px;
     min-width: 36px; height: 36px; border-radius: 18px; padding: 0;

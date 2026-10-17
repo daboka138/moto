@@ -1,10 +1,11 @@
 import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { mapCss, MAPTILER_KEY, OSM_COPYRIGHT, TILES } from '@/components/map-style';
+import { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX, type ClusterFn } from '@/lib/map-cluster';
 import type { MapMarker, MapPin, MapProps } from '@/components/map-types';
 import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette } from '@/constants/theme';
 import { useMapDark } from '@/lib/use-map-dark';
@@ -69,6 +70,25 @@ function pinIcon(p: MapPin) {
   el.className = 'pin ' + p.kind;
   el.textContent = p.label;
   return L.divIcon({ className: 'pin-wrap', html: el, iconSize: undefined, iconAnchor: [14, 14] });
+}
+
+// Même fonction de regroupement que la page Leaflet de l'app (lib/map-cluster.ts)
+const clusterPoints = new Function(`${CLUSTER_JS}; return clusterPoints;`)() as ClusterFn;
+const clusterLabel = new Function(`${CLUSTER_JS}; return clusterLabel;`)() as (n: number) => string;
+
+/** Pastille d'un groupe de repères : nombre, couleur du type le plus présent */
+function clusterIcon(group: MapPin[]) {
+  const counts: Record<string, number> = {};
+  let top: string = 'meeting';
+  for (const p of group) {
+    counts[p.kind] = (counts[p.kind] ?? 0) + 1;
+    if (counts[p.kind] > (counts[top] ?? 0)) top = p.kind;
+  }
+  const size = group.length < 10 ? 36 : group.length < 100 ? 44 : 52;
+  const el = document.createElement('div');
+  el.className = `cluster ${top}`;
+  el.textContent = clusterLabel(group.length);
+  return L.divIcon({ className: 'cluster-wrap', html: el, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
 function meIcon(Colors: Palette) {
@@ -281,18 +301,53 @@ export function LeafletMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markersJson, selectedMarkerId]);
 
-  // Repères : RDV, départ/arrivée, signalements, point posé
+  // Repères : RDV, départ/arrivée, signalements, point posé ; balades / événements / spots / parkings
+  // regroupés selon le zoom (recalculé à chaque zoom)
   const pinsJson = JSON.stringify(pins);
+  const [pinZoom, setPinZoom] = useState(0);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const onZoom = () => setPinZoom(map.getZoom());
+    map.on('zoomend', onZoom);
+    return () => {
+      map.off('zoomend', onZoom);
+    };
+  }, []);
   useEffect(() => {
     const group = pinsRef.current;
-    if (!group) return;
+    const map = mapRef.current;
+    if (!group || !map) return;
     group.clearLayers();
-    for (const p of JSON.parse(pinsJson) as MapPin[]) {
+    const z = map.getZoom();
+    const all = JSON.parse(pinsJson) as MapPin[];
+    const loose = all.filter((p) => !p.cluster || z >= CLUSTER_MAX_ZOOM);
+    const items = all
+      .filter((p) => p.cluster && z < CLUSTER_MAX_ZOOM)
+      .map((p) => ({ ...map.project([p.latitude, p.longitude], z), p }));
+    for (const g of clusterPoints(items, CLUSTER_RADIUS_PX)) {
+      if (g.length === 1) {
+        loose.push(g[0].p);
+        continue;
+      }
+      const members = g.map((o) => o.p);
+      const lat = members.reduce((s, p) => s + p.latitude, 0) / members.length;
+      const lng = members.reduce((s, p) => s + p.longitude, 0) / members.length;
+      L.marker([lat, lng], { icon: clusterIcon(members), zIndexOffset: 400 })
+        .on('click', () => {
+          const b = L.latLngBounds(members.map((p) => [p.latitude, p.longitude] as [number, number]));
+          const zoom = map.getZoom();
+          if (b.getNorthEast().equals(b.getSouthWest())) map.setView(b.getCenter(), Math.min(zoom + 3, 18));
+          else map.fitBounds(b, { padding: [60, 60], maxZoom: Math.max(zoom + 1, Math.min(zoom + 4, CLUSTER_MAX_ZOOM)) });
+        })
+        .addTo(group);
+    }
+    for (const p of loose) {
       L.marker([p.latitude, p.longitude], { icon: pinIcon(p), zIndexOffset: p.kind === 'dropped' ? 2000 : p.kind === 'parking' ? 300 : 500 })
         .on('click', () => handlers.current.onPinPress?.(p.id))
         .addTo(group);
     }
-  }, [pinsJson]);
+  }, [pinsJson, pinZoom]);
 
   // Tracés : alternatives d'abord, l'itinéraire choisi par-dessus
   const routesJson = JSON.stringify(routes);

@@ -362,7 +362,9 @@ export const FICHES: Fiche[] = [
     etapes: [
       'À droite de la Carte : ⚠️ affiche ou masque les signalements.',
       '🚩 affiche ou masque les balades et les événements.',
-      '☕ ouvre les filtres de la carte : 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant) et spots (café, point de vue, belle route, station, garage, parking).',
+      '☕ ouvre les filtres de la carte : 🗓️ Toutes les dates, 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant) et spots (café, point de vue, belle route, station, garage, parking), avec « Tous les spots ».',
+      'Par défaut, la carte montre les balades et événements des 7 prochains jours (plus ceux où tu es inscrit) et les spots notés ★ 4 et plus (plus les tiens).',
+      'Beaucoup de repères au même endroit ? Ils sont regroupés en une pastille avec le nombre (« 12 ») : touche-la ou zoome pour les voir. Les amis en direct et les dangers ne sont jamais regroupés.',
       'Style de carte (Classique, Sombre, Automatique) : Profil › ⚙️ Paramètres › Style de carte.',
     ],
     astuces: [

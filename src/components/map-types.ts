@@ -32,6 +32,8 @@ export type MapPin = {
   label: string;
   /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
   sign?: SignStyle;
+  /** Regroupable avec ses voisins selon le zoom (balades, événements, spots, parkings ; jamais les dangers) */
+  cluster?: boolean;
 };
 
 /** Tracé : [[lat, lng], ...]. muted : itinéraire alternatif, plus fin et dessous */

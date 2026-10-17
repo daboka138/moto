@@ -6,7 +6,7 @@ import { makeStyles, useColors } from '@/constants/theme';
 import { useMapLayers } from '@/lib/map-layers';
 import { PLACE_KINDS } from '@/lib/places';
 
-/** Filtres de la carte : parkings moto OSM, spots (tout / par catégorie), mémorisés. */
+/** Filtres de la carte : dates des balades, parkings moto OSM, spots (tout / par catégorie), mémorisés. */
 export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -21,6 +21,20 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Fermer">
               <Ionicons name="close" size={24} color={Colors.textMuted} />
             </Pressable>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Text style={styles.label}>🗓️ Toutes les dates</Text>
+              <Text style={styles.sub}>
+                Balades et événements à venir. Sinon : les 7 prochains jours (et ceux où tu es inscrit)
+              </Text>
+            </View>
+            <Switch
+              value={layers.allDates}
+              onValueChange={layers.setAllDates}
+              trackColor={{ true: Colors.accent, false: Colors.border }}
+              thumbColor={Colors.white}
+            />
           </View>
           <View style={styles.row}>
             <View style={styles.flex}>
@@ -45,6 +59,18 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
           </View>
           {layers.showPlaces && (
             <>
+              <View style={styles.row}>
+                <View style={styles.flex}>
+                  <Text style={styles.label}>Tous les spots</Text>
+                  <Text style={styles.sub}>Sinon : les spots notés ★ 4 et plus (et les tiens)</Text>
+                </View>
+                <Switch
+                  value={layers.allSpots}
+                  onValueChange={layers.setAllSpots}
+                  trackColor={{ true: Colors.accent, false: Colors.border }}
+                  thumbColor={Colors.white}
+                />
+              </View>
               <Text style={styles.hint}>Catégories affichées</Text>
               <View style={styles.chips}>
                 {PLACE_KINDS.map((k) => (

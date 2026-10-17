@@ -45,7 +45,7 @@ import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
 import { needsFuel, useFuelAlert } from '@/lib/fuel';
 import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garage';
 import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
-import { useMapLayers } from '@/lib/map-layers';
+import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
@@ -408,10 +408,19 @@ export default function MapScreen() {
 
   // ---------- Lieux motards et événements ----------
   const { events } = useEvents();
+  // Par défaut : spots bien notés, balades / événements des 7 prochains jours (le reste via les Filtres)
   const mapPlaces =
-    navigating || !layers.showPlaces ? [] : (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind));
+    navigating || !layers.showPlaces
+      ? []
+      : (communityPlaces ?? []).filter(
+          (p) =>
+            !layers.hiddenPlaceKinds.includes(p.kind) &&
+            (layers.allSpots || p.createdBy === userId || (p.rating ?? 0) >= MAP_MIN_SPOT_RATING),
+        );
   const mapEvents =
-    navigating || !layers.showRides ? [] : (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS));
+    navigating || !layers.showRides
+      ? []
+      : (events ?? []).filter((e) => isWithinDays(e.startsAt, layers.allDates || e.myStatus ? EVENTS_ON_MAP_DAYS : MAP_DEFAULT_DAYS));
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(mapView, layers.showParkings && !navigating);
@@ -424,13 +433,14 @@ export default function MapScreen() {
         (r) =>
           (r.visibility === 'public' || r.visibility === 'friends' || r.joined) &&
           r.status !== 'ended' &&
-          isWithinDays(r.meetingAt, RIDES_ON_MAP_DAYS),
+          isWithinDays(r.meetingAt, layers.allDates || r.joined ? RIDES_ON_MAP_DAYS : MAP_DEFAULT_DAYS),
       );
   const selectedRide = layers.showRides ? (mapRides.find((r) => RIDE_PREFIX + r.id === selectedId) ?? null) : null;
   const pins: MapPin[] = [
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
       kind: 'meeting' as const,
+      cluster: true,
       label: rideLabel(r),
       latitude: r.meeting.latitude,
       longitude: r.meeting.longitude,
@@ -438,6 +448,7 @@ export default function MapScreen() {
     ...mapPlaces.map((p) => ({
       id: PLACE_PREFIX + p.id,
       kind: 'place' as const,
+      cluster: true,
       label: placeKindInfo(p.kind).emoji,
       latitude: p.latitude,
       longitude: p.longitude,
@@ -445,6 +456,7 @@ export default function MapScreen() {
     ...parkings.map((p) => ({
       id: PARKING_PREFIX + p.id,
       kind: 'parking' as const,
+      cluster: true,
       label: 'P',
       latitude: p.latitude,
       longitude: p.longitude,
@@ -452,6 +464,7 @@ export default function MapScreen() {
     ...mapEvents.map((e) => ({
       id: EVENT_PREFIX + e.id,
       kind: 'event' as const,
+      cluster: true,
       label: eventLabel(e.kind, e.startsAt),
       latitude: e.place.latitude,
       longitude: e.place.longitude,

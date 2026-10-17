@@ -18,7 +18,7 @@ import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
-import { useMapLayers } from '@/lib/map-layers';
+import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { usePrivacy } from '@/lib/privacy-context';
 import { saveLastPosition, useDefaultMapView } from '@/lib/map-start';
@@ -130,7 +130,7 @@ export default function MapScreen() {
     (r) =>
       (r.visibility === 'public' || r.visibility === 'friends' || r.joined) &&
       r.status !== 'ended' &&
-      isWithinDays(r.meetingAt, RIDES_ON_MAP_DAYS),
+      isWithinDays(r.meetingAt, layers.allDates || r.joined ? RIDES_ON_MAP_DAYS : MAP_DEFAULT_DAYS),
   );
   const selectedRide = layers.showRides ? (mapRides.find((r) => RIDE_PREFIX + r.id === selectedId) ?? null) : null;
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
@@ -139,18 +139,28 @@ export default function MapScreen() {
   // Lieux motards et événements
   const { places: communityPlaces } = useCommunityPlaces(center ?? me);
   const { events } = useEvents();
-  const mapPlaces = layers.showPlaces ? (communityPlaces ?? []).filter((p) => !layers.hiddenPlaceKinds.includes(p.kind)) : [];
-  const mapEvents = layers.showRides ? (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS)) : [];
+  // Par défaut : spots bien notés, balades / événements des 7 prochains jours (le reste via les Filtres)
+  const mapPlaces = layers.showPlaces
+    ? (communityPlaces ?? []).filter(
+        (p) =>
+          !layers.hiddenPlaceKinds.includes(p.kind) &&
+          (layers.allSpots || p.createdBy === userId || (p.rating ?? 0) >= MAP_MIN_SPOT_RATING),
+      )
+    : [];
+  const mapEvents = layers.showRides
+    ? (events ?? []).filter((e) => isWithinDays(e.startsAt, layers.allDates || e.myStatus ? EVENTS_ON_MAP_DAYS : MAP_DEFAULT_DAYS))
+    : [];
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(center ? { center, zoom } : null, layers.showParkings);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
 
   const pins: MapPin[] = [
-    ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, label: 'P', latitude: p.latitude, longitude: p.longitude })),
+    ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, cluster: true, label: 'P', latitude: p.latitude, longitude: p.longitude })),
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
       kind: 'meeting' as const,
+      cluster: true,
       label: rideLabel(r),
       latitude: r.meeting.latitude,
       longitude: r.meeting.longitude,
@@ -158,6 +168,7 @@ export default function MapScreen() {
     ...mapPlaces.map((p) => ({
       id: PLACE_PREFIX + p.id,
       kind: 'place' as const,
+      cluster: true,
       label: placeKindInfo(p.kind).emoji,
       latitude: p.latitude,
       longitude: p.longitude,
@@ -165,6 +176,7 @@ export default function MapScreen() {
     ...mapEvents.map((e) => ({
       id: EVENT_PREFIX + e.id,
       kind: 'event' as const,
+      cluster: true,
       label: `${eventKindInfo(e.kind).emoji} ${new Date(e.startsAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`,
       latitude: e.place.latitude,
       longitude: e.place.longitude,
