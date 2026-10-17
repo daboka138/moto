@@ -94,6 +94,7 @@ export function LeafletMap({
   onMapLongPress,
   onMarkersRendered,
   onViewChange,
+  defaultView,
 }: MapProps) {
   const { colors } = useTheme();
   const mapDark = useMapDark(position ?? null);
@@ -122,7 +123,11 @@ export function LeafletMap({
     pinsRef.current = L.layerGroup().addTo(map);
     routesRef.current = L.layerGroup().addTo(map);
 
-    map.on('dragstart', () => handlers.current.onUserPan?.());
+    map.on('dragstart', () => {
+      // Carte déplacée à la main : la première position ne la recentre plus de force
+      centeredRef.current = true;
+      handlers.current.onUserPan?.();
+    });
     // Pas d'animation de déplacement des pastilles pendant un zoom
     map.on('zoomstart', () => el.classList.add('zooming'));
     map.on('zoomend', () => setTimeout(() => el.classList.remove('zooming'), 50));
@@ -228,6 +233,16 @@ export function LeafletMap({
       map.panTo(ll);
     }
   }, [lat, lng, accuracy, follow, colors]);
+
+  // Vue de départ (dernière position, ville du profil…) tant que rien n'a centré la carte
+  const dvLat = defaultView?.latitude;
+  const dvLng = defaultView?.longitude;
+  const dvZoom = defaultView?.zoom;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || centeredRef.current || dvLat == null || dvLng == null) return;
+    map.setView([dvLat, dvLng], dvZoom ?? 13, { animate: false });
+  }, [dvLat, dvLng, dvZoom]);
 
   // Pastilles des motards
   const markersJson = JSON.stringify(markers);

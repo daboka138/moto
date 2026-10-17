@@ -96,6 +96,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
   function userMoved() {
     lastDragAt = Date.now();
     me.follow = false;
+    // Carte déplacée à la main : la première position GPS ne la recentre plus de force
+    me.centered = true;
     resetNorth = false;
     post({ type: 'pan' });
   }
@@ -341,6 +343,11 @@ function buildHtml(Colors: Palette, dark: boolean) {
     wake();
   };
 
+  /** Vue de départ (dernière position, ville…) : seulement si rien n'a encore centré la carte */
+  window.setDefaultView = function (v) {
+    if (!me.centered && v) map.setView([v.latitude, v.longitude], v.zoom, { animate: false });
+  };
+
   window.northUp = function () {
     resetNorth = true;
     wake();
@@ -529,6 +536,7 @@ export function LeafletMap({
   beepKey = 0,
   onBeepFailed,
   onViewChange,
+  defaultView,
 }: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -555,6 +563,15 @@ export function LeafletMap({
     if (!pageLoads) return;
     webRef.current?.injectJavaScript(`window.setHeading && window.setHeading(${JSON.stringify(heading)}); true;`);
   }, [pageLoads, heading]);
+
+  const dvLat = defaultView?.latitude;
+  const dvLng = defaultView?.longitude;
+  const dvZoom = defaultView?.zoom;
+  useEffect(() => {
+    if (!pageLoads || dvLat == null || dvLng == null) return;
+    const v = JSON.stringify({ latitude: dvLat, longitude: dvLng, zoom: dvZoom ?? 13 });
+    webRef.current?.injectJavaScript(`window.setDefaultView && window.setDefaultView(${v}); true;`);
+  }, [pageLoads, dvLat, dvLng, dvZoom]);
 
   useEffect(() => {
     if (!pageLoads || !northUpKey) return;

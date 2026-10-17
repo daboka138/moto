@@ -250,7 +250,8 @@
       <h3>Données qui restent sur ton téléphone (ou ton navigateur)</h3>
       <ul>
         <li>Ta session de connexion, tes réglages (thème, style de carte, voix), l'historique de tes recherches de destination et de tes recherches de motards, balades, lieux et événements,
-          tes lieux favoris (Maison, Travail…), la navigation en cours (pour la reprendre si l'application redémarre) et
+          tes lieux favoris (Maison, Travail…), ta dernière position connue (arrondie à environ 10 m, pour ouvrir la carte au bon
+          endroit avant le GPS), la navigation en cours (pour la reprendre si l'application redémarre) et
           l'historique « Mes trajets » (destination, date, distance, durée, vitesses moyenne et maximale, et la trace GPS
           du trajet pour pouvoir l'exporter en fichier GPX). Les fichiers GPX que tu importes ou exportes restent sur ton
           appareil, sauf si tu crées une balade avec (son tracé est alors celui de la balade).
@@ -300,9 +301,12 @@
           pour trouver la route où tu es. Désactivable dans Paramètres › Voix et alertes.</li>
         <li><strong>Stations, cafés et restaurants sur ton trajet, cols franchis</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de
           l'itinéraire devant toi quand tu fais cette recherche, et points de la trace d'un trajet terminé pour y trouver les cols (sans
-          aucune information sur toi). <strong>Parkings moto</strong> de la carte et recherches « autour de moi » (station, café,
-          parking moto, garage moto) : la zone de carte affichée ou ta position arrondie, sans aucune information sur toi (zones
-          gardées 14 jours sur ton téléphone).</li>
+          aucune information sur toi). <strong>Parkings moto</strong> hors de France : la zone de carte affichée, sans aucune
+          information sur toi (zones gardées 14 jours sur ton téléphone). En France, les parkings moto sont une copie des données
+          OpenStreetMap hébergée par PasseRyder (seule la case de carte d'environ 50 km est demandée à notre serveur).</li>
+        <li><strong>Recherches « autour de moi »</strong> (station, café / resto, parking moto, garage moto) : Photon (komoot, Allemagne) —
+          ta position arrondie à environ 1 km, sans aucune information sur toi (résultats gardés 24 h sur ton téléphone). La ville de
+          ton profil peut être envoyée à la Géoplateforme de l'IGN pour centrer la carte quand ta position est inconnue.</li>
         <li><strong>Météo sur le trajet et dénivelé des sorties</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire, de la balade ou de la sortie
           (arrondis à environ 10 m), sans aucune information sur toi.</li>
         <li><strong>Recherche d'adresse et de lieux</strong> : Photon (komoot, Allemagne), Géoplateforme de l'IGN (France) et Nominatim (OpenStreetMap, UE) —

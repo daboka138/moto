@@ -21,6 +21,7 @@ import type { Place } from '@/lib/geocoding';
 import { useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { usePrivacy } from '@/lib/privacy-context';
+import { saveLastPosition, useDefaultMapView } from '@/lib/map-start';
 import { photoUrl } from '@/lib/profile';
 import { deleteReport, reportInfo } from '@/lib/reports';
 import { fetchRide, type RideSummary } from '@/lib/rides';
@@ -49,7 +50,11 @@ const EVENTS_ON_MAP_DAYS = 60;
 export default function MapScreen() {
   const Colors = useColors();
   const styles = useStyles();
-  const { session } = useSession();
+  const { session, profile } = useSession();
+  // Avant ma position : dernière position connue (sur cet appareil), sinon ville du profil, sinon la France
+  const defaultView = useDefaultMapView(profile?.city);
+  // Navigateur qui n'a pas encore demandé la position : phrase claire + bouton (pas de fenêtre surprise)
+  const [askLocation, setAskLocation] = useState(false);
   const userId = session?.user.id;
   const { rides } = useUpcomingRides();
   const { settings, toggleGhost } = usePrivacy();
@@ -78,7 +83,9 @@ export default function MapScreen() {
       }
       const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy });
+      saveLastPosition(p.coords);
       setFollow(true);
+      setAskLocation(false);
     } catch (e) {
       Alert.alert('Position', e instanceof Error ? e.message : String(e));
     } finally {
@@ -89,10 +96,15 @@ export default function MapScreen() {
     let cancelled = false;
     Location.getForegroundPermissionsAsync()
       .then(async (perm) => {
-        if (perm.status !== 'granted' || cancelled) return;
+        if (cancelled) return;
+        if (perm.status !== 'granted') {
+          if (perm.status === 'undetermined') setAskLocation(true);
+          return;
+        }
         const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         if (cancelled) return;
         setMe({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy });
+        saveLastPosition(p.coords);
         setFollow(true);
       })
       .catch(() => {});
@@ -277,6 +289,7 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <LeafletMap
+        defaultView={defaultView}
         position={me ? { ...me, heading: null } : null}
         follow={follow}
         onUserPan={() => setFollow(false)}
@@ -439,6 +452,22 @@ export default function MapScreen() {
               onClose={() => setSelectedId(null)}
             />
           )}
+          {askLocation && !dropped && !selectedRide && !selectedReport && !selectedRider && (
+            <View style={styles.locationCard}>
+              <Text style={styles.appCardTitle}>📍 Centrer la carte sur toi ?</Text>
+              <Text style={styles.appCardHint}>
+                Ta position sert seulement à centrer la carte sur la version web : elle n’est jamais publiée ni envoyée à tes amis.
+              </Text>
+              <View style={styles.locationActions}>
+                <Pressable style={styles.locationButton} onPress={locate} disabled={locating}>
+                  <Text style={styles.locationButtonText}>{locating ? 'Localisation…' : 'Autoriser'}</Text>
+                </Pressable>
+                <Pressable onPress={() => setAskLocation(false)} hitSlop={8}>
+                  <Text style={styles.locationLater}>Plus tard</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
           {!dropped && !selectedRide && !selectedReport && !selectedRider && (
             <View style={styles.appCard}>
               <View style={styles.appCardText}>
@@ -550,6 +579,20 @@ const useStyles = makeStyles((Colors) => ({
   ghostBannerText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
   // Fiches en bas à gauche, largeur limitée sur grand écran (le zoom reste à droite)
   bottom: { position: 'absolute', left: 12, bottom: 12, right: 64, maxWidth: 440, gap: 12 },
+  locationCard: {
+    gap: 8,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  locationActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  locationButton: { backgroundColor: Colors.accent, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 9 },
+  locationButtonText: { color: Colors.white, fontWeight: '800' },
+  locationLater: { color: Colors.textMuted, fontWeight: '700' },
   rideClose: {
     position: 'absolute',
     top: -14,

@@ -55,6 +55,7 @@ import type { Place } from '@/lib/geocoding';
 import type { LivePositionInput } from '@/lib/live-location';
 import { usePrivacy } from '@/lib/privacy-context';
 import { categoryInfo } from '@/lib/moto';
+import { saveLastPosition, useDefaultMapView } from '@/lib/map-start';
 import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
 import type { PoiKind } from '@/lib/pois';
 import { addPending, PENDING_MAX_MS, readPending, removePending, usePassengerMode, usePendingDangers } from '@/lib/quick-danger';
@@ -73,7 +74,8 @@ import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
 
-type Status = 'loading' | 'denied' | 'ready';
+/** ask : pas encore demandé (carte d'explication avant la fenêtre d'Android) */
+type Status = 'loading' | 'ask' | 'denied' | 'ready';
 
 const REAL_PREFIX = 'user:';
 const REGROUP_PIN = 'regroup';
@@ -498,15 +500,28 @@ export default function MapScreen() {
   const selectedReal = liveRiders.find((r) => REAL_PREFIX + r.userId === selectedId) ?? null;
   const selectedReport = reports.find((r) => REPORT_PREFIX + r.id === selectedId) ?? null;
 
+  // Autorisation : déjà donnée → GPS ; jamais demandée → phrase claire puis fenêtre d'Android ;
+  // refusée → la carte reste utilisable (dernière position, ville du profil), bandeau pour l'activer
+  const [canAskAgain, setCanAskAgain] = useState(true);
   useEffect(() => {
     let cancelled = false;
-    Location.requestForegroundPermissionsAsync().then(({ status: permission }) => {
-      if (!cancelled) setStatus(permission === 'granted' ? 'ready' : 'denied');
-    });
+    Location.getForegroundPermissionsAsync()
+      .then((perm) => {
+        if (cancelled) return;
+        setCanAskAgain(perm.canAskAgain);
+        setStatus(perm.status === 'granted' ? 'ready' : perm.status === 'undetermined' && perm.canAskAgain ? 'ask' : 'denied');
+      })
+      .catch(() => !cancelled && setStatus('ask'));
     return () => {
       cancelled = true;
     };
   }, []);
+  const askLocation = async () => {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    setCanAskAgain(perm.canAskAgain);
+    setStatus(perm.status === 'granted' ? 'ready' : 'denied');
+  };
+  const defaultView = useDefaultMapView(profile?.city);
 
   // Fréquence adaptative : toutes les 0,5 s en navigation (flèche fluide), sinon 1 s / 5 m (batterie)
   useEffect(() => {
@@ -523,6 +538,7 @@ export default function MapScreen() {
           // Simulation de trajet (admin) : les vraies positions sont ignorées pendant la navigation
           if (navigating && getSimulation().active) return;
           setLocation(loc);
+          saveLastPosition(loc.coords);
           // Le cap GPS n'est fiable qu'en mouvement (> 5 km/h)
           if (loc.coords.heading != null && loc.coords.heading >= 0 && (loc.coords.speed ?? 0) > MOVING_MS) {
             setHeading(loc.coords.heading);
@@ -908,21 +924,26 @@ export default function MapScreen() {
     );
   }
 
-  if (status === 'denied') {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.message}>La localisation est nécessaire pour afficher ta position sur la carte.</Text>
-        <Pressable style={styles.button} onPress={() => Linking.openSettings()}>
-          <Text style={styles.buttonText}>Ouvrir les réglages</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container} onTouchStart={onDrivingTouch}>
-      <TipBubble id="carte" enabled={!navigating} />
+      <TipBubble id="carte" enabled={!navigating && status === 'ready'} />
+      {(status === 'ask' || status === 'denied') && (
+        <View style={styles.locationCard}>
+          <Text style={styles.locationTitle}>📍 {status === 'ask' ? 'Centrer la carte sur toi ?' : 'Localisation désactivée'}</Text>
+          <Text style={styles.locationText}>
+            {status === 'ask'
+              ? 'PasseRyder utilise ta position pour te montrer sur la carte, te guider et signaler les dangers. Elle n’est partagée qu’avec qui tu choisis (mode fantôme possible).'
+              : 'Sans ta position, la carte s’ouvre sur ta dernière position connue ou ta ville. Active-la pour te voir et être guidé.'}
+          </Text>
+          <Pressable
+            style={styles.button}
+            onPress={() => (status === 'ask' || canAskAgain ? askLocation() : Linking.openSettings())}>
+            <Text style={styles.buttonText}>{status === 'ask' || canAskAgain ? 'Autoriser la localisation' : 'Ouvrir les réglages'}</Text>
+          </Pressable>
+        </View>
+      )}
       <LeafletMap
+        defaultView={defaultView}
         position={position}
         navigating={navigating}
         follow={follow && nav.phase !== 'preview'}
@@ -1430,6 +1451,24 @@ const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   message: { fontSize: 16, textAlign: 'center', color: Colors.text },
+  locationCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    zIndex: 20,
+    gap: 10,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    elevation: 8,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  locationTitle: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  locationText: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
   overlay: {
     position: 'absolute',
     top: 0,

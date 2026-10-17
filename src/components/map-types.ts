@@ -68,4 +68,9 @@ export type MapProps = {
   onBeepFailed?: () => void;
   /** Centre et zoom de la carte après un déplacement (signalements, parkings moto de la zone) */
   onViewChange?: (center: LatLng, zoom: number) => void;
+  /**
+   * Vue tant qu'aucune position GPS n'est arrivée et que l'utilisateur n'a pas déplacé la carte
+   * (dernière position connue, ville du profil, France)
+   */
+  defaultView?: (LatLng & { zoom: number }) | null;
 };

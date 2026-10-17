@@ -175,6 +175,7 @@ export const FICHES: Fiche[] = [
     ],
     astuces: [
       'Tu as déplacé ou tourné la carte ? « Recentrer » la remet sur toi.',
+      'La carte s’ouvre sur toi, à l’échelle de la ville. Sans localisation, elle s’ouvre sur ta dernière position connue ou la ville de ton profil.',
       'Tourne la carte avec deux doigts ; touche la boussole pour remettre le nord en haut.',
     ],
     limites: [
