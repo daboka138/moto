@@ -65,8 +65,7 @@ export type Reaction = { messageId: string; userId: string; emoji: string | null
 export const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥', '🏍️'] as const;
 
 /** Délais (serveur) : modifier 1 h, supprimer pour tout le monde 1 h */
-export const EDIT_WINDOW_MS = 60 * 60_000;
-export const DELETE_FOR_ALL_WINDOW_MS = 60 * 60_000;
+export { DELETE_FOR_ALL_WINDOW_MS, EDIT_WINDOW_MS } from '@/lib/message-rules';
 export const GROUP_MAX_MEMBERS = 50;
 
 const BUCKET = 'chat';

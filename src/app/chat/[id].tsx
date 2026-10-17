@@ -5,12 +5,11 @@ import { Alert } from 'react-native';
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { ChatView, type ChatPerson, type MessageStatus, type ReactionSummary } from '@/components/chat-view';
 import { MessageMenu, type MessageAction } from '@/components/message-menu';
+import { WallpaperViewer } from '@/components/wallpaper-viewer';
 import { copyText } from '@/lib/clipboard';
 import { errorMessage } from '@/lib/errors';
 import {
-  DELETE_FOR_ALL_WINDOW_MS,
   deleteMessageForAll,
-  EDIT_WINDOW_MS,
   editMessage,
   fetchMembers,
   fetchMessages,
@@ -29,6 +28,7 @@ import {
   type Message,
   type Reaction,
 } from '@/lib/messages';
+import { canDeleteForAll, canEditMessage } from '@/lib/message-rules';
 import { useMessages } from '@/lib/messages-context';
 import { askBlock, askReport } from '@/lib/moderation';
 import type { PickedImage } from '@/lib/pick-image';
@@ -75,8 +75,9 @@ function RealChat({ id }: { id: string }) {
   const [replying, setReplying] = useState<Message | null>(null);
   // Petit message passager (« Copié »)
   const [flash, setFlash] = useState<string | null>(null);
-  // Menu d'un message : actions calculées à l'appui long (délais de 1 h)
-  const [menuFor, setMenuFor] = useState<{ message: Message; actions: MessageAction[] } | null>(null);
+  // Menu d'un message (par id : il suit la version à jour du message, temps réel compris)
+  const [menuForId, setMenuForId] = useState<string | null>(null);
+  const [viewingWallpaper, setViewingWallpaper] = useState(false);
   // Fond d'écran personnel (l'autre ne le voit pas)
   const { wallpaper } = useChatWallpaper(userId, id);
   const wallpaperPhotoUrl = useWallpaperPhotoUrl(wallpaper?.kind === 'photo' ? wallpaper.value : null);
@@ -280,11 +281,11 @@ function RealChat({ id }: { id: string }) {
       .catch((e) => Alert.alert('Suppression impossible', errorMessage(e)));
 
   // Menu d'un message : ✏️ Modifier (le mien, 1 h) en premier, puis Copier, Répondre, Supprimer
+  // (Modifier ne dépend que de l'auteur et de l'heure d'envoi, jamais du statut envoyé / reçu / vu)
   const messageActions = (m: Message): MessageAction[] => {
     const mine = m.senderId === userId;
-    const age = Date.now() - new Date(m.createdAt).getTime();
     const actions: MessageAction[] = [];
-    if (mine && m.body && !m.tripShareId && age < EDIT_WINDOW_MS)
+    if (canEditMessage(m, userId))
       actions.push({
         label: '✏️ Modifier',
         onPress: () => {
@@ -315,7 +316,7 @@ function RealChat({ id }: { id: string }) {
       label: '🗑️ Supprimer',
       destructive: true,
       onPress: () =>
-        mine && age < DELETE_FOR_ALL_WINDOW_MS
+        canDeleteForAll(m, userId)
           ? Alert.alert('Supprimer ce message ?', 'Pour tout le monde, il est effacé chez tous les membres.', [
               { text: 'Pour moi', onPress: () => removeForMe(m) },
               { text: 'Pour tout le monde', style: 'destructive', onPress: () => removeForAll(m) },
@@ -352,10 +353,13 @@ function RealChat({ id }: { id: string }) {
     ];
   };
 
-  const wallpaperOption: SheetOption = {
-    label: '🖼️ Fond d’écran',
-    onPress: () => router.push({ pathname: '/chat/wallpaper', params: { id } }),
-  };
+  const chooseWallpaper = () => router.push({ pathname: '/chat/wallpaper', params: { id } });
+  const wallpaperOption: SheetOption = { label: '🖼️ Fond d’écran', onPress: chooseWallpaper };
+  // Icône 👁 de la barre du haut : le fond en grand, ou directement le choix s'il n'y en a pas
+  const showWallpaper = () => (wallpaper ? setViewingWallpaper(true) : chooseWallpaper());
+
+  const shownList = messages?.id === id ? messages.list : null;
+  const menuMessage = menuForId ? (shownList?.find((m) => m.id === menuForId) ?? null) : null;
 
   const menu = () => {
     if (!conv) return;
@@ -397,7 +401,8 @@ function RealChat({ id }: { id: string }) {
         subtitle={subtitle}
         onTitlePress={conv ? openTitle : undefined}
         onMenu={conv ? menu : undefined}
-        messages={messages?.id === id ? messages.list : null}
+        onWallpaper={showWallpaper}
+        messages={shownList}
         meId={userId}
         people={people}
         imageUrl={(path) => images.get(path)}
@@ -405,7 +410,7 @@ function RealChat({ id }: { id: string }) {
         reactionsOf={reactionsOf}
         onReact={react}
         onSend={send}
-        onMessageLongPress={(m) => setMenuFor({ message: m, actions: messageActions(m) })}
+        onMessageLongPress={(m) => setMenuForId(m.id)}
         onMyMessagePress={showStatus}
         editing={editing}
         onCancelEdit={() => setEditing(null)}
@@ -418,12 +423,24 @@ function RealChat({ id }: { id: string }) {
         disabledReason={conv?.blocked ? 'Tu ne peux plus écrire dans cette conversation (motard bloqué).' : null}
       />
       <MessageMenu
-        visible={!!menuFor}
-        myReaction={menuFor ? (reactions.get(menuFor.message.id)?.get(userId) ?? null) : null}
-        onReact={menuFor && !menuFor.message.deletedAt ? (emoji) => menuFor && react(menuFor.message, emoji) : null}
-        actions={menuFor?.actions ?? []}
-        onClose={() => setMenuFor(null)}
+        visible={!!menuMessage}
+        myReaction={menuMessage ? (reactions.get(menuMessage.id)?.get(userId) ?? null) : null}
+        onReact={menuMessage && !menuMessage.deletedAt ? (emoji) => react(menuMessage, emoji) : null}
+        actions={menuMessage ? messageActions(menuMessage) : []}
+        onClose={() => setMenuForId(null)}
       />
+      {wallpaper && (
+        <WallpaperViewer
+          visible={viewingWallpaper}
+          wallpaper={wallpaper}
+          photoUrl={wallpaperPhotoUrl}
+          onClose={() => setViewingWallpaper(false)}
+          onChange={() => {
+            setViewingWallpaper(false);
+            chooseWallpaper();
+          }}
+        />
+      )}
     </>
   );
 }

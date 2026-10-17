@@ -33,6 +33,8 @@ type Props = {
   subtitle?: string | null;
   onTitlePress?: () => void;
   onMenu?: () => void;
+  /** Icône 👁 de la barre du haut : voir le fond d'écran (ou le choisir) */
+  onWallpaper?: () => void;
   /** Du plus récent au plus ancien */
   messages: Message[] | null;
   meId: string;
@@ -296,8 +298,13 @@ export function ChatView(p: Props) {
             )}
           </View>
         </Pressable>
+        {p.onWallpaper && (
+          <Pressable onPress={p.onWallpaper} hitSlop={10} accessibilityLabel={p.wallpaper ? 'Voir le fond d’écran' : 'Choisir un fond d’écran'}>
+            <Ionicons name="eye-outline" size={24} color={Colors.text} />
+          </Pressable>
+        )}
         {p.onMenu && (
-          <Pressable onPress={p.onMenu} hitSlop={12}>
+          <Pressable onPress={p.onMenu} hitSlop={12} accessibilityLabel="Options de la conversation">
             <Ionicons name="ellipsis-horizontal" size={24} color={Colors.text} />
           </Pressable>
         )}

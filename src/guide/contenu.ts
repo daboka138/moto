@@ -618,7 +618,7 @@ export const FICHES: Fiche[] = [
       'Accusés de lecture : Paramètres › Confidentialité. Coupés, les autres ne voient plus quand tu lis, et tu ne vois plus les leurs.',
       'Groupe : touche son nom pour les infos. Le créateur est admin : il renomme, ajoute ou retire des membres, nomme d’autres admins. Chacun peut quitter.',
       'Sourdine (menu « … » d’une conversation) : 1 heure, 8 heures ou toujours.',
-      'Fond d’écran (menu « … » › Fond d’écran) : un fond PasseRyder, une couleur ou ta photo, avec la luminosité. Il est rien qu’à toi (les autres ne le voient pas) ; « Appliquer à toutes mes conversations » pour le mettre partout, « Réinitialiser » pour revenir au fond normal.',
+      'Fond d’écran (menu « … » › Fond d’écran, ou l’icône 👁 en haut pour le voir en grand puis « Changer ») : un fond PasseRyder, une couleur ou ta photo, avec la luminosité. Il est rien qu’à toi (les autres ne le voient pas) ; « Appliquer à toutes mes conversations » pour le mettre partout, « Réinitialiser » pour revenir au fond normal.',
     ],
     limites: [
       'Saisie désactivée en navigation au-dessus de 10 km/h.',

@@ -1,1 +1,2 @@
+Messages : « Modifier » toujours proposé sur tes messages pendant 1 h (envoyés, reçus ou vus), et l'icône 👁 en haut de la conversation pour voir ton fond d'écran en grand.
 Modifier un message pendant 1 h, répondre, copier, et un fond d'écran pour chaque conversation.
