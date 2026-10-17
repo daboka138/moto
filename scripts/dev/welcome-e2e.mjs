@@ -3,6 +3,7 @@
 // compte créé = rien ; profil créé (fin d'inscription) = conversation avec le créateur + message
 // + notification ; vu par le membre comme une conversation normale (my_conversations).
 // Pas de réponse envoyée ici (elle notifierait le vrai compte admin) : voir welcome-test.sql.
+import './prod-guard.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

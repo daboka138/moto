@@ -1,6 +1,7 @@
 // Usage (bash) : charger .env.supabase, puis node scripts/dev/messaging-e2e.mjs
 // Messagerie v2 de bout en bout avec 2 comptes JETABLES (supprimés à la fin) : mêmes appels que
 // l'app (lib/messages.ts) et réception en TEMPS RÉEL chez l'autre membre.
+import './prod-guard.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,6 +1,7 @@
 // Usage (bash) : charger .env.supabase, puis node scripts/dev/messaging-test.mjs
 // Joue la migration messagerie v2 + les scénarios de messaging-test.sql dans une transaction
 // TOUJOURS annulée (erreur « RAPPORT » volontaire) : rien n'est gardé en base.
+import './prod-guard.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 const dir = import.meta.dirname;

@@ -3,6 +3,7 @@
 // « ✏️ Modifier » sur MES messages pendant 1 h, quel que soit le statut : envoyé, reçu (✓✓), vu
 // (✓✓ bleu), en privé et en groupe. Règle pure (lib/message-rules.ts) sur les messages tels que
 // l'app les reçoit (REST et temps réel) + edit_message accepté par le serveur. 2 comptes JETABLES.
+import './prod-guard.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

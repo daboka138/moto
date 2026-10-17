@@ -1,6 +1,7 @@
 // Usage (bash) : charger .env.supabase (voir CLAUDE.md), puis node scripts/dev/onboarding-test.mjs
 // l'Edge Function delete-account) : création, photo, profil comme dans l'app, moto, suppression.
 // « Confirm email » étant activé, le compte est confirmé par l'API de gestion (SUPABASE_ACCESS_TOKEN).
+import './prod-guard.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

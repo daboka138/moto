@@ -139,6 +139,7 @@ $//' .env.supabase); set +a`
 5. V5 Monétisation : abonnement premium
 
 ## Règles
+- JAMAIS de compte, message, balade, notification ou autre donnée de test en PRODUCTION sans demander à Dimitri (même une transaction annulée, même supprimée à la fin : les inscriptions envoient des emails de confirmation et polluent la base). Tester sur la base locale (`npx supabase start`, Docker requis) ou avec ses 2 comptes de test existants. Les scripts scripts/dev qui écrivent en base importent prod-guard.mjs : refus sur la prod sauf accord pour ce lancement (PASSERYDER_PROD_TEST_OK=oui). Comptes de test (passeryder+test-…@gmail.com, …@example.invalid) exclus des compteurs de la console (is_test_email)
 - RGPD : consentement géoloc, mode fantôme, suppression compte et données
 - Légal France : jamais signaler police/radars, uniquement "zones de danger"
 - Batterie : fréquence géoloc adaptative
