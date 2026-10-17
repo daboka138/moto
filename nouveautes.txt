@@ -1,3 +1,4 @@
+Correction : les fiches des balades s'ouvrent de nouveau (« Balade introuvable » par erreur), avec un message clair si une balade est privée ou terminée.
 Recherche : suggestions dès 2 lettres, les lieux proches d'abord (icône, adresse, distance), les spots de la commu et tes destinations récentes en tête.
 Recherche : Station, Café / Resto, Parking moto et Garage moto répondent en une seconde, et « Parking moto » ne montre que de vrais parkings motos.
 Version web : Mur, Sorties, Notifs, Messages et Profil prennent toute la page (plus de carte derrière).

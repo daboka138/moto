@@ -184,7 +184,7 @@ const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participan
 
 const DETAIL_FIELDS = `*,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, paused_until, passenger, passenger_partner, profile:profiles(id, username, avatar_path))`;
+  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, paused_until, passenger, passenger_partner, profile:profiles!group_ride_participants_user_id_fkey(id, username, avatar_path))`;
 
 /** Pendant combien de temps après le RDV une balade non démarrée reste listée */
 const LISTED_AFTER_MEETING_MS = 12 * 3600 * 1000;
@@ -284,6 +284,15 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
         ? { label: r.regroup_label ?? 'Point de regroupement', latitude: r.regroup_lat, longitude: r.regroup_lng, at: r.regroup_at }
         : null,
   };
+}
+
+export type RideUnavailable = 'private' | 'missing' | 'error';
+
+/** Balade non lisible : privée (existe mais réservée) ou supprimée / purgée après la fin */
+export async function rideUnavailableReason(id: string): Promise<RideUnavailable> {
+  const { data, error } = await supabase.rpc('ride_access', { p_ride: id });
+  if (error) return 'error';
+  return data === 'private' ? 'private' : data === 'ok' ? 'error' : 'missing';
 }
 
 export async function createRide(userId: string, d: RideDraft): Promise<string> {

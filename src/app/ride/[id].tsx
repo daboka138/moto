@@ -15,6 +15,8 @@ import {
   endRide,
   fetchRide,
   joinRide,
+  rideUnavailableReason,
+  type RideUnavailable,
   leaveRide,
   startRide,
   type RideDetails,
@@ -35,16 +37,18 @@ export default function RideScreen() {
   const { session, profile } = useSession();
   const myCategory = mainCategory(profile);
   const userId = session?.user.id;
-  const [loaded, setLoaded] = useState<{ id: string; ride: RideDetails | null } | null>(null);
+  // ride null : pourquoi (privée, supprimée / terminée, ou chargement impossible)
+  const [loaded, setLoaded] = useState<{ id: string; ride: RideDetails | null; why?: RideUnavailable } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!userId) return;
     try {
-      setLoaded({ id, ride: await fetchRide(id, userId) });
+      const ride = await fetchRide(id, userId);
+      setLoaded({ id, ride, why: ride ? undefined : await rideUnavailableReason(id) });
     } catch (e) {
       console.warn('Chargement de la balade impossible', e);
-      setLoaded({ id, ride: null });
+      setLoaded({ id, ride: null, why: 'error' });
     }
   }, [id, userId]);
 
@@ -65,9 +69,33 @@ export default function RideScreen() {
     );
   }
   if (ride === null) {
+    const why = loaded?.why ?? 'missing';
     return (
       <View style={styles.center}>
-        <Text style={styles.muted}>Balade introuvable ou réservée à ses invités.</Text>
+        <Text style={styles.unavailableEmoji}>{why === 'private' ? '🔒' : why === 'error' ? '📶' : '🏁'}</Text>
+        <Text style={styles.unavailableTitle}>
+          {why === 'private'
+            ? 'Cette balade est privée'
+            : why === 'error'
+              ? 'Chargement impossible'
+              : 'Cette balade a été supprimée ou est terminée'}
+        </Text>
+        <Text style={styles.muted}>
+          {why === 'private'
+            ? 'Demande une invitation à l’organisateur pour la voir et t’inscrire.'
+            : why === 'error'
+              ? 'Vérifie ta connexion, puis réessaie.'
+              : 'Les balades disparaissent 1 h après la fin. Retrouve les autres dans Sorties.'}
+        </Text>
+        <View style={styles.unavailableActions}>
+          {why === 'error' && <Button title="Réessayer" onPress={load} />}
+          <Button
+            title={why === 'error' ? 'Retour' : 'Voir les sorties'}
+            variant={why === 'error' ? 'ghost' : undefined}
+            onPress={() => (why !== 'error' ? router.replace('/rides') : router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+          {why !== 'error' && router.canGoBack() && <Button title="Retour" variant="ghost" onPress={() => router.back()} />}
+        </View>
       </View>
     );
   }
@@ -244,6 +272,9 @@ export default function RideScreen() {
 const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
   muted: { color: Colors.textMuted, textAlign: 'center' },
+  unavailableEmoji: { fontSize: 44, marginBottom: 8 },
+  unavailableTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 6 },
+  unavailableActions: { marginTop: 18, gap: 10, alignSelf: 'stretch', maxWidth: 360, width: '100%' },
   actions: { gap: 10 },
   hint: { fontSize: 13, color: Colors.textMuted },
   appOnly: { gap: 10, alignItems: 'center' },
