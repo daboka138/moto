@@ -11,14 +11,16 @@ export { rideRouteOptions } from '@/lib/moto';
 // Balades planifiées = table group_rides. Qui voit quoi et qui peut s'inscrire
 // est décidé par Supabase (RLS, can_see_ride, can_join_ride, capacité).
 
-export type RideLevel = 'tranquille' | 'dynamique' | 'sportif';
+/** Niveau / rythme de la balade (mêmes noms que le rythme du profil ; « sportif » = Arsouille) */
+export type RideLevel = 'pepere' | 'tranquille' | 'dynamique' | 'sportif';
 export type RideVisibility = 'public' | 'friends' | 'private';
 export type RideStatus = 'upcoming' | 'live' | 'ended';
 
-export const RIDE_LEVELS: { value: RideLevel; label: string; color: string }[] = [
-  { value: 'tranquille', label: 'Tranquille', color: LevelColors.tranquille },
-  { value: 'dynamique', label: 'Dynamique', color: LevelColors.dynamique },
-  { value: 'sportif', label: 'Sportif', color: LevelColors.sportif },
+export const RIDE_LEVELS: { value: RideLevel; label: string; emoji: string; description: string; color: string; pace: Pace }[] = [
+  { value: 'pepere', label: 'Pépère', emoji: '🐢', description: 'Balade cool, pauses photo', color: LevelColors.pepere, pace: 'pepere' },
+  { value: 'tranquille', label: 'Tranquille', emoji: '😎', description: 'Rythme régulier, détente', color: LevelColors.tranquille, pace: 'cool' },
+  { value: 'dynamique', label: 'Dynamique', emoji: '🔥', description: 'Ça roule, virages enchaînés', color: LevelColors.dynamique, pace: 'modere' },
+  { value: 'sportif', label: 'Arsouille', emoji: '🏁', description: 'Pilotage sportif, motards expérimentés', color: LevelColors.sportif, pace: 'soutenu' },
 ];
 
 export const RIDE_VISIBILITIES: { value: RideVisibility; label: string; description: string }[] = [
@@ -27,7 +29,7 @@ export const RIDE_VISIBILITIES: { value: RideVisibility; label: string; descript
   { value: 'private', label: 'Privée', description: 'Uniquement sur invitation.' },
 ];
 
-export const levelInfo = (level: RideLevel) => RIDE_LEVELS.find((l) => l.value === level)!;
+export const levelInfo = (level: RideLevel) => RIDE_LEVELS.find((l) => l.value === level) ?? RIDE_LEVELS[1];
 export const visibilityInfo = (v: RideVisibility) => RIDE_VISIBILITIES.find((x) => x.value === v)!;
 
 export type RidePerson = { id: string; username: string; avatarUrl: string };

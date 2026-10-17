@@ -412,7 +412,7 @@ export const FICHES: Fiche[] = [
       'Donne un titre, une date et une heure.',
       'Itinéraire : choisis le départ (A), l’arrivée (B) et des étapes si tu veux. Le tracé se calcule tout seul.',
       'Regroupement : le point de RDV (par défaut, le départ). Touche-le pour une adresse, un favori ou un spot, ou prends un des « Spots proches pour le RDV » (cafés, points de vue, stations, parkings).',
-      'Motos et rythme : motos acceptées, niveau (Tranquille, Dynamique, Sportif), rythme, type de route.',
+      'Motos et niveau : motos acceptées, niveau / rythme (🐢 Pépère, 😎 Tranquille, 🔥 Dynamique, 🏁 Arsouille : jamais de vitesse affichée), type de route.',
       'Visibilité : publique, amis ou privée, et un nombre max de participants si besoin.',
       'Appuie sur « Créer la balade », puis « Inviter des amis ».',
     ],

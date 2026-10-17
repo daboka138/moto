@@ -9,7 +9,7 @@ import { Card } from '@/components/profile-view';
 import { WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
-import { categoryInfo, paceInfo, surfaceInfo, type MotoCategory } from '@/lib/moto';
+import { categoryInfo, PACE_REMINDER, surfaceInfo, type MotoCategory } from '@/lib/moto';
 import { formatRideDate, levelInfo, PASSENGER_MODES, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 import { roundedNow, useRouteWeather } from '@/lib/weather';
@@ -86,7 +86,9 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
         <Text style={styles.title}>{ride.title}</Text>
         <View style={styles.chips}>
           <View style={[styles.chip, { backgroundColor: level.color }]}>
-            <Text style={styles.chipText}>{level.label}</Text>
+            <Text style={styles.chipText}>
+              {level.emoji} {level.label}
+            </Text>
           </View>
           <View style={[styles.chip, styles.chipOutline]}>
             <Ionicons
@@ -120,9 +122,8 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
           {ride.categories.includes('cyclo') && (
             <InfoRow icon="information-circle" text="Ouverte aux 50 cm³ : tracé sans autoroute, 45 km/h max" />
           )}
-          {ride.pace && (
-            <InfoRow icon="speedometer" text={`Rythme ${paceInfo(ride.pace).label.toLowerCase()} (${paceInfo(ride.pace).description})`} />
-          )}
+          <InfoRow icon="speedometer" text={`${level.emoji} ${level.label} : ${level.description.toLowerCase()}`} />
+          <Text style={styles.subtle}>{PACE_REMINDER}</Text>
           <InfoRow icon="trail-sign" text={`Route : ${surfaceInfo(ride.surface).label.toLowerCase()}`} />
         </Card>
 

@@ -209,7 +209,7 @@ function About({
           )}
           {!!profile.pace && (
             <Text style={styles.muted}>
-              Rythme : {paceInfo(profile.pace).label} ({paceInfo(profile.pace).description})
+              Rythme : {paceInfo(profile.pace).emoji} {paceInfo(profile.pace).label} ({paceInfo(profile.pace).description.toLowerCase()})
             </Text>
           )}
           {profile.availability?.length > 0 && (

@@ -22,9 +22,10 @@ import { pickPlace } from '@/lib/place-picker';
 import { MEETING_KINDS } from '@/lib/places';
 import { PartnerIdeas } from '@/components/partner-ideas';
 import { SpotSuggestions } from '@/components/spot-suggestions';
-import { ALL_CATEGORIES, MOTO_CATEGORIES, PACES, SURFACES, type MotoCategory, type Pace, type Surface } from '@/lib/moto';
+import { ALL_CATEGORIES, MOTO_CATEGORIES, PACE_REMINDER, SURFACES, type MotoCategory, type Surface } from '@/lib/moto';
 import {
   createRide,
+  levelInfo,
   RIDE_LEVELS,
   RIDE_VISIBILITIES,
   rideRouteOptions,
@@ -84,7 +85,6 @@ export default function NewRideScreen() {
   const [maxParticipants, setMaxParticipants] = useState('');
   const [description, setDescription] = useState('');
   const [categories, setCategories] = useState<MotoCategory[]>(ALL_CATEGORIES);
-  const [pace, setPace] = useState<Pace | null>(null);
   const [surface, setSurface] = useState<Surface>('asphalt');
   const [saving, setSaving] = useState(false);
 
@@ -234,7 +234,8 @@ export default function NewRideScreen() {
         maxParticipants: max,
         description,
         categories,
-        pace,
+        // Un seul choix « Niveau » : le rythme enregistré suit (même vocabulaire, Pépère → Arsouille)
+        pace: levelInfo(level).pace,
         surface,
         clubId,
       });
@@ -378,18 +379,6 @@ export default function NewRideScreen() {
             <Text style={styles.hint}>Ouverte aux 50 cm³ : le tracé est calculé sans autoroute ni voie rapide.</Text>
           )}
 
-          <Text style={styles.label}>Rythme</Text>
-          <View style={styles.chips}>
-            {PACES.map((p) => (
-              <Chip
-                key={p.value}
-                label={`${p.label} · ${p.description}`}
-                selected={pace === p.value}
-                onPress={() => setPace(pace === p.value ? null : p.value)}
-              />
-            ))}
-          </View>
-
           <Text style={styles.label}>Type de route</Text>
           <View style={styles.chips}>
             {SURFACES.map((x) => (
@@ -401,12 +390,15 @@ export default function NewRideScreen() {
         <ClubPicker userId={session?.user.id} value={clubId} onChange={setClubId} />
 
         <Section title="Détails">
-          <Text style={styles.label}>Niveau</Text>
+          <Text style={styles.label}>Niveau / rythme</Text>
           <View style={styles.chips}>
             {RIDE_LEVELS.map((l) => (
-              <Chip key={l.value} label={l.label} selected={level === l.value} onPress={() => setLevel(l.value)} />
+              <Chip key={l.value} label={`${l.emoji} ${l.label}`} selected={level === l.value} onPress={() => setLevel(l.value)} />
             ))}
           </View>
+          <Text style={styles.hint}>
+            {levelInfo(level).description}. {PACE_REMINDER}
+          </Text>
 
           <Text style={styles.label}>Visibilité</Text>
           <View style={styles.chips}>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { PhotoPicker } from '@/components/photo-picker';
-import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACES } from '@/lib/moto';
+import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACE_REMINDER, PACES, paceInfo } from '@/lib/moto';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
 import { errorMessage, PhotoUnreadableError } from '@/lib/errors';
@@ -241,12 +241,16 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
             {PACES.map((p) => (
               <Chip
                 key={p.value}
-                label={`${p.label} · ${p.description}`}
+                label={`${p.emoji} ${p.label}`}
                 selected={draft.pace === p.value}
                 onPress={() => set('pace', draft.pace === p.value ? null : p.value)}
               />
             ))}
           </View>
+          <Text style={styles.paceHint}>
+            {draft.pace ? `${paceInfo(draft.pace).description}. ` : ''}
+            {PACE_REMINDER}
+          </Text>
           <Text style={styles.label}>Disponibilités</Text>
           <View style={styles.chips}>
             {AVAILABILITIES.map((a) => (
@@ -338,6 +342,7 @@ const useStyles = makeStyles((Colors) => ({
   privateNote: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   privateText: { flex: 1, fontSize: 13, color: Colors.textMuted },
   label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  paceHint: { fontSize: 13, color: Colors.textMuted, marginTop: -4 },
   moto: {
     gap: 12,
     padding: 12,

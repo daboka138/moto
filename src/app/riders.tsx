@@ -173,7 +173,7 @@ export default function RidersScreen() {
             {PACES.map((p) => (
               <Chip
                 key={p.value}
-                label={p.label}
+                label={`${p.emoji} ${p.label}`}
                 selected={filters.paces.includes(p.value)}
                 onPress={() => set('paces', toggle(filters.paces, p.value))}
               />

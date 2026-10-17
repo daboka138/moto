@@ -28,13 +28,18 @@ export function inferCategory(cc: number | null | undefined, model?: string): Mo
 
 // ---------- Rythme et type de route ----------
 
-export type Pace = 'cool' | 'modere' | 'soutenu';
-export const PACES: { value: Pace; label: string; description: string }[] = [
-  { value: 'cool', label: 'Cool', description: '60-80 km/h' },
-  { value: 'modere', label: 'Modéré', description: '80-100 km/h' },
-  { value: 'soutenu', label: 'Soutenu', description: '100 km/h et +' },
+// Vocabulaire motard, JAMAIS de vitesse affichée. Codes stockés : les anciens sont gardés (aucune
+// donnée réécrite) et renommés à l'affichage : cool = Tranquille, modere = Dynamique, soutenu = Arsouille.
+export type Pace = 'pepere' | 'cool' | 'modere' | 'soutenu';
+export const PACES: { value: Pace; label: string; emoji: string; description: string }[] = [
+  { value: 'pepere', label: 'Pépère', emoji: '🐢', description: 'Balade cool, pauses photo' },
+  { value: 'cool', label: 'Tranquille', emoji: '😎', description: 'Rythme régulier, détente' },
+  { value: 'modere', label: 'Dynamique', emoji: '🔥', description: 'Ça roule, virages enchaînés' },
+  { value: 'soutenu', label: 'Arsouille', emoji: '🏁', description: 'Pilotage sportif, motards expérimentés' },
 ];
-export const paceInfo = (p: Pace) => PACES.find((x) => x.value === p)!;
+export const paceInfo = (p: Pace) => PACES.find((x) => x.value === p) ?? PACES[1];
+/** Rappel discret sous les niveaux */
+export const PACE_REMINDER = 'Toujours dans le respect du code de la route.';
 
 export type Surface = 'asphalt' | 'track' | 'mixed';
 export const SURFACES: { value: Surface; label: string }[] = [

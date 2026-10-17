@@ -156,6 +156,7 @@ export const WallpaperColors = [
 
 /** Couleur par niveau de balade (identique dans les deux thèmes) */
 export const LevelColors = {
+  pepere: '#0D9488',
   tranquille: LightColors.success,
   dynamique: LightColors.warning,
   sportif: LightColors.danger,
