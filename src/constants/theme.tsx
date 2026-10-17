@@ -108,6 +108,47 @@ export const DarkColors: Palette = {
   backdrop: 'rgba(0,0,0,0.6)',
 };
 
+/**
+ * Fonds d'écran des conversations (lib/wallpapers.ts, components/chat-wallpaper.tsx) :
+ * dégradé (2-3 couleurs, haut → bas) + motif discret dessiné par-dessus (couleur `ink`).
+ */
+export type WallpaperMotif = 'none' | 'road' | 'mountains' | 'curves' | 'wheels' | 'stars';
+export const WallpaperPresets: Record<
+  string,
+  { label: string; dark: boolean; stops: string[]; motif: WallpaperMotif; ink: string }
+> = {
+  ciel: { label: 'Ciel', dark: false, stops: ['#E0F2FE', '#F8FAFC'], motif: 'none', ink: 'transparent' },
+  nuit: { label: 'Nuit', dark: true, stops: ['#0B1120', '#0C2A45', '#075985'], motif: 'none', ink: 'transparent' },
+  aube: { label: 'Aube', dark: false, stops: ['#BAE6FD', '#FDE7D3', '#FED7AA'], motif: 'none', ink: 'transparent' },
+  crepuscule: { label: 'Crépuscule', dark: true, stops: ['#1E1B4B', '#7C2D12', '#EA580C'], motif: 'none', ink: 'transparent' },
+  route: { label: 'Route', dark: true, stops: ['#1F2937', '#111827'], motif: 'road', ink: 'rgba(250,204,21,0.16)' },
+  'route-claire': { label: 'Route claire', dark: false, stops: ['#F4F4F5', '#E4E4E7'], motif: 'road', ink: 'rgba(14,165,233,0.14)' },
+  montagne: { label: 'Montagne', dark: false, stops: ['#E0F2FE', '#F0F9FF'], motif: 'mountains', ink: 'rgba(2,132,199,0.12)' },
+  'montagne-nuit': { label: 'Montagne de nuit', dark: true, stops: ['#020617', '#0C2A45'], motif: 'mountains', ink: 'rgba(125,211,252,0.12)' },
+  virages: { label: 'Virages', dark: false, stops: ['#F0F9FF', '#E0F2FE'], motif: 'curves', ink: 'rgba(14,165,233,0.16)' },
+  'virages-nuit': { label: 'Virages de nuit', dark: true, stops: ['#0B0F14', '#161B22'], motif: 'curves', ink: 'rgba(14,165,233,0.2)' },
+  roues: { label: 'Roues', dark: true, stops: ['#0F172A', '#1E293B'], motif: 'wheels', ink: 'rgba(148,163,184,0.12)' },
+  etoiles: { label: 'Étoiles', dark: true, stops: ['#020617', '#1E1B4B'], motif: 'stars', ink: 'rgba(255,255,255,0.5)' },
+};
+
+/** Collines sombres du fond « Étoiles » */
+export const WALLPAPER_HILLS = 'rgba(0,0,0,0.35)';
+
+/** Couleurs unies proposées pour le fond d'une conversation */
+export const WallpaperColors = [
+  '#F4F4F5',
+  '#E0F2FE',
+  '#DCFCE7',
+  '#FEF3C7',
+  '#FCE7F3',
+  '#0EA5E9',
+  '#0F766E',
+  '#7C2D12',
+  '#1E1B4B',
+  '#18181B',
+  '#0B0F14',
+];
+
 /** Couleur par niveau de balade (identique dans les deux thèmes) */
 export const LevelColors = {
   tranquille: LightColors.success,

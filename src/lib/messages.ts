@@ -44,6 +44,8 @@ export type Message = {
   kind: 'user' | 'system';
   editedAt: string | null;
   deletedAt: string | null;
+  /** Réponse à ce message (même conversation) */
+  replyToId: string | null;
 };
 
 export type Member = {
@@ -62,8 +64,8 @@ export type Reaction = { messageId: string; userId: string; emoji: string | null
 
 export const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥', '🏍️'] as const;
 
-/** Délais (serveur) : modifier 15 min, supprimer pour tout le monde 1 h */
-export const EDIT_WINDOW_MS = 15 * 60_000;
+/** Délais (serveur) : modifier 1 h, supprimer pour tout le monde 1 h */
+export const EDIT_WINDOW_MS = 60 * 60_000;
 export const DELETE_FOR_ALL_WINDOW_MS = 60 * 60_000;
 export const GROUP_MAX_MEMBERS = 50;
 
@@ -131,6 +133,7 @@ type MessageRow = {
   kind?: 'user' | 'system';
   edited_at?: string | null;
   deleted_at?: string | null;
+  reply_to_id?: string | null;
 };
 
 export function toMessage(r: MessageRow): Message {
@@ -145,10 +148,11 @@ export function toMessage(r: MessageRow): Message {
     kind: r.kind ?? 'user',
     editedAt: r.edited_at ?? null,
     deletedAt: r.deleted_at ?? null,
+    replyToId: r.reply_to_id ?? null,
   };
 }
 
-const MESSAGE_FIELDS = 'id, conversation_id, sender_id, body, image_path, created_at, trip_share_id, kind, edited_at, deleted_at';
+const MESSAGE_FIELDS = 'id, conversation_id, sender_id, body, image_path, created_at, trip_share_id, kind, edited_at, deleted_at, reply_to_id';
 
 export async function fetchMessages(conversationId: string, limit = 100): Promise<Message[]> {
   const { data, error } = await supabase
@@ -205,6 +209,7 @@ export async function sendMessage(
   conversationId: string,
   body: string,
   image?: { uri: string; mimeType?: string },
+  replyToId?: string | null,
 ) {
   let imagePath: string | null = null;
   if (image) {
@@ -217,7 +222,13 @@ export async function sendMessage(
   }
   const { error } = await supabase
     .from('messages')
-    .insert({ conversation_id: conversationId, sender_id: userId, body: body.trim() || null, image_path: imagePath });
+    .insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      body: body.trim() || null,
+      image_path: imagePath,
+      reply_to_id: replyToId ?? null,
+    });
   if (error) {
     if (imagePath) await supabase.storage.from(BUCKET).remove([imagePath]);
     throw new Error(error.message.includes('row-level security') ? 'Tu ne peux pas écrire dans cette conversation.' : error.message);

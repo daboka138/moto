@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChatWallpaper } from '@/components/chat-wallpaper';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { TripShareCard } from '@/components/trip-share-card';
 import { makeStyles, useColors } from '@/constants/theme';
@@ -12,6 +13,7 @@ import { useDrivingLock } from '@/lib/driving-lock';
 import { messageTime, type Message } from '@/lib/messages';
 import { pickImage, type PickedImage } from '@/lib/pick-image';
 import type { WallPhoto } from '@/lib/wall';
+import type { Wallpaper } from '@/lib/wallpapers';
 
 export type ChatPerson = { username: string; avatarUrl: string };
 
@@ -47,6 +49,14 @@ type Props = {
   editing?: Message | null;
   onCancelEdit?: () => void;
   onEdit?: (m: Message, text: string) => Promise<void>;
+  /** Réponse en préparation (citation au-dessus de la saisie) */
+  replying?: Message | null;
+  onCancelReply?: () => void;
+  /** Petit message passager (« Message copié ») */
+  flash?: string | null;
+  /** Fond d'écran personnel de la conversation */
+  wallpaper?: Wallpaper | null;
+  wallpaperPhotoUrl?: string | null;
   /** Saisie impossible (blocage…) : explication affichée à la place */
   disabledReason?: string | null;
 };
@@ -59,6 +69,18 @@ export function ChatView(p: Props) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
+  // Web : bouton « ⋯ » sur le message survolé
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const byId = new Map((p.messages ?? []).map((m) => [m.id, m]));
+
+  // Citation d'un message (réponse) : auteur + début du texte
+  const quoteOf = (id: string) => {
+    const q = byId.get(id);
+    if (!q) return { who: '', text: 'Message' };
+    const who = q.senderId === p.meId ? 'Toi' : `@${p.people.get(q.senderId)?.username ?? '?'}`;
+    const text = q.deletedAt ? 'Message supprimé' : q.body || (q.imagePath ? '📷 Photo' : 'Message');
+    return { who, text };
+  };
 
   // Modification : texte du message dans la saisie (ajusté au rendu quand le message change)
   const editingId = p.editing?.id ?? null;
@@ -130,16 +152,41 @@ export function ChatView(p: Props) {
     const url = !deleted && item.imagePath ? p.imageUrl(item.imagePath) : undefined;
     const reactions = deleted ? [] : p.reactionsOf(item);
     const longPress = () => !deleted && p.onMessageLongPress?.(item);
-    return (
-      <View style={[styles.line, mine ? styles.lineMine : styles.lineOther]}>
+    const quote = item.replyToId && !deleted ? quoteOf(item.replyToId) : null;
+    // Web : clic droit = menu du message
+    const contextMenu =
+      Platform.OS === 'web'
+        ? {
+            onContextMenu: (e: { preventDefault: () => void }) => {
+              e.preventDefault();
+              longPress();
+            },
+          }
+        : {};
+    const moreButton = Platform.OS === 'web' && !deleted && (
+      <Pressable
+        onPress={longPress}
+        style={[styles.more, hoverId !== item.id && styles.moreHidden]}
+        hitSlop={6}
+        accessibilityLabel="Actions du message">
+        <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textMuted} />
+      </Pressable>
+    );
+    const content = (
+      <>
         {!mine && p.isGroup && (
           <View style={styles.senderAvatarBox}>
             {firstOfRun && person && <Image source={{ uri: person.avatarUrl }} style={styles.senderAvatar} />}
           </View>
         )}
         <View style={[styles.column, mine && styles.columnMine]}>
-          {!mine && p.isGroup && firstOfRun && <Text style={styles.sender}>@{person?.username ?? '?'}</Text>}
+          {!mine && p.isGroup && firstOfRun && (
+            <Text style={[styles.sender, !!p.wallpaper && styles.onWallpaper]}>@{person?.username ?? '?'}</Text>
+          )}
+          <View style={[styles.bubbleRow, mine && styles.bubbleRowMine]}>
+          {mine && moreButton}
           <Pressable
+            {...contextMenu}
             onLongPress={longPress}
             onPress={() => mine && !deleted && p.onMyMessagePress?.(item)}
             delayLongPress={350}
@@ -153,6 +200,14 @@ export function ChatView(p: Props) {
               <Text style={[styles.deleted, mine && styles.deletedMine]}>🚫 Message supprimé</Text>
             ) : (
               <>
+                {quote && (
+                  <View style={[styles.quote, mine && styles.quoteMine]}>
+                    {!!quote.who && <Text style={[styles.quoteWho, mine && styles.quoteWhoMine]}>{quote.who}</Text>}
+                    <Text style={[styles.quoteText, mine && styles.quoteTextMine]} numberOfLines={2}>
+                      {quote.text}
+                    </Text>
+                  </View>
+                )}
                 {item.imagePath &&
                   (url ? (
                     <Pressable
@@ -180,6 +235,8 @@ export function ChatView(p: Props) {
               {mine && !deleted && ticks(p.statusOf(item))}
             </View>
           </Pressable>
+          {!mine && moreButton}
+          </View>
           {reactions.length > 0 && (
             <View style={[styles.reactions, mine && styles.reactionsMine]}>
               {reactions.map((r) => (
@@ -198,11 +255,19 @@ export function ChatView(p: Props) {
           )}
           {item.id === lastMine?.id && !!seenLabel && (
             <Pressable onPress={() => p.onMyMessagePress?.(item)} hitSlop={6}>
-              <Text style={[styles.seen, seenSome && styles.seenBlue]}>{seenLabel}</Text>
+              <Text style={[styles.seen, seenSome && styles.seenBlue, !!p.wallpaper && styles.onWallpaper]}>{seenLabel}</Text>
             </Pressable>
           )}
         </View>
-      </View>
+      </>
+    );
+    const lineStyle = [styles.line, mine ? styles.lineMine : styles.lineOther];
+    return Platform.OS === 'web' ? (
+      <Pressable style={lineStyle} onHoverIn={() => setHoverId(item.id)} onHoverOut={() => setHoverId((h) => (h === item.id ? null : h))}>
+        {content}
+      </Pressable>
+    ) : (
+      <View style={lineStyle}>{content}</View>
     );
   };
 
@@ -239,6 +304,8 @@ export function ChatView(p: Props) {
       </View>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.flex}>
+        {!!p.wallpaper && <ChatWallpaper wallpaper={p.wallpaper} photoUrl={p.wallpaperPhotoUrl} />}
         {!p.messages ? (
           <View style={styles.center}>
             <ActivityIndicator color={Colors.accent} />
@@ -251,9 +318,14 @@ export function ChatView(p: Props) {
             renderItem={renderItem}
             contentContainerStyle={styles.list}
             keyboardShouldPersistTaps="handled"
-            ListFooterComponent={p.messages.length === 0 ? <Text style={styles.empty}>Aucun message. Dis bonjour 👋</Text> : null}
+            ListFooterComponent={
+              p.messages.length === 0 ? (
+                <Text style={[styles.empty, !!p.wallpaper && styles.onWallpaper]}>Aucun message. Dis bonjour 👋</Text>
+              ) : null
+            }
           />
         )}
+        </View>
 
         {p.disabledReason ? (
           <View style={styles.notice}>
@@ -267,6 +339,18 @@ export function ChatView(p: Props) {
           </View>
         ) : (
           <>
+            {!!p.flash && <Text style={styles.flash}>{p.flash}</Text>}
+            {p.replying && !p.editing && (
+              <View style={styles.editBar}>
+                <Ionicons name="arrow-undo-outline" size={18} color={Colors.accent} />
+                <Text style={styles.editText} numberOfLines={1}>
+                  Réponse à {quoteOf(p.replying.id).who || 'ce message'} : {quoteOf(p.replying.id).text}
+                </Text>
+                <Pressable onPress={p.onCancelReply} hitSlop={10} accessibilityLabel="Annuler la réponse">
+                  <Ionicons name="close" size={20} color={Colors.textMuted} />
+                </Pressable>
+              </View>
+            )}
             {p.editing && (
               <View style={styles.editBar}>
                 <Ionicons name="create-outline" size={18} color={Colors.accent} />
@@ -360,6 +444,36 @@ const useStyles = makeStyles((Colors) => ({
   column: { maxWidth: '78%', gap: 2 },
   columnMine: { alignItems: 'flex-end' },
   sender: { fontSize: 12, color: Colors.textMuted, marginLeft: 8, marginTop: 6 },
+  bubbleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  bubbleRowMine: { justifyContent: 'flex-end' },
+  more: { padding: 4, borderRadius: 14, backgroundColor: Colors.surface },
+  moreHidden: { opacity: 0 },
+  quote: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 2,
+  },
+  quoteMine: { borderLeftColor: Colors.white, backgroundColor: Colors.accentDark },
+  quoteWho: { fontSize: 12, fontWeight: '800', color: Colors.accent },
+  quoteWhoMine: { color: Colors.white },
+  quoteText: { fontSize: 13, color: Colors.textMuted },
+  quoteTextMine: { color: Colors.accentSoft },
+  flash: {
+    alignSelf: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.white,
+    backgroundColor: Colors.neutral,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
   bubble: { borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, gap: 2 },
   bubbleMine: { backgroundColor: Colors.accent, borderBottomRightRadius: 6 },
   bubbleOther: { backgroundColor: Colors.surface, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: Colors.border },
@@ -388,6 +502,15 @@ const useStyles = makeStyles((Colors) => ({
   reactionText: { fontSize: 13, color: Colors.text },
   seen: { fontSize: 12, color: Colors.textMuted, marginRight: 4 },
   seenBlue: { color: Colors.seenTick, fontWeight: '700' },
+  /** Petits textes posés sur un fond d'écran : pastille pour rester lisibles */
+  onWallpaper: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
   notice: {
     flexDirection: 'row',
     alignItems: 'center',

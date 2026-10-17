@@ -17,6 +17,7 @@ import { ActionSheetHost } from '@/components/action-sheet';
 import { AlertHost } from '@/components/alert-host';
 import { BadgeCelebrationHost } from '@/components/good-points';
 import { MessageToast } from '@/components/message-toast';
+import { UpdateBanner } from '@/components/update-banner';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
 import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
@@ -60,6 +61,7 @@ export default function RootLayout() {
                       <AlertHost />
                       <BadgeCelebrationHost />
                       <AccountSync />
+                      <UpdateBanner />
                     </NotificationsProvider>
                   </MessagesProvider>
                 </StoriesProvider>
@@ -214,6 +216,7 @@ function RootNavigator() {
           <Stack.Screen name="help/index" options={{ headerShown: true, title: 'Aide' }} />
           <Stack.Screen name="help/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="photo/new" options={{ headerShown: true, title: 'Nouvelle photo' }} />
+          <Stack.Screen name="chat/wallpaper" options={{ headerShown: true, title: 'Fond d’écran' }} />
           <Stack.Screen name="chat/[id]" />
           <Stack.Screen name="messages/new" options={{ headerShown: true, title: 'Nouveau message' }} />
           <Stack.Screen name="group/new" options={{ headerShown: true, title: 'Nouveau groupe' }} />

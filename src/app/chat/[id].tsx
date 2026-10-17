@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { ChatView, type ChatPerson, type MessageStatus, type ReactionSummary } from '@/components/chat-view';
 import { MessageMenu, type MessageAction } from '@/components/message-menu';
+import { copyText } from '@/lib/clipboard';
 import { errorMessage } from '@/lib/errors';
 import {
   DELETE_FOR_ALL_WINDOW_MS,
@@ -33,6 +34,7 @@ import { askBlock, askReport } from '@/lib/moderation';
 import type { PickedImage } from '@/lib/pick-image';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
+import { useChatWallpaper, useWallpaperPhotoUrl } from '@/lib/wallpapers';
 
 /** Une conversation (privée, de balade ou de groupe). */
 export default function ChatScreen() {
@@ -70,8 +72,14 @@ function RealChat({ id }: { id: string }) {
   const [reactions, setReactions] = useState<Map<string, Map<string, string>>>(new Map());
   const [images, setImages] = useState<Map<string, string>>(new Map());
   const [editing, setEditing] = useState<Message | null>(null);
-  // Menu d'un message : actions calculées à l'appui long (délais de 15 min / 1 h)
+  const [replying, setReplying] = useState<Message | null>(null);
+  // Petit message passager (« Copié »)
+  const [flash, setFlash] = useState<string | null>(null);
+  // Menu d'un message : actions calculées à l'appui long (délais de 1 h)
   const [menuFor, setMenuFor] = useState<{ message: Message; actions: MessageAction[] } | null>(null);
+  // Fond d'écran personnel (l'autre ne le voit pas)
+  const { wallpaper } = useChatWallpaper(userId, id);
+  const wallpaperPhotoUrl = useWallpaperPhotoUrl(wallpaper?.kind === 'photo' ? wallpaper.value : null);
   // Mes accusés de lecture : coupés, je ne vois pas non plus ceux des autres
   const [receipts, setReceipts] = useState(true);
 
@@ -181,7 +189,8 @@ function RealChat({ id }: { id: string }) {
 
   const send = async (text: string, image?: PickedImage) => {
     try {
-      await sendMessage(userId, id, text, image);
+      await sendMessage(userId, id, text, image, replying?.id);
+      setReplying(null);
       await latest();
     } catch (e) {
       Alert.alert('Envoi impossible', errorMessage(e));
@@ -260,38 +269,64 @@ function RealChat({ id }: { id: string }) {
     );
   };
 
+  const removeForMe = (m: Message) =>
+    hideMessage(m.id)
+      .then(() => setMessages((cur) => (cur ? { id: cur.id, list: cur.list.filter((x) => x.id !== m.id) } : cur)))
+      .catch((e) => Alert.alert('Suppression impossible', errorMessage(e)));
+
+  const removeForAll = (m: Message) =>
+    deleteMessageForAll(m.id)
+      .then(latest)
+      .catch((e) => Alert.alert('Suppression impossible', errorMessage(e)));
+
+  // Menu d'un message : ✏️ Modifier (le mien, 1 h) en premier, puis Copier, Répondre, Supprimer
   const messageActions = (m: Message): MessageAction[] => {
     const mine = m.senderId === userId;
     const age = Date.now() - new Date(m.createdAt).getTime();
     const actions: MessageAction[] = [];
-    if (mine && m.body && !m.tripShareId && age < EDIT_WINDOW_MS) actions.push({ label: 'Modifier', onPress: () => setEditing(m) });
+    if (mine && m.body && !m.tripShareId && age < EDIT_WINDOW_MS)
+      actions.push({
+        label: '✏️ Modifier',
+        onPress: () => {
+          setReplying(null);
+          setEditing(m);
+        },
+      });
+    if (m.body && !m.tripShareId)
+      actions.push({
+        label: '📋 Copier',
+        onPress: () =>
+          copyText(m.body ?? '')
+            .then(() => {
+              setFlash('Message copié');
+              setTimeout(() => setFlash(null), 1800);
+            })
+            .catch((e) => Alert.alert('Copie impossible', errorMessage(e))),
+      });
+    if (!conv?.blocked)
+      actions.push({
+        label: '↩️ Répondre',
+        onPress: () => {
+          setEditing(null);
+          setReplying(m);
+        },
+      });
     actions.push({
-      label: 'Supprimer pour moi',
+      label: '🗑️ Supprimer',
       destructive: true,
       onPress: () =>
-        hideMessage(m.id)
-          .then(() => setMessages((cur) => (cur ? { id: cur.id, list: cur.list.filter((x) => x.id !== m.id) } : cur)))
-          .catch((e) => Alert.alert('Suppression impossible', errorMessage(e))),
+        mine && age < DELETE_FOR_ALL_WINDOW_MS
+          ? Alert.alert('Supprimer ce message ?', 'Pour tout le monde, il est effacé chez tous les membres.', [
+              { text: 'Pour moi', onPress: () => removeForMe(m) },
+              { text: 'Pour tout le monde', style: 'destructive', onPress: () => removeForAll(m) },
+              { text: 'Annuler', style: 'cancel' },
+            ])
+          : Alert.alert('Supprimer ce message ?', 'Il disparaît seulement chez toi.', [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Supprimer', style: 'destructive', onPress: () => removeForMe(m) },
+            ]),
     });
-    if (mine && age < DELETE_FOR_ALL_WINDOW_MS) {
-      actions.push({
-        label: 'Supprimer pour tout le monde',
-        destructive: true,
-        onPress: () =>
-          Alert.alert('Supprimer pour tout le monde ?', 'Le message sera effacé chez tous les membres.', [
-            { text: 'Annuler', style: 'cancel' },
-            {
-              text: 'Supprimer',
-              style: 'destructive',
-              onPress: () =>
-                deleteMessageForAll(m.id)
-                  .then(latest)
-                  .catch((e) => Alert.alert('Suppression impossible', errorMessage(e))),
-            },
-          ]),
-      });
-    }
-    if (!mine) actions.push({ label: 'Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) });
+    if (!mine) actions.push({ label: '🚩 Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) });
     return actions;
   };
 
@@ -317,14 +352,19 @@ function RealChat({ id }: { id: string }) {
     ];
   };
 
+  const wallpaperOption: SheetOption = {
+    label: '🖼️ Fond d’écran',
+    onPress: () => router.push({ pathname: '/chat/wallpaper', params: { id } }),
+  };
+
   const menu = () => {
     if (!conv) return;
     if (conv.kind === 'ride') {
-      showActionSheet({ options: [{ label: 'Voir la balade', onPress: openTitle }, ...muteOptions()] });
+      showActionSheet({ options: [{ label: 'Voir la balade', onPress: openTitle }, wallpaperOption, ...muteOptions()] });
       return;
     }
     if (conv.kind === 'group') {
-      showActionSheet({ options: [{ label: 'Infos du groupe', onPress: openTitle }, ...muteOptions()] });
+      showActionSheet({ options: [{ label: 'Infos du groupe', onPress: openTitle }, wallpaperOption, ...muteOptions()] });
       return;
     }
     const otherId = conv.otherId;
@@ -333,6 +373,7 @@ function RealChat({ id }: { id: string }) {
     showActionSheet({
       options: [
         { label: 'Voir le profil', onPress: openTitle },
+        wallpaperOption,
         ...muteOptions(),
         { label: 'Signaler ce motard', onPress: () => askReport('user', otherId) },
         ...(conv.blocked
@@ -369,6 +410,11 @@ function RealChat({ id }: { id: string }) {
         editing={editing}
         onCancelEdit={() => setEditing(null)}
         onEdit={edit}
+        replying={replying}
+        onCancelReply={() => setReplying(null)}
+        flash={flash}
+        wallpaper={wallpaper}
+        wallpaperPhotoUrl={wallpaperPhotoUrl}
         disabledReason={conv?.blocked ? 'Tu ne peux plus écrire dans cette conversation (motard bloqué).' : null}
       />
       <MessageMenu

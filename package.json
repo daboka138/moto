@@ -62,7 +62,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "web:build": "expo export --platform web",
+    "web:build": "node scripts/web-build.mjs",
     "guide:build": "node --no-warnings scripts/build-guide.mjs"
   },
   "private": true

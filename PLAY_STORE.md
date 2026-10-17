@@ -57,7 +57,7 @@ caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile && systemctl re
 ### 1.4 Version web (PWA) : app.passeryder.fr
 - DNS OVH (zone **passeryder.fr**) : enregistrement **A** `app` → `187.6.165.249` (TTL par défaut, pas d'AAAA). Caddy obtient le certificat HTTPS tout seul dès que le DNS répond
 - Fichiers : `/var/www/passeryder-app` (export web de l'app, propriétaire `caddy`) ; la version précédente reste dans `/var/www/passeryder-app.old` (retour arrière : inverser les deux dossiers)
-- Construire puis publier, depuis Git Bash dans `C:\projets\moto` :
+- Construire puis publier, depuis Git Bash dans `C:\projets\moto` (`web:build` écrit aussi `dist/version.json` : les onglets ouverts proposent « Recharger ») :
 ```bash
 npm run web:build
 tar -C dist -cf - . | ssh root@187.6.165.249 'set -e; rm -rf /var/www/passeryder-app.new; mkdir -p /var/www/passeryder-app.new; tar -C /var/www/passeryder-app.new --no-same-owner -xf -; chown -R caddy:caddy /var/www/passeryder-app.new; rm -rf /var/www/passeryder-app.old; if [ -d /var/www/passeryder-app ]; then mv /var/www/passeryder-app /var/www/passeryder-app.old; fi; mv /var/www/passeryder-app.new /var/www/passeryder-app'
@@ -155,6 +155,9 @@ Mise à jour JavaScript seule (sans nouvelle version Play Store) :
 eas update --channel production --environment production --platform android --message "Ce qui change"
 ```
 `--platform android` : la version web n'est pas distribuée par EAS Update, elle est déployée sur le VPS (§ 1.4).
+Avant chaque `eas update` (et chaque `npm run web:build`) : écrire la nouveauté sur la 1re ligne de `nouveautes.txt`
+(200 caractères max). Elle s'affiche dans le bandeau « ✅ Mise à jour prête » de l'app (« Nouveautés : … ») et dans
+« Nouvelle version disponible » du web. Ligne vide = pas de « Nouveautés ».
 Changement natif (module natif, permissions, icône, nom, SDK) : augmenter `version` dans `app.json` puis nouveau build.
 
 ### Passage test interne → fermé → production

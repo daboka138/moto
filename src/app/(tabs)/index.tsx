@@ -31,6 +31,7 @@ import { SosButton } from '@/components/safety/sos-button';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
+import { setAppBusy } from '@/lib/app-busy';
 import { useConvoy } from '@/lib/convoy';
 import { eventKindInfo } from '@/lib/events';
 import { placeKindInfo } from '@/lib/places';
@@ -368,6 +369,12 @@ export default function MapScreen() {
     me: position,
     onCheckIn: (r) => showToast(`Check-in au RDV : tu es pointé présent pour « ${r.title} »`),
   });
+  // Mise à jour : jamais de redémarrage pendant une navigation, un convoi en cours ou un SOS / une chute
+  const convoyLive = convoy?.ride.status === 'live';
+  const alertActive = !!(sosKind ?? (fall.detected ? 'fall' : null));
+  useEffect(() => setAppBusy('navigation', navigating), [navigating]);
+  useEffect(() => setAppBusy('convoy', convoyLive), [convoyLive]);
+  useEffect(() => setAppBusy('sos', alertActive), [alertActive]);
   const droppedIds = new Set(convoy?.dropped.map((m) => m.id) ?? []);
   // Convoi : badge ouvreur / serre-file sur la pastille
   const convoyRoles = new Map((convoy?.ride.participants ?? []).filter((p) => p.role).map((p) => [p.id, RIDE_ROLES[p.role!].emoji]));

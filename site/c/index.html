@@ -25,6 +25,11 @@
     .share-page h1 { overflow-wrap: anywhere; }
     .formats { flex-wrap: wrap; }
     .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+    .review { max-width: 32em; margin: 16px auto; padding: 16px 18px; border-radius: 18px; background: #fef3c7; color: #78350f; border: 2px solid #f59e0b; text-align: center; }
+    .review p { margin: 0 0 12px; font-size: 17px; line-height: 1.4; }
+    .review .button { display: inline-block; font-size: 19px; padding: 14px 26px; }
+    @media (prefers-color-scheme: dark) { .review { background: #422006; color: #fde68a; } }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
@@ -46,6 +51,11 @@
       <p class="lead" id="meta"></p>
       <p id="desc" class="muted" style="white-space: pre-line"></p>
       <p id="missing" hidden>Ce club n’existe plus ou n’est pas visible.</p>
+      
+      <div class="review" hidden>
+        <p>⏳ <strong>L’app Android est en cours de validation par Google (jusqu’à 7 jours).</strong><br>En attendant, utilise PasseRyder sur le web : ton compte restera le même quand l’app sera dispo.</p>
+        <a class="button" href="https://app.passeryder.fr">Utiliser la version web</a>
+      </div>
       <div class="cta">
         <a class="button" id="open" href="#">Rejoindre dans l’app</a>
         <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
@@ -91,12 +101,29 @@
     function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
     function lastSegment() { return decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || ''); }
     function el(id) { return document.getElementById(id); }
+    // Console › Fonctions › Distribution : « Validation Google en cours » (app_settings.google_review = 'on')
+    function settings(keys) {
+      return fetch(SUPABASE_URL + '/rest/v1/app_settings?select=key,value&key=in.(' + keys.join(',') + ')', { headers: { apikey: SUPABASE_KEY } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { var s = {}; rows.forEach(function (row) { s[row.key] = row.value; }); return s; })
+        .catch(function () { return {}; });
+    }
+    function showReview(on, code) {
+      Array.prototype.forEach.call(document.querySelectorAll('.review, .review-only'), function (n) { n.hidden = !on; });
+      if (code) Array.prototype.forEach.call(document.querySelectorAll('.review a.button'), function (a) { a.href = 'https://app.passeryder.fr/sign-in?invite=' + code; });
+    }
     function intentUrl(appPath, fallback) {
       return 'intent://' + appPath + '#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
     }
 
     var slug = lastSegment().toLowerCase();
     if (!android) el('open').hidden = true;
+    // Pendant la validation Google, l'app n'est pas encore installable : la version web d'abord
+    settings(['google_review']).then(function (s) {
+      var on = s.google_review === 'on';
+      showReview(on);
+      if (on) { el('open').hidden = true; el('play').hidden = true; }
+    });
     rpc('club_public', { p_slug: slug }).then(function (c) {
       if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
       el('name').textContent = c.name;

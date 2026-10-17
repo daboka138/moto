@@ -7,7 +7,8 @@
 //   site/s/  → /s/ID    récap de sortie + image story 1080×1920 ou carrée 1080×1080 (canvas),
 //                        « Partager l'image » (Web Share) ou « Télécharger ». JAMAIS de vitesse.
 // Les données viennent de fonctions Supabase publiques (invite_info, club_public, get_outing,
-// app_settings : distribution_mode, testers_group_url, testing_optin_url, play_store_url) avec la clé PUBLISHABLE uniquement.
+// app_settings : distribution_mode, testers_group_url, testing_optin_url, play_store_url,
+// google_review = bandeau « validation Google en cours » sur /telecharger, /i et /c) avec la clé PUBLISHABLE uniquement.
 // Usage : node scripts/build-share-pages.cjs, puis republier le site.
 const fs = require('fs');
 const path = require('path');
@@ -51,6 +52,11 @@ ${index ? '' : '  <meta name="robots" content="noindex">\n'}  <title>${title}</t
     .share-page h1 { overflow-wrap: anywhere; }
     .formats { flex-wrap: wrap; }
     .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+    .review { max-width: 32em; margin: 16px auto; padding: 16px 18px; border-radius: 18px; background: #fef3c7; color: #78350f; border: 2px solid #f59e0b; text-align: center; }
+    .review p { margin: 0 0 12px; font-size: 17px; line-height: 1.4; }
+    .review .button { display: inline-block; font-size: 19px; padding: 14px 26px; }
+    @media (prefers-color-scheme: dark) { .review { background: #422006; color: #fde68a; } }
+    [hidden] { display: none !important; }
 ${css}  </style>
 </head>
 <body>
@@ -96,6 +102,17 @@ const common = `
     function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
     function lastSegment() { return decodeURIComponent(location.pathname.replace(/\\/+$/, '').split('/').pop() || ''); }
     function el(id) { return document.getElementById(id); }
+    // Console › Fonctions › Distribution : « Validation Google en cours » (app_settings.google_review = 'on')
+    function settings(keys) {
+      return fetch(SUPABASE_URL + '/rest/v1/app_settings?select=key,value&key=in.(' + keys.join(',') + ')', { headers: { apikey: SUPABASE_KEY } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { var s = {}; rows.forEach(function (row) { s[row.key] = row.value; }); return s; })
+        .catch(function () { return {}; });
+    }
+    function showReview(on, code) {
+      Array.prototype.forEach.call(document.querySelectorAll('.review, .review-only'), function (n) { n.hidden = !on; });
+      if (code) Array.prototype.forEach.call(document.querySelectorAll('.review a.button'), function (a) { a.href = 'https://app.passeryder.fr/sign-in?invite=' + code; });
+    }
     function intentUrl(appPath, fallback) {
       return 'intent://' + appPath + '#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
     }
@@ -110,6 +127,12 @@ const PITCH = `
           <li>⚠️ Dangers signalés par les motards, spots et événements</li>
         </ul>`;
 
+const REVIEW = `
+      <div class="review" hidden>
+        <p>⏳ <strong>L’app Android est en cours de validation par Google (jusqu’à 7 jours).</strong><br>En attendant, utilise PasseRyder sur le web : ton compte restera le même quand l’app sera dispo.</p>
+        <a class="button" href="https://app.passeryder.fr">Utiliser la version web</a>
+      </div>`;
+
 // ---------- /i/CODE ----------
 const invite = `${head('Rejoins-moi sur PasseRyder', 'L’app des motards qui roulent ensemble : potes en direct, balades en convoi, boucles, SOS.')}
   <main class="wrap">
@@ -117,6 +140,7 @@ const invite = `${head('Rejoins-moi sur PasseRyder', 'L’app des motards qui ro
       <img class="avatar" id="avatar" src="/icon.png" alt="">
       <h1 id="title">Rejoins-moi sur PasseRyder</h1>
       <p class="lead">L’app des motards qui aiment rouler ensemble.</p>
+      ${REVIEW}
       ${PITCH}
       <p id="code-box" hidden>Ton code d’invitation : <span class="code" id="code"></span><br>
         <span class="muted">Saisis-le à l’inscription : vous serez amis tout de suite.</span></p>
@@ -136,13 +160,14 @@ ${common}
       el('web').href = 'https://app.passeryder.fr/sign-in?invite=' + code;
       el('code').textContent = code;
       el('code-box').hidden = false;
+      settings(['google_review']).then(function (s) { showReview(s.google_review === 'on', code); });
       rpc('invite_info', { p_code: code }).then(function (i) {
         if (!i) return;
         el('title').textContent = '@' + i.username + ' t’invite sur PasseRyder';
         document.title = '@' + i.username + ' t’invite sur PasseRyder';
         if (i.avatar_path) el('avatar').src = photo(i.avatar_path);
       }).catch(function () {});
-    }
+    } else settings(['google_review']).then(function (s) { showReview(s.google_review === 'on'); });
   </script>
 </body>
 </html>
@@ -157,6 +182,7 @@ const club = `${head('Club PasseRyder', 'Rejoins ce club de motards sur PasseRyd
       <p class="lead" id="meta"></p>
       <p id="desc" class="muted" style="white-space: pre-line"></p>
       <p id="missing" hidden>Ce club n’existe plus ou n’est pas visible.</p>
+      ${REVIEW}
       <div class="cta">
         <a class="button" id="open" href="#">Rejoindre dans l’app</a>
         <a class="button secondary" id="web" href="https://app.passeryder.fr">Voir dans la version web</a>
@@ -170,6 +196,12 @@ ${foot}
 ${common}
     var slug = lastSegment().toLowerCase();
     if (!android) el('open').hidden = true;
+    // Pendant la validation Google, l'app n'est pas encore installable : la version web d'abord
+    settings(['google_review']).then(function (s) {
+      var on = s.google_review === 'on';
+      showReview(on);
+      if (on) { el('open').hidden = true; el('play').hidden = true; }
+    });
     rpc('club_public', { p_slug: slug }).then(function (c) {
       if (!c) { el('missing').hidden = false; el('open').hidden = true; return; }
       el('name').textContent = c.name;
@@ -390,7 +422,7 @@ const downloadCss = `
     a.step small { display: block; font-size: 14px; opacity: .9; }
     a.step.done { background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
     a.step.done .num { background: var(--accent); color: #fff; }
-    [hidden] { display: none !important; }
+    .pending a.step { opacity: .55; box-shadow: none; }
     .dl .tip { text-align: center; color: var(--muted); font-size: 15px; margin: 12px auto 0; max-width: 32em; }
     .dl .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px; max-width: 30em; margin: 0 auto; text-align: center; }
     .dl .card ol { text-align: left; margin: 12px 0 0; padding-left: 22px; }
@@ -425,6 +457,8 @@ const download = `${head('Télécharger PasseRyder', 'L’app des motards qui ro
 
     <section class="part" id="android">
       <h2 id="android-title">Sur Android</h2>
+      ${REVIEW}
+      <p class="tip review-only" hidden><strong>Disponible dès la validation :</strong></p>
       <div class="steps-dl">
         <a class="step test-only" id="s1" href="${GROUP_URL}" target="_blank" rel="noopener">
           <span class="num">1</span><span><strong>Rejoins le groupe des testeurs</strong><small>Bouton « Rejoindre le groupe », puis reviens ici</small></span></a>
@@ -489,6 +523,7 @@ ${common}
       el('code-box').hidden = false;
       el('web').href = 'https://app.passeryder.fr/sign-in?invite=' + code;
     }
+    var validCode = el('code-box').hidden ? '' : code;
 
     // Étapes faites (mémorisées sur cet appareil) : le bouton suivant reste mis en avant
     function remember(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
@@ -499,11 +534,11 @@ ${common}
     });
 
     // Réglages de la console : mode de distribution et liens
-    fetch(SUPABASE_URL + '/rest/v1/app_settings?select=key,value&key=in.(distribution_mode,testers_group_url,testing_optin_url,play_store_url)', { headers: { apikey: SUPABASE_KEY } })
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (rows) {
-        var s = {};
-        rows.forEach(function (row) { s[row.key] = row.value; });
+    settings(['distribution_mode', 'testers_group_url', 'testing_optin_url', 'play_store_url', 'google_review'])
+      .then(function (s) {
+        var review = s.google_review === 'on';
+        showReview(review, validCode);
+        el('android').classList.toggle('pending', review);
         if (s.testers_group_url) el('s1').href = s.testers_group_url;
         if (s.testing_optin_url) el('s2').href = s.testing_optin_url;
         if (s.play_store_url) el('s3').href = s.play_store_url;
@@ -511,8 +546,7 @@ ${common}
           Array.prototype.forEach.call(document.querySelectorAll('.test-only'), function (n) { n.hidden = true; });
           el('n3').textContent = '↓';
         }
-      })
-      .catch(function () {});
+      });
   </script>
 </body>
 </html>

@@ -149,7 +149,10 @@ export const FICHES: Fiche[] = [
       'Tu y retrouves la carte (consultation), le Mur, les Sorties, les Messages, les Notifs et ton Profil.',
       'Pour le GPS en direct, la navigation, la voix et la sécurité, installe l’app Android : passeryder.fr/telecharger (étapes pour Android, iPhone et ordinateur).',
     ],
-    astuces: ['La version web s’installe sur l’écran d’accueil comme une app (menu du navigateur › Installer).'],
+    astuces: [
+      'La version web s’installe sur l’écran d’accueil comme une app (menu du navigateur › Installer).',
+      'App Android en cours de validation par Google (jusqu’à 7 jours) : utilise la version web en attendant, ton compte restera le même dans l’app.',
+    ],
     limites: [
       'Réservé à l’app Android : ta position en direct, la navigation et la voix, le SOS, la détection de chute, « Je rentre », les contacts d’urgence, Mes trajets et le démarrage d’une balade.',
       'Sur le web, ta position n’est jamais partagée.',
@@ -606,7 +609,8 @@ export const FICHES: Fiche[] = [
       'Onglet Messages › « Nouveau message », puis choisis un ami.',
       'Groupe : « Nouveau message » › « Nouveau groupe » : un nom, une photo si tu veux, puis tes amis (50 membres au plus).',
       'Écris ton message ou ajoute une photo.',
-      'Appui long sur un message : réagis (❤️ 😂 😮 😢 👍 🔥 🏍️, re-toucher pour retirer), modifie (15 min), supprime pour toi ou pour tout le monde (1 h), ou signale.',
+      'Appui long sur un message (sur ordinateur : clic droit, ou le bouton « ⋯ » au survol) : réagis (❤️ 😂 😮 😢 👍 🔥 🏍️, re-toucher pour retirer), puis ✏️ Modifier (tes messages, pendant 1 h), 📋 Copier, ↩️ Répondre, 🗑️ Supprimer (pour toi, ou pour tout le monde pendant 1 h), ou signaler.',
+      'Message modifié : « modifié » s’affiche sur la bulle et les autres voient la nouvelle version tout de suite.',
       'Les discussions des balades auxquelles tu participes apparaissent aussi ici.',
     ],
     astuces: [
@@ -614,12 +618,13 @@ export const FICHES: Fiche[] = [
       'Accusés de lecture : Paramètres › Confidentialité. Coupés, les autres ne voient plus quand tu lis, et tu ne vois plus les leurs.',
       'Groupe : touche son nom pour les infos. Le créateur est admin : il renomme, ajoute ou retire des membres, nomme d’autres admins. Chacun peut quitter.',
       'Sourdine (menu « … » d’une conversation) : 1 heure, 8 heures ou toujours.',
+      'Fond d’écran (menu « … » › Fond d’écran) : un fond PasseRyder, une couleur ou ta photo, avec la luminosité. Il est rien qu’à toi (les autres ne le voient pas) ; « Appliquer à toutes mes conversations » pour le mettre partout, « Réinitialiser » pour revenir au fond normal.',
     ],
     limites: [
       'Saisie désactivée en navigation au-dessus de 10 km/h.',
       'Tu ne peux ajouter dans un groupe que tes amis, et jamais quelqu’un qui t’a bloqué ou que tu as bloqué.',
     ],
-    motsCles: ['chat', 'discussion', 'photo', 'groupe', 'réaction', 'vu', 'lu', 'supprimer', 'modifier', 'sourdine'],
+    motsCles: ['chat', 'discussion', 'photo', 'groupe', 'réaction', 'vu', 'lu', 'supprimer', 'modifier', 'sourdine', 'répondre', 'copier', 'fond', 'fond d’écran', 'wallpaper'],
   },
   {
     id: 'spots',
@@ -1019,12 +1024,15 @@ export const FICHES: Fiche[] = [
     titre: 'Mettre à jour l’app',
     but: 'Avoir la dernière version.',
     etapes: [
-      'L’app vérifie toute seule au lancement et s’installe au lancement suivant.',
+      'L’app vérifie toute seule au lancement et quand tu y reviens. Un bandeau « ⬇️ Nouvelle mise à jour en cours de téléchargement… » s’affiche en haut, sans te bloquer.',
+      'Puis « ✅ Mise à jour prête » : « Redémarrer » pour l’installer tout de suite, ou « Plus tard » (elle s’installe toute seule au prochain lancement).',
+      'Jamais de redémarrage pendant une navigation, un convoi, un SOS ou un « Je rentre » : le bandeau attend la fin.',
       'Pour forcer : Profil › ⚙️ Paramètres › À propos › « Rechercher une mise à jour ».',
       'Certaines nouveautés demandent une mise à jour depuis Google Play.',
     ],
+    astuces: ['Version web : un bandeau « Nouvelle version disponible » propose de recharger la page.'],
     android: true,
-    motsCles: ['version', 'nouveautés'],
+    motsCles: ['version', 'nouveautés', 'redémarrer', 'recharger'],
   },
   {
     id: 'aide-revoir',

@@ -571,8 +571,8 @@ const DISTRIBUTION_LINKS = [
   { key: 'testing_optin_url', label: '2. Activer le test (https://play.google.com/apps/testing/…)', prefix: 'https://play.google.com/apps/testing/', testOnly: true },
   { key: 'play_store_url', label: '3. Google Play (https://play.google.com/…)', prefix: 'https://play.google.com/', testOnly: false },
 ] as const;
-type DistributionKey = 'distribution_mode' | (typeof DISTRIBUTION_LINKS)[number]['key'];
-const DISTRIBUTION_KEYS: DistributionKey[] = ['distribution_mode', ...DISTRIBUTION_LINKS.map((l) => l.key)];
+type DistributionKey = 'distribution_mode' | 'google_review' | (typeof DISTRIBUTION_LINKS)[number]['key'];
+const DISTRIBUTION_KEYS: DistributionKey[] = ['distribution_mode', 'google_review', ...DISTRIBUTION_LINKS.map((l) => l.key)];
 
 function Distribution() {
   const styles = useStyles();
@@ -586,6 +586,7 @@ function Distribution() {
         .then((list) => {
           const v = Object.fromEntries(DISTRIBUTION_KEYS.map((k, i) => [k, list[i] ?? ''])) as Record<DistributionKey, string>;
           if (v.distribution_mode !== 'public') v.distribution_mode = 'test';
+          if (v.google_review !== 'on') v.google_review = 'off';
           setValues(v);
           setSaved(v);
         })
@@ -598,12 +599,28 @@ function Distribution() {
   const changed = DISTRIBUTION_KEYS.filter((k) => values[k].trim() !== saved[k]);
   const invalid = DISTRIBUTION_LINKS.filter((l) => (!l.testOnly || !isPublic || values[l.key].trim()) && !values[l.key].trim().startsWith(l.prefix));
   const set = (k: DistributionKey, v: string) => setValues({ ...values, [k]: v });
+  // Bandeau de validation : enregistré tout de suite (1 clic le jour J)
+  const setReview = (v: 'on' | 'off') => {
+    if (v === saved.google_review) return;
+    setValues({ ...values, google_review: v });
+    saveAppSetting('google_review', v)
+      .then(() => setSaved((cur) => (cur ? { ...cur, google_review: v } : cur)))
+      .catch((e) => {
+        setValues((cur) => (cur ? { ...cur, google_review: saved.google_review } : cur));
+        Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+      });
+  };
   return (
     <View style={[styles.card, { gap: 8 }]}>
       <Text style={styles.small}>Mode de distribution (page passeryder.fr/telecharger)</Text>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <Chip label="Test fermé (3 étapes)" selected={!isPublic} onPress={() => set('distribution_mode', 'test')} />
         <Chip label="Public (Google Play seul)" selected={isPublic} onPress={() => set('distribution_mode', 'public')} />
+      </View>
+      <Text style={styles.small}>Validation Google en cours (bandeau « utilise la version web » sur /telecharger, /i et /c)</Text>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <Chip label="⏳ Oui" selected={values.google_review === 'on'} onPress={() => setReview('on')} />
+        <Chip label="Non (app validée)" selected={values.google_review !== 'on'} onPress={() => setReview('off')} />
       </View>
       {DISTRIBUTION_LINKS.map((l) => (
         <Field
