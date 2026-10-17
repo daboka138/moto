@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chip } from '@/components/ui';
 import { makeStyles, useColors } from '@/constants/theme';
+import { joinPublicGroup, useCommunityCard } from '@/lib/community';
+import { errorMessage } from '@/lib/errors';
 import { isMuted, messagePreview, messageTime, type Conversation } from '@/lib/messages';
 import { useMessages } from '@/lib/messages-context';
 import { useSession } from '@/lib/session';
@@ -20,6 +22,23 @@ export default function MessagesScreen() {
   const { refresh } = useMessages();
   const { conversations } = useInbox();
   const [refreshing, setRefreshing] = useState(false);
+  // Carte « Rejoins le groupe de la commu » (jamais d'ajout forcé)
+  const community = useCommunityCard();
+  const [joining, setJoining] = useState(false);
+  const joinCommunity = async () => {
+    if (!community.group) return;
+    setJoining(true);
+    try {
+      const id = await joinPublicGroup(community.group.id);
+      await refresh();
+      community.refresh();
+      router.push({ pathname: '/chat/[id]', params: { id } });
+    } catch (e) {
+      Alert.alert('Groupe de la commu', errorMessage(e));
+    } finally {
+      setJoining(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -87,6 +106,32 @@ export default function MessagesScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} colors={[Colors.accent]} />}
+        ListHeaderComponent={
+          community.group ? (
+            <View style={styles.community}>
+              <View style={styles.communityTop}>
+                <View style={[styles.communityIcon]}>
+                  <Text style={styles.communityEmoji}>🛠️</Text>
+                </View>
+                <View style={styles.text}>
+                  <Text style={styles.communityTitle}>Rejoins le groupe de la commu</Text>
+                  <Text style={styles.communityText}>
+                    Donne ton avis, propose des idées, signale des bugs · {community.group.membersCount} membre
+                    {community.group.membersCount > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.communityButtons}>
+                <Pressable style={styles.communityJoin} onPress={joinCommunity} disabled={joining}>
+                  <Text style={styles.communityJoinText}>{joining ? '…' : 'Rejoindre'}</Text>
+                </Pressable>
+                <Pressable style={styles.communityLater} onPress={community.later} hitSlop={6}>
+                  <Text style={styles.communityLaterText}>Plus tard</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="chatbubbles-outline" size={40} color={Colors.textMuted} />
@@ -117,6 +162,24 @@ const useStyles = makeStyles((Colors) => ({
   },
   newText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
   list: { paddingVertical: 8 },
+  community: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 14,
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: Colors.accentSoft,
+  },
+  communityTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  communityIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  communityEmoji: { fontSize: 24 },
+  communityTitle: { fontSize: 16, fontWeight: '900', color: Colors.accentOnSoft },
+  communityText: { fontSize: 13, color: Colors.accentOnSoft },
+  communityButtons: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  communityJoin: { backgroundColor: Colors.accent, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 9 },
+  communityJoinText: { color: Colors.white, fontWeight: '900' },
+  communityLater: { paddingVertical: 9 },
+  communityLaterText: { color: Colors.accentOnSoft, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
   pressed: { backgroundColor: Colors.surface },
   avatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.border },

@@ -69,6 +69,8 @@ type Props = {
   disabledReason?: string | null;
   /** Texte pré-rempli dans la saisie (non envoyé) */
   initialText?: string;
+  /** Message épinglé (groupes) : bandeau sous l'en-tête, touché = en entier */
+  pinned?: string | null;
 };
 
 /** Conversation : bulles, photos, réactions, statuts, « modifié », saisie (bloquée pendant la conduite). */
@@ -84,6 +86,7 @@ export function ChatView(p: Props) {
   // Enregistrement vocal en cours (durée, glissé pour annuler) et petite aide / erreur
   const [rec, setRec] = useState<{ elapsedMs: number; cancelling: boolean } | null>(null);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const canRecord = !!p.onSendVoice && voiceRecordingSupported();
   const showHint = (m: string) => {
     setVoiceHint(m);
@@ -338,6 +341,16 @@ export function ChatView(p: Props) {
         )}
       </View>
 
+      {!!p.pinned && (
+        <Pressable style={styles.pinned} onPress={() => setPinnedOpen((o) => !o)} accessibilityLabel="Message épinglé">
+          <Text style={styles.pinnedIcon}>📌</Text>
+          <Text style={styles.pinnedText} numberOfLines={pinnedOpen ? undefined : 2}>
+            {p.pinned}
+          </Text>
+          <Ionicons name={pinnedOpen ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
+        </Pressable>
+      )}
+
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.flex}>
         {!!p.wallpaper && <ChatWallpaper wallpaper={p.wallpaper} photoUrl={p.wallpaperPhotoUrl} />}
@@ -495,6 +508,18 @@ const useStyles = makeStyles((Colors) => ({
   },
   titleBadgeText: { fontSize: 11, fontWeight: '800', color: Colors.accentOnSoft },
   headerSub: { fontSize: 12, color: Colors.textMuted },
+  pinned: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  pinnedIcon: { fontSize: 15 },
+  pinnedText: { flex: 1, fontSize: 13, lineHeight: 18, color: Colors.text, ...wrapAnywhere },
   list: { padding: 12, gap: 4, ...(Platform.OS === 'web' ? ({ overflowX: 'hidden' } as object) : {}) },
   empty: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
   systemLine: { alignItems: 'center', paddingVertical: 6 },

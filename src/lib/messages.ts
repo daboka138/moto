@@ -160,6 +160,13 @@ export function toMessage(r: MessageRow): Message {
 
 const MESSAGE_FIELDS = 'id, conversation_id, sender_id, body, image_path, audio_path, audio_duration_ms, created_at, trip_share_id, kind, edited_at, deleted_at, reply_to_id';
 
+/** Un message (message épinglé plus ancien que ceux chargés) */
+export async function fetchMessage(id: string): Promise<Message | null> {
+  const { data, error } = await supabase.from('messages').select(MESSAGE_FIELDS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data ? toMessage(data as MessageRow) : null;
+}
+
 export async function fetchMessages(conversationId: string, limit = 100): Promise<Message[]> {
   const { data, error } = await supabase
     .from('messages')

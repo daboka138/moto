@@ -7,6 +7,7 @@ import { ChatView, type ChatPerson, type MessageStatus, type ReactionSummary } f
 import { MessageMenu, type MessageAction } from '@/components/message-menu';
 import { WallpaperViewer } from '@/components/wallpaper-viewer';
 import { copyText } from '@/lib/clipboard';
+import { fetchGroupInfo, moderateGroupMessage, pinGroupMessage, type GroupInfo } from '@/lib/community';
 import { CREATOR_BADGE, useCreatorId } from '@/lib/creator';
 import { errorMessage } from '@/lib/errors';
 import {
@@ -20,6 +21,7 @@ import {
   isMuted,
   markConversationRead,
   reactToMessage,
+  fetchMessage,
   sendMessage,
   sendVoiceMessage,
   setConversationMute,
@@ -290,6 +292,51 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
       .then(() => setMessages((cur) => (cur ? { id: cur.id, list: cur.list.filter((x) => x.id !== m.id) } : cur)))
       .catch((e) => Alert.alert('Suppression impossible', errorMessage(e)));
 
+  // Groupes : public / officiel, message épinglé (règles du groupe de la commu)
+  const [groupInfo, setGroupInfo] = useState<{ id: string; info: GroupInfo } | null>(null);
+  const [pinnedFetched, setPinnedFetched] = useState<Message | null>(null);
+  const isGroupConv = conv?.kind === 'group';
+  const loadGroupInfo = useCallback(() => {
+    fetchGroupInfo(id)
+      .then((info) => info && setGroupInfo({ id, info }))
+      .catch((e) => console.warn('Infos du groupe indisponibles', e));
+  }, [id]);
+  useEffect(() => {
+    if (isGroupConv) loadGroupInfo();
+  }, [isGroupConv, loadGroupInfo]);
+  const info = groupInfo?.id === id ? groupInfo.info : null;
+  const pinnedId = info?.pinnedMessageId ?? null;
+  const pinnedLoaded = messages?.id === id ? messages.list.find((m) => m.id === pinnedId) : undefined;
+  useEffect(() => {
+    if (!pinnedId || pinnedLoaded) return;
+    fetchMessage(pinnedId)
+      .then(setPinnedFetched)
+      .catch(() => {});
+  }, [pinnedId, pinnedLoaded]);
+  const pinned = pinnedLoaded ?? (pinnedFetched?.id === pinnedId ? pinnedFetched : null);
+  const isGroupAdmin = isGroupConv && conv?.myRole === 'admin';
+
+  const togglePin = (m: Message) =>
+    pinGroupMessage(id, pinnedId === m.id ? null : m.id)
+      .then(loadGroupInfo)
+      .catch((e) => Alert.alert('Épingler', errorMessage(e)));
+
+  const moderate = (m: Message) =>
+    Alert.alert('Supprimer ce message ?', 'Modération : il est effacé pour tous les membres du groupe.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () =>
+          moderateGroupMessage(m.id)
+            .then(() => {
+              latest();
+              loadGroupInfo();
+            })
+            .catch((e) => Alert.alert('Modération', errorMessage(e))),
+      },
+    ]);
+
   const removeForAll = (m: Message) =>
     deleteMessageForAll(m.id)
       .then(latest)
@@ -342,6 +389,10 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
               { text: 'Supprimer', style: 'destructive', onPress: () => removeForMe(m) },
             ]),
     });
+    if (isGroupAdmin && m.kind === 'user' && !m.deletedAt) {
+      actions.push({ label: pinnedId === m.id ? '📌 Désépingler' : '📌 Épingler', onPress: () => togglePin(m) });
+      if (!mine) actions.push({ label: '🛡️ Supprimer (modération)', destructive: true, onPress: () => moderate(m) });
+    }
     if (!mine) actions.push({ label: '🚩 Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) });
     return actions;
   };
@@ -403,7 +454,13 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
   };
 
   const subtitle = conv
-    ? [conv.kind === 'group' ? `${conv.membersCount} membres` : null, isMuted(conv) ? '🔕 en sourdine' : null].filter(Boolean).join(' · ')
+    ? [
+        info?.isPublic ? '🌍 Groupe public' : null,
+        conv.kind === 'group' ? `${conv.membersCount} membres` : null,
+        isMuted(conv) ? '🔕 en sourdine' : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : null;
 
   return (
@@ -428,6 +485,7 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
         onSend={send}
         onSendVoice={sendVoice}
         initialText={draft}
+        pinned={pinned && !pinned.deletedAt ? pinned.body : null}
         onMessageLongPress={(m) => setMenuForId(m.id)}
         onMyMessagePress={showStatus}
         editing={editing}
