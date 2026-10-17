@@ -10,7 +10,7 @@ import { WeatherStrip } from '@/components/weather-strip';
 import { makeStyles, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { categoryInfo, paceInfo, surfaceInfo, type MotoCategory } from '@/lib/moto';
-import { formatRideDate, levelInfo, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
+import { formatRideDate, levelInfo, PASSENGER_MODES, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 import { roundedNow, useRouteWeather } from '@/lib/weather';
 
@@ -23,6 +23,8 @@ type Props = {
   myCategory?: MotoCategory | null;
   /** En bas de la fiche (J'aime et commentaires) */
   footer?: ReactNode;
+  /** Sous les participants : places passager (sac de sable) */
+  passengers?: ReactNode;
 };
 
 const at = (p: { latitude: number; longitude: number }) => ({ latitude: p.latitude, longitude: p.longitude });
@@ -42,7 +44,7 @@ export function ridePins(ride: {
 }
 
 /** Fiche balade : carte avec tracé, infos, organisateur, participants. */
-export function RideView({ ride, actions, onPersonPress, myCategory = null, footer }: Props) {
+export function RideView({ ride, actions, onPersonPress, myCategory = null, footer, passengers }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const level = levelInfo(ride.level);
@@ -161,7 +163,13 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
                 key={p.id}
                 person={p}
                 compact
-                badge={p.role ? `${RIDE_ROLES[p.role].emoji} ${RIDE_ROLES[p.role].label}` : undefined}
+                badge={
+                  p.role
+                    ? `${RIDE_ROLES[p.role].emoji} ${RIDE_ROLES[p.role].label}`
+                    : p.passenger
+                      ? `${PASSENGER_MODES[p.passenger].emoji} ${p.passengerPartner ? (p.passenger === 'offer' ? 'Pilote' : 'Passager') : PASSENGER_MODES[p.passenger].short}`
+                      : undefined
+                }
                 onPress={onPersonPress}
               />
             ))}
@@ -177,6 +185,8 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
             </>
           )}
         </Card>
+
+        {passengers}
 
         {!!ride.description && (
           <Card title="Description">

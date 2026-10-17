@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Text, View } from 'react-native';
 
 import { OpenInApp } from '@/components/open-in-app';
 import { RideSocial } from '@/components/ride-social';
+import { RidePassengers } from '@/components/ride-passengers';
 import { RideView } from '@/components/ride-view';
 import { openRideConversation } from '@/lib/messages';
 import { Button } from '@/components/ui';
@@ -226,6 +227,7 @@ export default function RideScreen() {
         ride={ride}
         myCategory={myCategory}
         actions={actions}
+        passengers={<RidePassengers ride={ride} meId={userId} onChanged={load} />}
         footer={
           <RideSocial
             rideId={ride.id}

@@ -67,6 +67,8 @@ type Props = {
   wallpaperPhotoUrl?: string | null;
   /** Saisie impossible (blocage…) : explication affichée à la place */
   disabledReason?: string | null;
+  /** Texte pré-rempli dans la saisie (non envoyé) */
+  initialText?: string;
 };
 
 /** Conversation : bulles, photos, réactions, statuts, « modifié », saisie (bloquée pendant la conduite). */
@@ -74,7 +76,7 @@ export function ChatView(p: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const { locked } = useDrivingLock();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(p.initialText ?? '');
   const [sending, setSending] = useState(false);
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   // Web : bouton « ⋯ » sur le message survolé

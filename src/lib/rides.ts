@@ -46,6 +46,10 @@ export type RideSummary = {
   durationS: number | null;
   participantsCount: number;
   maxParticipants: number | null;
+  /** Places passager encore libres (« 🏍️ J'ai une place passager » non prise) */
+  passengerSeats: number;
+  /** Inscrits qui cherchent encore une place (sac de sable) */
+  passengerSeekers: number;
   organizer: RidePerson;
   members: RideMember[];
   createdAt: string;
@@ -90,7 +94,21 @@ export type RideParticipant = RidePerson & {
   checkedInAt: string | null;
   /** « Je fais une pause » : pas d'alerte de décrochage jusqu'à cette heure */
   pausedUntil: string | null;
+  /** offer : a une place passager ; seek : cherche une place (sac de sable) */
+  passenger: PassengerMode | null;
+  /** Pilote ↔ passager associés (place prise) */
+  passengerPartner: string | null;
 };
+
+export type PassengerMode = 'offer' | 'seek';
+
+export const PASSENGER_MODES: Record<PassengerMode, { label: string; short: string; emoji: string }> = {
+  offer: { label: 'J’ai une place passager', short: 'Place passager', emoji: '🏍️' },
+  seek: { label: 'Je cherche une place (sac de sable)', short: 'Cherche une place', emoji: '🎒' },
+};
+
+/** Rappel affiché partout où il est question de passager */
+export const PASSENGER_GEAR_NOTICE = 'Équipement obligatoire pour le passager : casque homologué et gants certifiés.';
 
 export type RideDraft = {
   title: string;
@@ -151,6 +169,8 @@ type Row = {
     role?: RideRole | null;
     checked_in_at?: string | null;
     paused_until?: string | null;
+    passenger?: PassengerMode | null;
+    passenger_partner?: string | null;
     profile?: { id: string; username: string; avatar_path: string } | null;
   }[];
 };
@@ -158,11 +178,11 @@ type Row = {
 const SUMMARY_FIELDS = `id, title, created_by, level, visibility, max_participants, meeting_at, meeting_label,
   meeting_lat, meeting_lng, distance_m, duration_s, started_at, ended_at, created_at, categories, pace, surface,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, created_at)`;
+  participants:group_ride_participants(user_id, status, created_at, passenger, passenger_partner)`;
 
 const DETAIL_FIELDS = `*,
   organizer:profiles!group_rides_created_by_fkey(id, username, avatar_path),
-  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, paused_until, profile:profiles(id, username, avatar_path))`;
+  participants:group_ride_participants(user_id, status, created_at, role, checked_in_at, paused_until, passenger, passenger_partner, profile:profiles(id, username, avatar_path))`;
 
 /** Pendant combien de temps après le RDV une balade non démarrée reste listée */
 const LISTED_AFTER_MEETING_MS = 12 * 3600 * 1000;
@@ -186,6 +206,8 @@ function toSummary(r: Row, userId: string): RideSummary {
     durationS: r.duration_s,
     participantsCount: r.participants.filter((p) => p.status === 'joined').length,
     maxParticipants: r.max_participants,
+    passengerSeats: r.participants.filter((p) => p.status === 'joined' && p.passenger === 'offer' && !p.passenger_partner).length,
+    passengerSeekers: r.participants.filter((p) => p.status === 'joined' && p.passenger === 'seek' && !p.passenger_partner).length,
     organizer: {
       id: r.created_by,
       username: r.organizer?.username ?? '?',
@@ -247,6 +269,8 @@ export async function fetchRide(id: string, userId: string): Promise<RideDetails
         role: p.role ?? null,
         checkedInAt: p.checked_in_at ?? null,
         pausedUntil: p.paused_until ?? null,
+        passenger: p.passenger ?? null,
+        passengerPartner: p.passenger_partner ?? null,
       }))
       // Organisateur en premier, puis les inscrits, puis les invités
       .sort((a, b) => Number(b.id === r.created_by) - Number(a.id === r.created_by) || b.status.localeCompare(a.status)),
@@ -391,4 +415,21 @@ export function formatRideDate(iso: string) {
   const day = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
   const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   return `${day} · ${time}`;
+}
+
+/** « 🏍️ J'ai une place passager » / « 🎒 Je cherche une place » (null = rien) */
+export async function setRidePassenger(rideId: string, mode: PassengerMode | null) {
+  const { error } = await supabase.rpc('set_ride_passenger', { p_ride: rideId, p_mode: mode });
+  if (error) throw new Error(error.message);
+}
+
+/** Le pilote emmène ce motard (qui cherche une place) */
+export async function pairRidePassenger(rideId: string, seekerId: string) {
+  const { error } = await supabase.rpc('pair_ride_passenger', { p_ride: rideId, p_seeker: seekerId });
+  if (error) throw new Error(error.message);
+}
+
+/** « 2 places passager dispo » */
+export function passengerSeatsLabel(n: number) {
+  return `${n} place${n > 1 ? 's' : ''} passager dispo`;
 }

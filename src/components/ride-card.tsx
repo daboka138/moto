@@ -74,6 +74,7 @@ export function RideCard({ ride, distanceFromMeM, fit = null, onPress }: Props) 
           {ride.joined && <Badge label="Tu participes" color={Colors.accent} />}
           {ride.invited && <Badge label="Invité" color={Colors.ghost} />}
           {full && !ride.joined && <Badge label="Complet" color={Colors.danger} />}
+          {ride.passengerSeats > 0 && <Badge label={`🏍️ ${ride.passengerSeats} pl. passager`} color={Colors.success} />}
         </View>
         <Ionicons name="people" size={14} color={Colors.textMuted} />
         <Text style={styles.count}>

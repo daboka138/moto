@@ -60,6 +60,8 @@ export default function RidesScreen() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [maxKm, setMaxKm] = useState<number | null>(null);
   const [levels, setLevels] = useState<RideLevel[]>([]);
+  // Balades avec au moins une place passager libre
+  const [withSeats, setWithSeats] = useState(false);
   // Filtre automatique sur la catégorie de ma moto principale (désactivable : « Tout voir »)
   const myCategory = mainCategory(profile);
   const [onlyMine, setOnlyMine] = useState(true);
@@ -76,6 +78,7 @@ export default function RidesScreen() {
   const filtered = all?.filter((r) => {
     if (!matchesDate(r, dateFilter)) return false;
     if (levels.length && !levels.includes(r.level)) return false;
+    if (withSeats && r.passengerSeats === 0) return false;
     if (onlyMine && myCategory && !r.categories.includes(myCategory)) return false;
     const d = distanceOf(r);
     if (maxKm !== null && d !== null && d > maxKm * 1000) return false;
@@ -152,6 +155,8 @@ export default function RidesScreen() {
                   onPress={() => setMaxKm(km)}
                 />
               ))}
+              <View style={styles.separator} />
+              <Chip label="🏍️ Places passager" selected={withSeats} onPress={() => setWithSeats(!withSeats)} />
               <View style={styles.separator} />
               {RIDE_LEVELS.map((l) => (
                 <Chip key={l.value} label={l.label} selected={levels.includes(l.value)} onPress={() => toggleLevel(l.value)} />

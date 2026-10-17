@@ -41,7 +41,8 @@ import { useChatWallpaper, useWallpaperPhotoUrl } from '@/lib/wallpapers';
 
 /** Une conversation (privée, de balade ou de groupe). */
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // draft : texte pré-rempli (demande de place passager…)
+  const { id, draft } = useLocalSearchParams<{ id: string; draft?: string }>();
   const { setActiveConversation } = useMessages();
 
   // Pas de notification pour la conversation affichée
@@ -52,7 +53,7 @@ export default function ChatScreen() {
     }, [id, setActiveConversation]),
   );
 
-  return <RealChat id={id} />;
+  return <RealChat id={id} draft={draft} />;
 }
 
 /** Ajoute ou remplace des messages sans doublon, du plus récent au plus ancien */
@@ -64,7 +65,7 @@ function merge(current: Message[], incoming: Message[]) {
 
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-function RealChat({ id }: { id: string }) {
+function RealChat({ id, draft }: { id: string; draft?: string }) {
   const { session } = useSession();
   const userId = session?.user.id ?? '';
   const { conversations, refresh } = useMessages();
@@ -426,6 +427,7 @@ function RealChat({ id }: { id: string }) {
         onReact={react}
         onSend={send}
         onSendVoice={sendVoice}
+        initialText={draft}
         onMessageLongPress={(m) => setMenuForId(m.id)}
         onMyMessagePress={showStatus}
         editing={editing}
