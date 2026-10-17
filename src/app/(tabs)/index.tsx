@@ -14,6 +14,7 @@ import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin
 import { showActionSheet } from '@/components/action-sheet';
 import { FuelSuggestionCard, NavBanner, NavSheet, ReportButton, RoutePreviewSheet, Speedometer } from '@/components/nav/nav-ui';
 import { QuickPlaces } from '@/components/nav/quick-places';
+import { DangerButton, PassengerToggle, QuickReportSheet, UndoReportBar } from '@/components/nav/quick-report';
 import { ReportCard, ReportSheet } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
 import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
@@ -56,7 +57,8 @@ import { usePrivacy } from '@/lib/privacy-context';
 import { categoryInfo } from '@/lib/moto';
 import { mainCategory, mainMotorcycle, photoUrl } from '@/lib/profile';
 import type { PoiKind } from '@/lib/pois';
-import { createReport, deleteReport, reportInfo, voteReport, type ReportType, type Vote } from '@/lib/reports';
+import { addPending, PENDING_MAX_MS, readPending, removePending, usePassengerMode, usePendingDangers } from '@/lib/quick-danger';
+import { createReport, deleteReport, reportAge, reportInfo, setReportType, voteReport, type ReportType, type Vote } from '@/lib/reports';
 import { fetchRide, RIDE_ROLES, setRegroupPoint, type RideSummary } from '@/lib/rides';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
@@ -88,6 +90,8 @@ const RIDES_ON_MAP_DAYS = 30;
 const MOVING_MS = 1.5;
 /** Un signalement du même type à moins de 150 m est confirmé au lieu d'être dupliqué */
 const DUPLICATE_REPORT_M = 150;
+/** Délai pour annuler un signalement choisi dans la grille */
+const UNDO_MS = 5000;
 /** Tolérance avant l'alerte de vitesse (le compteur GPS est précis à quelques km/h) */
 const SPEED_MARGIN_KMH = 3;
 /** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
@@ -118,6 +122,13 @@ export default function MapScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [togglingGhost, setTogglingGhost] = useState(false);
   const [reportSheet, setReportSheet] = useState(false);
+  // Grille des 6 gros dangers (à l'arrêt ou passager), envoi annulable 5 s
+  const [quickSheet, setQuickSheet] = useState(false);
+  const [undo, setUndo] = useState<{ type: ReportType; at: LatLng; deadline: number } | null>(null);
+  const [undoNow, setUndoNow] = useState(0);
+  const [passenger, setPassenger] = usePassengerMode();
+  const pendingDangers = usePendingDangers();
+  const [pendingDismissed, setPendingDismissed] = useState(false);
   const [placeFilter, setPlaceFilter] = useState(false);
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -156,6 +167,8 @@ export default function MapScreen() {
   };
   // speed est en m/s, null ou négatif quand inconnu
   const kmh = location?.coords.speed != null && location.coords.speed >= 0 ? Math.round(location.coords.speed * 3.6) : 0;
+  /** En roulant (> 10 km/h) : un seul gros bouton ⚠️, aucune autre manipulation demandée */
+  const riding = kmh > DRIVING_LOCK_SPEED_KMH;
 
   // ---------- Navigation ----------
   const myCategory = mainCategory(profile);
@@ -580,12 +593,12 @@ export default function MapScreen() {
 
   // Bouton « + » : en navigation, signaler un danger directement ; sinon, choisir quoi ajouter ici
   const onPlus = () => {
-    if (navigating || !position) return setReportSheet(true);
+    if (navigating || !position) return setQuickSheet(true);
     const here = { label: 'Ma position', lat: String(position.latitude), lng: String(position.longitude) };
     showActionSheet({
       title: 'Ajouter ici',
       options: [
-        { label: '⚠️ Signaler un danger', onPress: () => setReportSheet(true) },
+        { label: '⚠️ Signaler un danger', onPress: () => setQuickSheet(true) },
         { label: '📍 Ajouter un spot motard', onPress: () => router.push({ pathname: '/place/new', params: here }) },
         { label: '📅 Créer un événement', onPress: () => router.push({ pathname: '/event/new', params: here }) },
         ...(canUse('loop') ? [{ label: '🌀 Fais-moi une boucle', onPress: () => router.push('/loop') }] : []),
@@ -651,16 +664,99 @@ export default function MapScreen() {
     if (!dropped) return;
     setReportAt(dropped.place);
     setDropped(null);
-    setReportSheet(true);
+    setQuickSheet(true);
   };
 
   const closeReportSheet = () => {
     setReportSheet(false);
+    setQuickSheet(false);
     setReportAt(null);
   };
 
-  const report = async (type: ReportType) => {
+  // Type choisi dans une grille : envoi au bout de 5 s, annulable
+  const queueReport = (type: ReportType) => {
     const at = reportAt ?? position;
+    closeReportSheet();
+    if (!at) return;
+    setUndo({ type, at: { latitude: at.latitude, longitude: at.longitude }, deadline: Date.now() + UNDO_MS });
+    setUndoNow(Date.now());
+  };
+  const undoSecondsLeft = undo ? Math.max(1, Math.ceil((undo.deadline - undoNow) / 1000)) : 0;
+
+  // En roulant : un seul tap, position marquée tout de suite (signalement générique « Zone de danger »
+  // visible des autres), le type se choisit à l'arrêt
+  const markDangerWhileRiding = async () => {
+    if (!position || !userId) return;
+    const at = { latitude: position.latitude, longitude: position.longitude };
+    speak('Danger noté. Tu choisiras le type à l’arrêt', true, 'info');
+    showToast('⚠️ Danger noté, tu choisiras le type à l’arrêt');
+    let id: string | null = null;
+    try {
+      id = await createReport(userId, 'danger', at, true);
+      refreshReports();
+    } catch (e) {
+      console.warn('Danger noté hors ligne, envoyé plus tard', e);
+    }
+    addPending({ ...at, key: `${Date.now()}`, id, at: Date.now() });
+  };
+
+  // ---------- Dangers notés en roulant : type choisi à l'arrêt ----------
+  const stopped = kmh < 3;
+  const [wasStopped, setWasStopped] = useState(stopped);
+  const [stillLong, setStillLong] = useState(false);
+  if (wasStopped !== stopped) {
+    setWasStopped(stopped);
+    if (!stopped) {
+      setStillLong(false);
+      setPendingDismissed(false);
+    }
+  }
+  useEffect(() => {
+    if (!stopped) return;
+    const timer = setTimeout(() => setStillLong(true), 5000);
+    return () => clearTimeout(timer);
+  }, [stopped]);
+  // Sans réponse au bout de 30 min : le danger reste « Zone de danger » (envoyé maintenant s'il n'a pas pu l'être)
+  useEffect(() => {
+    if (!userId) return;
+    const sweep = () => {
+      for (const p of readPending()) {
+        if (Date.now() - p.at < PENDING_MAX_MS) continue;
+        removePending(p.key);
+        if (!p.id) createReport(userId, 'danger', p).catch((e) => console.warn('Danger non envoyé', e));
+      }
+    };
+    sweep();
+    const timer = setInterval(sweep, 60_000);
+    return () => clearInterval(timer);
+  }, [userId]);
+  // Les plus vieux de 30 min sont retirés par le balayage ci-dessus (chaque minute)
+  const pendingDanger = pendingDangers[0] ?? null;
+  const showPending = !!pendingDanger && stillLong && !pendingDismissed && !quickSheet && !reportSheet && !undo;
+
+  const resolvePending = async (action: ReportType | 'keep' | 'delete') => {
+    const p = pendingDanger;
+    if (!p || !userId) return;
+    removePending(p.key);
+    try {
+      if (action === 'delete') {
+        if (p.id) await deleteReport(p.id);
+        showToast('Signalement supprimé');
+      } else if (action === 'keep') {
+        if (!p.id) await createReport(userId, 'danger', p);
+      } else {
+        if (p.id) await setReportType(p.id, action);
+        else await createReport(userId, action, p);
+        showToast(`Merci ! ${reportInfo(action).label} signalé`);
+        speak('Merci, signalement envoyé');
+      }
+      await refreshReports();
+    } catch (e) {
+      Alert.alert('Signalement', e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const report = async (type: ReportType, at: LatLng | null = reportAt ?? position) => {
     closeReportSheet();
     if (!at || !userId) return;
     const label = reportInfo(type).label;
@@ -680,6 +776,7 @@ export default function MapScreen() {
     }
   };
 
+
   const vote = async (id: string, value: Vote, silent = false) => {
     const target = reports.find((r) => r.id === id);
     if (!target || !userId) return;
@@ -688,6 +785,23 @@ export default function MapScreen() {
     setVotedIds((v) => [...v, id]);
     if (!silent) showToast(value === 'gone' ? 'Merci, signalement retiré si confirmé par d’autres' : 'Merci pour la confirmation');
   };
+
+  // Fin du délai d'annulation : envoi
+  useEffect(() => {
+    if (!undo) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setUndoNow(now);
+      if (now >= undo.deadline) {
+        clearInterval(timer);
+        setUndo(null);
+        report(undo.type, undo.at);
+      }
+    }, 250);
+    return () => clearInterval(timer);
+    // report change à chaque rendu ; le minuteur ne dépend que du signalement en attente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undo]);
 
   const fuelFilled = () => {
     if (!myGarage) return;
@@ -995,8 +1109,19 @@ export default function MapScreen() {
             ) : (
               <View />
             )}
-            <ReportButton onPress={onPlus} />
+            {navigating || riding ? (
+              <View style={styles.dangerColumn} pointerEvents="box-none">
+                <PassengerToggle on={passenger} onChange={setPassenger} />
+                <DangerButton
+                  riding={riding && !passenger}
+                  onPress={() => (riding && !passenger ? markDangerWhileRiding() : setQuickSheet(true))}
+                />
+              </View>
+            ) : (
+              <ReportButton onPress={onPlus} />
+            )}
           </View>
+          {undo && <UndoReportBar type={undo.type} seconds={undoSecondsLeft} onUndo={() => setUndo(null)} />}
 
           {dropped && !navigating && (
             <View style={styles.card}>
@@ -1217,7 +1342,24 @@ export default function MapScreen() {
           router.push('/trips');
         }}
       />
-      <ReportSheet visible={reportSheet} onPick={report} onClose={closeReportSheet} />
+      <ReportSheet visible={reportSheet} onPick={queueReport} onClose={closeReportSheet} />
+      <QuickReportSheet
+        visible={quickSheet}
+        onPick={queueReport}
+        onMore={() => {
+          setQuickSheet(false);
+          setReportSheet(true);
+        }}
+        onClose={closeReportSheet}
+      />
+      <QuickReportSheet
+        visible={showPending}
+        pending={pendingDanger ? reportAge(new Date(pendingDanger.at).toISOString()) : null}
+        onPick={(t) => resolvePending(t)}
+        onKeepGeneric={() => resolvePending('keep')}
+        onDelete={() => resolvePending('delete')}
+        onClose={() => setPendingDismissed(true)}
+      />
     </View>
   );
 }
@@ -1422,6 +1564,7 @@ const useStyles = makeStyles((Colors) => ({
   toastText: { color: Colors.white, fontWeight: '700', fontSize: 14, textAlign: 'center' },
   bottom: { position: 'absolute', left: 12, right: 12, bottom: 12, gap: 12 },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  dangerColumn: { alignItems: 'flex-end', gap: 8 },
   card: { alignSelf: 'stretch' },
   // Posé sur le coin de la fiche, au-dessus (le badge de niveau occupe le coin haut droit)
   rideClose: {

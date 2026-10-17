@@ -83,12 +83,32 @@ export async function fetchReportsAround(center: LatLng, radiusKm = 40): Promise
   }));
 }
 
-export async function createReport(userId: string, type: ReportType, at: LatLng) {
-  const { error } = await supabase
+/** Crée un signalement et renvoie son id. quick : « noté en roulant » (type choisi plus tard, à l'arrêt) */
+export async function createReport(userId: string, type: ReportType, at: LatLng, quick = false): Promise<string> {
+  const { data, error } = await supabase
     .from('road_reports')
-    .insert({ created_by: userId, type, latitude: at.latitude, longitude: at.longitude });
+    .insert({ created_by: userId, type, latitude: at.latitude, longitude: at.longitude, quick })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return (data as { id: string }).id;
+}
+
+/** Type d'un danger « noté en roulant », choisi à l'arrêt (35 min max, auteur seulement) */
+export async function setReportType(reportId: string, type: ReportType) {
+  const { error } = await supabase.rpc('set_road_report_type', { p_id: reportId, p_type: type });
   if (error) throw new Error(error.message);
 }
+
+/** Grille « à l'arrêt » : 6 très grosses icônes (les autres types restent dans « Autre danger ») */
+export const QUICK_REPORT_TYPES: { value: ReportType; label: string }[] = [
+  { value: 'accident', label: 'Accident' },
+  { value: 'oil', label: 'Gravillons / huile' },
+  { value: 'roadworks', label: 'Travaux' },
+  { value: 'animal', label: 'Animal' },
+  { value: 'object', label: 'Objet' },
+  { value: 'stopped_vehicle', label: 'Véhicule arrêté' },
+];
 
 export async function voteReport(userId: string, reportId: string, vote: Vote) {
   const { error } = await supabase
