@@ -49,8 +49,8 @@ export async function searchAddresses(query: string, near: LatLng | null): Promi
   if (q.length < 3) return [];
   const params = new URLSearchParams({ q, limit: '6', autocomplete: '1' });
   if (near) {
-    params.set('lat', String(near.latitude));
-    params.set('lon', String(near.longitude));
+    params.set('lat', near.latitude.toFixed(2));
+    params.set('lon', near.longitude.toFixed(2));
   }
   const json = await getJson<{ features?: BanFeature[] }>(`${BAN}/search?${params}`, "Recherche d'adresse");
   return (json.features ?? []).map((f) => {
@@ -180,8 +180,9 @@ export async function searchPhoton(query: string, near: LatLng | null): Promise<
   if (q.length < 3) return [];
   const params = new URLSearchParams({ q, limit: '10', lang: 'fr' });
   if (near) {
-    params.set('lat', near.latitude.toFixed(5));
-    params.set('lon', near.longitude.toFixed(5));
+    // Position arrondie (~1 km) : assez pour classer les résultats, sans envoyer où je suis exactement
+    params.set('lat', near.latitude.toFixed(2));
+    params.set('lon', near.longitude.toFixed(2));
     // Biais de proximité fort : le resto du coin passe avant un homonyme à 500 km
     params.set('zoom', '12');
     params.set('location_bias_scale', '0.3');

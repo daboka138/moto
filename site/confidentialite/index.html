@@ -167,7 +167,9 @@
       <h3>Photos, vidéos et micro</h3>
       <ul>
         <li>Les photos que tu choisis dans ta galerie ou prends avec l'appareil photo (profil, motos, mur, stories, messages).</li>
-        <li>Les vidéos de stories (30 secondes maximum), avec leur son : c'est la seule utilisation du micro.</li>
+        <li>Les vidéos de stories (30 secondes maximum), avec leur son.</li>
+        <li>Les <strong>messages vocaux</strong> que tu enregistres (2 minutes maximum, en maintenant le bouton micro) :
+          le micro n'est utilisé que pendant que tu appuies dessus.</li>
         <li>PasseRyder n'accède qu'aux photos et vidéos que tu sélectionnes.</li>
       </ul>
 
@@ -179,8 +181,9 @@
 
       <h3>Messages</h3>
       <ul>
-        <li>Messages texte et photos échangés en conversation privée, dans un groupe que tu crées ou rejoins
-          (nom, photo, membres, admins) ou dans le groupe d'une balade.</li>
+        <li>Messages texte, photos et messages vocaux (fichier audio compressé et sa durée) échangés en conversation privée,
+          dans un groupe que tu crées ou rejoins (nom, photo, membres, admins, message épinglé), dans le groupe public de la
+          communauté si tu le rejoins, ou dans le groupe d'une balade.</li>
         <li>L'heure de ta dernière lecture (pour afficher « vu ») et de réception (« reçu »). Si tu coupes les
           accusés de lecture (Paramètres › Confidentialité, réglage enregistré avec ton compte), les autres ne voient plus
           quand tu lis ; on garde seulement, pour toi, où tu en es (compteur de messages non lus).</li>
@@ -190,13 +193,23 @@
         <li>Le fond d'écran que tu choisis pour tes conversations (fond prêt, couleur ou ta photo, et sa luminosité) :
           visible par toi seul, la photo est compressée et stockée dans un espace privé auquel toi seul as accès.
           « Réinitialiser » ou la suppression du compte l'effacent.</li>
-        <li>« Supprimer pour tout le monde » efface réellement le texte et la photo du message.</li>
-        <li>Seuls les membres d'une conversation peuvent la lire. Les photos sont stockées dans un espace privé.</li>
+        <li>« Supprimer pour tout le monde » efface réellement le texte, la photo ou le vocal du message. Dans un groupe,
+          un admin peut supprimer un message pour la modération.</li>
+        <li>Seuls les membres d'une conversation peuvent la lire. Les photos et les vocaux sont stockés dans un espace privé.</li>
       </ul>
 
       <h3>Amis et sécurité</h3>
       <ul>
         <li>Tes demandes d'amis, tes amis, les membres que tu as bloqués.</li>
+        <li><strong>Suggestions d'amis</strong> (« Motards que tu pourrais connaître ») : calculées par le serveur à partir
+          des amis en commun, des clubs, balades et événements partagés, de la ville de ton profil, de ta zone de découverte
+          (seulement si tu as activé « Rouler ensemble ») et de la catégorie de ta moto. Seuls ton pseudo, ta photo, ta moto
+          et la raison (« 3 amis en commun ») sont montrés, <strong>jamais ta position</strong>. Tu peux ne plus y apparaître
+          (Paramètres › Confidentialité › « Apparaître dans les suggestions ») ; les motards que tu écartes (✕) sont
+          enregistrés pour ne plus te les proposer. Jamais en mode fantôme.</li>
+        <li>Pour une balade, si tu les coches : « J'ai une place passager » ou « Je cherche une place », et le pilote ou le
+          passager avec qui tu es associé (visible par les membres de la balade).</li>
+        <li>Les dangers « notés en roulant » dont le type reste à choisir sont gardés sur ton téléphone (30 minutes au plus).</li>
         <li>Les signalements de contenus ou de membres que tu envoies, pour la modération.</li>
       </ul>
 
@@ -287,10 +300,13 @@
           pour trouver la route où tu es. Désactivable dans Paramètres › Voix et alertes.</li>
         <li><strong>Stations, cafés et restaurants sur ton trajet, cols franchis</strong> : API Overpass (OpenStreetMap, Allemagne) — portion de
           l'itinéraire devant toi quand tu fais cette recherche, et points de la trace d'un trajet terminé pour y trouver les cols (sans
-          aucune information sur toi).</li>
+          aucune information sur toi). <strong>Parkings moto</strong> de la carte et recherches « autour de moi » (station, café,
+          parking moto, garage moto) : la zone de carte affichée ou ta position arrondie, sans aucune information sur toi (zones
+          gardées 14 jours sur ton téléphone).</li>
         <li><strong>Météo sur le trajet et dénivelé des sorties</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire, de la balade ou de la sortie
           (arrondis à environ 10 m), sans aucune information sur toi.</li>
-        <li><strong>Recherche d'adresse</strong> : Géoplateforme de l'IGN (France), Nominatim et Photon (OpenStreetMap, UE) — texte recherché ou point sur la carte.</li>
+        <li><strong>Recherche d'adresse et de lieux</strong> : Photon (komoot, Allemagne), Géoplateforme de l'IGN (France) et Nominatim (OpenStreetMap, UE) —
+          texte recherché, point sur la carte, et ta position arrondie pour classer les résultats du plus proche au plus loin.</li>
         <li><strong>Notifications push</strong> : Expo Push (650 Industries, États-Unis) et Firebase Cloud Messaging (Google) —
           identifiant de notification du téléphone, titre et texte de la notification (par exemple « Nouveau message de @pseudo »
           ou un rappel d'entretien).

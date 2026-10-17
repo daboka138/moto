@@ -329,9 +329,21 @@ Depuis les points de bon comportement (opt-in, désactivés par défaut) : déj�
 applications › Autre contenu généré par l'utilisateur** (ajouter « points de bon comportement » à la description,
 Facultatif, Fonctionnement de l'application). Ni position ni vitesse ne sont envoyées pour les points ; pas de partage.
 
+Depuis la note 19 (parkings moto, recherche de lieux, passagers, suggestions d'amis, groupe de la commu) :
+- Suggestions d'amis, places passager, groupe public de la communauté : **Autre contenu généré par l'utilisateur** et
+  **Autres messages dans l'application**, déjà déclarés. Rien de nouveau.
+- Recherche de lieux (Photon / komoot) et parkings / lieux proches (Overpass) : texte recherché et position **arrondie**
+  (~1 km pour la recherche, ~100 m pour « autour de moi »). Déjà couvert par **Position exacte › Partagée = Oui**
+  (services de recherche OpenStreetMap). Ajouter « Photon (komoot) » à la liste des services si la Play Console la demande.
+- **Messages vocaux** : l'enregistrement n'existe que sur la version web tant que le build 1.3.0 n'est pas sorti (l'APK
+  1.2.0 ne fait que les écouter). Au plus tard à la soumission du build 1.3.0 (le faire dès maintenant ne gêne pas),
+  cocher **Fichiers audio › Enregistrements vocaux ou sonores** : Collectées = **Oui**, Partagées = **Non**,
+  Traitées de manière éphémère = **Non**, **Facultatif** (l'utilisateur choisit d'envoyer un vocal), finalité
+  **Fonctionnement de l'application**. Garder « Autres fichiers audio » (son des stories vidéo).
+
 **Ne pas cocher** : Informations financières, Santé et remise en forme, Agenda, Historique de navigation web,
 Informations et performances de l'application (pas d'outil de plantage/analyse), Historique des recherches dans l'app
-(il reste sur le téléphone), Achats, Enregistrements vocaux, Fichiers et documents.
+(il reste sur le téléphone), Achats, Fichiers et documents.
 
 ### 4.7 Autorisations sensibles
 **Version 1.2.0** (manifeste final contrôlé avec `npx expo config --type introspect` et les manifestes des modules) :
@@ -424,6 +436,7 @@ passe entièrement par `eas update`. Ce qui suit demande un build, par ordre de 
 |---|---|---|---|
 | **Navigation écran éteint / app en arrière-plan** (guidage vocal, alertes, « Je rentre ») | `expo-task-manager` (nouveau module natif) + `Location.startLocationUpdatesAsync` avec `foregroundService` (notification permanente « Navigation en cours »), plugin expo-location `isAndroidBackgroundLocationEnabled` / `isAndroidForegroundServiceEnabled`, permissions `ACCESS_BACKGROUND_LOCATION` + `FOREGROUND_SERVICE_LOCATION`. Play Console : déclaration « Localisation en arrière-plan » **et** « Types de service de premier plan » avec **vidéo** de démonstration, politique de confidentialité et Sécurité des données mises à jour. Le guidage, les alertes et la mesure du trajet passent dans la tâche de fond. | 4 à 6 jours de dev + 1 à 3 semaines de revue Google | **À faire en premier** (c'est le vrai manque d'un GPS moto). Seulement pendant une navigation lancée par le motard, jamais en permanence ; tester l'autonomie de la batterie. |
 | **Cartes hors ligne** (zones sans réseau en montagne) | Le plus solide : MapLibre (`@maplibre/maplibre-react-native`, module natif) avec téléchargement de zones, à la place de Leaflet dans une WebView : réécriture de la carte (≈ 2 500 lignes : marqueurs, tracés, rotation, flèche). Variante sans build : MapLibre GL JS + fichier PMTiles auto-hébergé sur le VPS, dans la WebView actuelle (gros chantier aussi). Respecter les conditions des tuiles (OpenStreetMap interdit le téléchargement en masse ; MapTiler selon l'offre). Le calcul d'itinéraire reste en ligne (Valhalla / OSRM). | 2 à 3 semaines | Après la navigation écran éteint. Commencer par « garder la zone du trajet » (tuiles du tracé mises en cache au départ), plus simple qu'une vraie carte hors ligne. |
+| **Messages vocaux : enregistrement dans l'app Android** (note 19 ; déjà fait : enregistrement sur le web, écoute partout, serveur prêt) | `npx expo install expo-audio`, plugin `["expo-audio", { "microphonePermission": "PasseRyder utilise le micro pour tes messages vocaux et le son de tes stories vidéo." }]` dans app.json (mettre le même texte dans `microphonePermission` d'expo-image-picker). `RECORD_AUDIO` est **déjà** dans `android.permissions` (stories vidéo) : rien de neuf à déclarer côté Play, pas de déclaration spéciale. Code : remplacer le contenu de `src/lib/voice-recorder.ts` (instructions en tête du fichier : `useAudioRecorder` / `RecordingPresets.LOW_QUALITY`, AAC .m4a mono ~32 kb/s, `requestRecordingPermissionsAsync`, fichier lu en ArrayBuffer pour `sendVoiceMessage`, type `audio/mp4`). Le reste (bouton micro maintenu, glisser pour annuler, 2 min, envoi, lecture) est déjà dans `components/voice-message.tsx`. Sécurité des données : « Enregistrements vocaux ou sonores » (voir § 4.6). | 1 jour | **À faire avec la navigation écran éteint** (même build). |
 | **Android Auto** | Module natif maison (Car App Library, catégorie Navigation) via un config plugin, écrans dédiés limités par Google, validation spécifique de Google pour les apps de navigation. | 4 à 6 semaines | **Pas maintenant** : peu de motos ont un écran Android Auto, le guidage passe par l'intercom. À revoir s'il y a de la demande. |
 
 Rappel : pas de localisation en arrière-plan ni de service de premier plan sans cette déclaration Google (voir CLAUDE.md).

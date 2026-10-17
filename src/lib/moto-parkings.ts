@@ -182,7 +182,7 @@ export function useMotoParkings(view: { center: LatLng; zoom: number } | null, e
 
 /** Parkings moto les plus proches d'un point (recherche « parking moto ») : dans 5 km, puis 15 km */
 export async function nearestParkings(center: LatLng, limit = 8): Promise<(MotoParking & { distanceM: number })[]> {
-  const ll = `${center.latitude.toFixed(5)},${center.longitude.toFixed(5)}`;
+  const ll = `${center.latitude.toFixed(3)},${center.longitude.toFixed(3)}`;
   for (const radius of [5000, 15000]) {
     const elements = await overpass(`[out:json][timeout:25];(${FILTER(`around:${radius},${ll}`)});out center tags 200;`);
     const list = elements

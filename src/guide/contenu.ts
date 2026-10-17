@@ -192,12 +192,14 @@ export const FICHES: Fiche[] = [
     titre: 'Aller quelque part',
     but: 'Calculer un itinéraire moto et choisir le plus agréable.',
     etapes: [
-      'Sur la Carte, tape une adresse, une ville ou un lieu dans la barre de recherche. Ou fais un appui long sur la carte › « Aller ici ».',
+      'Sur la Carte, tape une adresse, une ville, un resto, un commerce ou un lieu dans la barre de recherche (catégorie et distance sur chaque résultat). Ou fais un appui long sur la carte › « Aller ici ».',
       'Choisis parmi 2 ou 3 itinéraires : Rapide, Plaisir (sinueux, petites routes, sans autoroute) ou Éviter autoroutes. Sous chaque choix : le temps en plus et les virages en plus par rapport au plus rapide (« +18 min · 3× plus de virages »).',
       'Dans « Options », coche si besoin Sans péage ou Sans non-goudronné.',
       'Appuie sur « Démarrer ».',
     ],
     astuces: [
+      'Sous la barre : ⛽ Station, 🍴 Café / Resto, 🅿️ Parking moto, 🔧 Garage moto. Un tap = les plus proches de toi.',
+      'Pas trouvé ? « Chercher plus loin » en bas des résultats.',
       'Les options sont préremplies selon ta moto principale.',
       'La météo sur le trajet s’affiche dans l’aperçu : pluie, vent, froid.',
       'Si ton autonomie est trop juste pour le trajet (Garage renseigné), l’app te prévient avant de partir.',
@@ -206,7 +208,7 @@ export const FICHES: Fiche[] = [
     limites: ['En 50 cm³, l’itinéraire évite toujours autoroutes et voies rapides.'],
     android: true,
     web: 'Sur le web, « Aller ici » ouvre l’itinéraire dans l’app Android.',
-    motsCles: ['gps', 'navigation', 'autoroute', 'péage', 'route', 'adresse'],
+    motsCles: ['gps', 'navigation', 'autoroute', 'péage', 'route', 'adresse', 'restaurant', 'commerce', 'recherche', 'station', 'garage'],
   },
   {
     id: 'navigation',
@@ -332,12 +334,14 @@ export const FICHES: Fiche[] = [
     titre: 'Signaler un danger',
     but: 'Prévenir les autres motards d’un danger sur la route, et être prévenu.',
     etapes: [
-      'Appuie sur le bouton « + » de la Carte › « ⚠️ Signaler un danger » (en navigation, il ouvre directement les dangers).',
-      'Choisis le type : accident, gravillons, huile, travaux, objet, animal, bouchon, véhicule arrêté ou autre danger.',
-      'Le signalement apparaît sur la carte pour tout le monde.',
+      'En roulant : UN seul tap sur le gros bouton ⚠️ en bas. La position est marquée tout de suite (« Danger noté »), rien d’autre à faire. Ne manipule jamais ton téléphone en conduisant.',
+      'À l’arrêt, l’app te demande « Quel type de danger as-tu vu ? ». Sans réponse sous 30 min, il reste « Zone de danger ». « Supprimer » l’efface.',
+      'À l’arrêt : bouton ⚠️ (en navigation) ou « + » › « ⚠️ Signaler un danger » : 6 très grosses icônes (accident, gravillons / huile, travaux, animal, objet, véhicule arrêté). Un tap = envoyé, annulable 5 s.',
       'En passant devant un signalement, réponds « Toujours là » ou « Plus là ».',
     ],
     astuces: [
+      'Passager ? Active « 🎒 Passager » au-dessus du bouton ⚠️ : tu as toute la grille, même en roulant.',
+      '« Autre danger » sous la grille : bouchon, zone de danger.',
       'Sur ta route, la voix t’annonce un danger vers 600 m, puis te le rappelle à 200 m.',
       'Pour signaler ailleurs qu’à ta position : appui long sur la carte › « Signaler à cet endroit ».',
       'Un signalement expire tout seul (sa durée dépend du type).',
@@ -345,7 +349,7 @@ export const FICHES: Fiche[] = [
     limites: ['Uniquement des dangers de la route. Le reste est refusé.'],
     android: true,
     web: 'Sur le web, tu vois les signalements sur la carte.',
-    motsCles: ['gravillons', 'huile', 'accident', 'travaux', 'animal', 'bouchon', 'signalement'],
+    motsCles: ['gravillons', 'huile', 'accident', 'travaux', 'animal', 'bouchon', 'signalement', 'passager', 'en roulant'],
   },
   {
     id: 'calques',
@@ -356,14 +360,15 @@ export const FICHES: Fiche[] = [
     etapes: [
       'À droite de la Carte : ⚠️ affiche ou masque les signalements.',
       '🚩 affiche ou masque les balades et les événements.',
-      '☕ ouvre les filtres des spots (café, point de vue, belle route, station, garage, parking).',
+      '☕ ouvre les filtres de la carte : 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant) et spots (café, point de vue, belle route, station, garage, parking).',
       'Style de carte (Classique, Sombre, Automatique) : Profil › ⚙️ Paramètres › Style de carte.',
     ],
     astuces: [
       'Touche une épingle (balade, spot, événement, danger) pour voir sa fiche.',
+      'Parking moto (P bleu) : nom ou adresse, payant / gratuit et nombre de places si c’est connu, et « Y aller ». Il en manque un ? Ajoute-le en spot « Parking moto ».',
       'Les alertes vocales de danger restent actives même si les signalements sont masqués.',
     ],
-    motsCles: ['calque', 'filtre', 'sombre', 'style', 'épingle'],
+    motsCles: ['calque', 'filtre', 'sombre', 'style', 'épingle', 'parking', 'stationnement'],
   },
   {
     id: 'partage-trajet',
@@ -443,6 +448,24 @@ export const FICHES: Fiche[] = [
       'Tu peux aimer et commenter une balade.',
     ],
     motsCles: ['inscription', 'invitation', 'discussion', 'désister'],
+  },
+  {
+    id: 'passagers',
+    theme: 'ensemble',
+    emoji: '🎒',
+    titre: 'Passagers (sac de sable)',
+    but: 'Proposer ta place passager ou trouver un pilote pour une balade.',
+    etapes: [
+      'Inscris-toi à la balade, puis dans la fiche › Passagers : coche « 🏍️ J’ai une place passager » ou « 🎒 Je cherche une place ».',
+      'Tu cherches ? Touche « Demander la place » à côté d’un pilote : un message privé prêt à envoyer s’ouvre.',
+      'Tu as une place ? Touche « Je l’emmène » à côté de la personne : elle est prévenue.',
+    ],
+    astuces: [
+      'La fiche et la liste affichent « 2 places passager dispo ». Filtre « 🏍️ Places passager » dans Sorties › Balades.',
+      'Changer d’avis : touche à nouveau ton choix pour l’enlever.',
+    ],
+    limites: ['Équipement obligatoire pour le passager : casque homologué et gants certifiés.'],
+    motsCles: ['passager', 'sac de sable', 'duo', 'place', 'monter derrière'],
   },
   {
     id: 'balade-jour-j',
@@ -540,7 +563,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'Dans le Mur, appuie sur « Rouler ensemble ».',
       'Si besoin, appuie sur « Apparaître » pour être visible toi aussi.',
-      'Filtre par distance, moto, permis, style, rythme et disponibilités.',
+      'Filtre par distance, moto, permis, style, rythme (🐢 Pépère à 🏁 Arsouille) et disponibilités.',
       'Appuie sur « Ajouter en ami » ou ouvre le profil pour envoyer un message.',
     ],
     astuces: ['Complète ton profil (style, rythme, dispos, moto principale) pour de meilleures suggestions.'],
@@ -563,8 +586,10 @@ export const FICHES: Fiche[] = [
       'En haut : les stories de tes amis. En dessous : leurs photos et les balades qu’ils organisent ou rejoignent.',
       'Touche une photo pour l’agrandir, l’aimer ou la commenter.',
       'Sur une balade, « Je participe » t’inscrit directement.',
+      '« Motards que tu pourrais connaître » : amis d’amis, même club, mêmes balades ou même ville. « Ajouter » envoie une demande d’ami, « ✕ » ne le propose plus.',
     ],
-    motsCles: ['fil', 'actualité'],
+    limites: ['Jamais de position dans les suggestions. Pour ne pas y apparaître : Paramètres › Confidentialité › « Apparaître dans les suggestions ».'],
+    motsCles: ['fil', 'actualité', 'suggestions', 'amis en commun'],
   },
   {
     id: 'photos',
@@ -609,9 +634,11 @@ export const FICHES: Fiche[] = [
       'Onglet Messages › « Nouveau message », puis choisis un ami.',
       'Groupe : « Nouveau message » › « Nouveau groupe » : un nom, une photo si tu veux, puis tes amis (50 membres au plus).',
       'Écris ton message ou ajoute une photo.',
+      'Message vocal : maintiens le micro 🎤 (quand la saisie est vide), parle, relâche pour envoyer ; glisse vers la gauche pour annuler. 2 min max. Touche ▶ pour écouter.',
       'Appui long sur un message (sur ordinateur : clic droit, ou le bouton « ⋯ » au survol) : réagis (❤️ 😂 😮 😢 👍 🔥 🏍️, re-toucher pour retirer), puis ✏️ Modifier (tes messages, pendant 1 h), 📋 Copier, ↩️ Répondre, 🗑️ Supprimer (pour toi, ou pour tout le monde pendant 1 h), ou signaler.',
       'Message modifié : « modifié » s’affiche sur la bulle et les autres voient la nouvelle version tout de suite.',
       'Les discussions des balades auxquelles tu participes apparaissent aussi ici.',
+      'Groupe de la commu : en haut des Messages, « Rejoindre » le groupe « PasseRyder – On construit l’appli ensemble 🛠️ » pour donner ton avis, proposer des idées, signaler des bugs. Les règles sont épinglées en haut.',
       'À ton inscription, tu reçois un message de bienvenue de @admin (badge « Créateur de PasseRyder ») : c’est Dimitri, qui a créé l’appli. Réponds-lui directement pour un bug, une idée ou une question.',
     ],
     astuces: [
@@ -619,13 +646,15 @@ export const FICHES: Fiche[] = [
       'Accusés de lecture : Paramètres › Confidentialité. Coupés, les autres ne voient plus quand tu lis, et tu ne vois plus les leurs.',
       'Groupe : touche son nom pour les infos. Le créateur est admin : il renomme, ajoute ou retire des membres, nomme d’autres admins. Chacun peut quitter.',
       'Sourdine (menu « … » d’une conversation) : 1 heure, 8 heures ou toujours.',
+      'Groupes publics (comme celui de la commu) : pas de notification push à chaque message, tout est regroupé dans l’onglet Notifs. Les admins épinglent un message et suppriment ceux qui ne respectent pas les règles.',
       'Fond d’écran (menu « … » › Fond d’écran, ou l’icône 👁 en haut pour le voir en grand puis « Changer ») : un fond PasseRyder, une couleur ou ta photo, avec la luminosité. Il est rien qu’à toi (les autres ne le voient pas) ; « Appliquer à toutes mes conversations » pour le mettre partout, « Réinitialiser » pour revenir au fond normal.',
     ],
     limites: [
       'Saisie désactivée en navigation au-dessus de 10 km/h.',
+      'Enregistrer un vocal : sur la version web pour l’instant (bientôt dans l’app Android). L’écoute marche partout.',
       'Tu ne peux ajouter dans un groupe que tes amis, et jamais quelqu’un qui t’a bloqué ou que tu as bloqué.',
     ],
-    motsCles: ['chat', 'discussion', 'photo', 'groupe', 'réaction', 'vu', 'lu', 'supprimer', 'modifier', 'sourdine', 'répondre', 'copier', 'fond', 'fond d’écran', 'wallpaper'],
+    motsCles: ['chat', 'discussion', 'photo', 'groupe', 'réaction', 'vu', 'lu', 'supprimer', 'modifier', 'sourdine', 'répondre', 'copier', 'fond', 'fond d’écran', 'wallpaper', 'vocal', 'micro', 'audio', 'commu', 'communauté', 'épinglé'],
   },
   {
     id: 'spots',
@@ -930,6 +959,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'Va dans Profil › ⚙️ Paramètres › Confidentialité.',
       'Active ou coupe « Apparaître dans « Trouver des motards » ».',
+      '« Apparaître dans les suggestions » (activé par défaut) : coupe-le pour ne plus être proposé dans « Motards que tu pourrais connaître ».',
     ],
     limites: ['Jamais de position exacte : une distance approximative (zone de ~5 km).'],
     motsCles: ['découverte', 'opt-in'],

@@ -55,7 +55,7 @@ export function categoryFromQuery(q: string): NearbyCategory | null {
 }
 
 async function osmAround(cat: Exclude<NearbyCategory, 'parking'>, near: LatLng, radius: number): Promise<SearchResult[]> {
-  const ll = `${near.latitude.toFixed(5)},${near.longitude.toFixed(5)}`;
+  const ll = `${near.latitude.toFixed(3)},${near.longitude.toFixed(3)}`;
   const body = OSM_FILTERS[cat].map((f) => `nwr${f}(around:${radius},${ll});`).join('');
   const elements = await overpass(`[out:json][timeout:20];(${body});out center tags 150;`);
   const out: SearchResult[] = [];
