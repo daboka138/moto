@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EventCard, PlaceCard } from '@/components/community-cards';
+import { EventCard, ParkingCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { ConvoyPanel } from '@/components/convoy-panel';
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
@@ -45,6 +45,7 @@ import { needsFuel, useFuelAlert } from '@/lib/fuel';
 import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garage';
 import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { useMapLayers } from '@/lib/map-layers';
+import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -78,6 +79,7 @@ const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
 const PLACE_PREFIX = 'place:';
 const EVENT_PREFIX = 'event:';
+const PARKING_PREFIX = 'parking:';
 /** Événements affichés sur la carte : dans les 60 jours */
 const EVENTS_ON_MAP_DAYS = 60;
 /** Balades affichées sur la carte : publiques, entre amis ou auxquelles je participe, dans les 30 jours */
@@ -133,6 +135,8 @@ export default function MapScreen() {
   const ghost = settings?.mode === 'ghost';
   const insets = useSafeAreaInsets();
   const layers = useMapLayers();
+  // Zone affichée (parkings moto OpenStreetMap de la zone)
+  const [mapView, setMapView] = useState<{ center: LatLng; zoom: number } | null>(null);
 
   // Flèche : cap GPS en mouvement, boussole à l'arrêt (dernier cap GPS si pas de boussole)
   const moving = (location?.coords.speed ?? 0) > MOVING_MS;
@@ -395,6 +399,8 @@ export default function MapScreen() {
     navigating || !layers.showRides ? [] : (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS));
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
+  const parkings = useMotoParkings(mapView, layers.showParkings && !navigating);
+  const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
 
   // ---------- Repères : RDV de balades, signalements, destination ----------
   const mapRides = navigating
@@ -418,6 +424,13 @@ export default function MapScreen() {
       id: PLACE_PREFIX + p.id,
       kind: 'place' as const,
       label: placeKindInfo(p.kind).emoji,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    })),
+    ...parkings.map((p) => ({
+      id: PARKING_PREFIX + p.id,
+      kind: 'parking' as const,
+      label: 'P',
       latitude: p.latitude,
       longitude: p.longitude,
     })),
@@ -525,7 +538,7 @@ export default function MapScreen() {
 
   const onPinPress = (id: string) => {
     if (id === REGROUP_PIN && convoy?.ride.regroup) return goToConvoyPoint(convoy.ride.regroup);
-    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
       return;
@@ -821,6 +834,7 @@ export default function MapScreen() {
         onPinPress={onPinPress}
         routes={routes}
         fitPoints={fitPoints}
+        onViewChange={(center, zoom) => setMapView({ center, zoom })}
       />
       {/* Couche des commandes : couvre tout l'écran au-dessus de la carte, recherche en haut, + en bas */}
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
@@ -1017,6 +1031,23 @@ export default function MapScreen() {
                 place={selectedPlace}
                 distanceM={position ? distanceM(position, selectedPlace) : null}
                 onPress={() => openPlace(selectedPlace)}
+                onClose={() => setSelectedId(null)}
+              />
+            </View>
+          )}
+          {selectedParking && (
+            <View style={styles.card}>
+              <ParkingCard
+                parking={selectedParking}
+                distanceM={position ? distanceM(position, selectedParking) : null}
+                onGo={() =>
+                  chooseDestination({
+                    label: `🅿️ ${parkingTitle(selectedParking)}`,
+                    latitude: selectedParking.latitude,
+                    longitude: selectedParking.longitude,
+                    source: 'lieu',
+                  })
+                }
                 onClose={() => setSelectedId(null)}
               />
             </View>

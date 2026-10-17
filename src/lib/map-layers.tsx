@@ -10,6 +10,7 @@ const KEYS = {
   reports: 'moto.map.showReports',
   rides: 'moto.map.showRides.v2',
   places: 'moto.map.showPlaces',
+  parkings: 'moto.map.showParkings',
   hiddenPlaceKinds: 'moto.map.hiddenPlaceKinds',
   style: 'moto.map.style',
 };
@@ -44,6 +45,9 @@ type MapLayers = {
   setShowReports: (v: boolean) => void;
   setShowRides: (v: boolean) => void;
   setShowPlaces: (v: boolean) => void;
+  /** Parkings moto OpenStreetMap (activé par défaut) */
+  showParkings: boolean;
+  setShowParkings: (v: boolean) => void;
   /** Catégories de spots masquées sur la carte */
   hiddenPlaceKinds: PlaceKind[];
   setHiddenPlaceKinds: (v: PlaceKind[]) => void;
@@ -73,6 +77,7 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showReports, setReports] = useState(() => read(KEYS.reports));
   const [showRides, setRides] = useState(() => read(KEYS.rides));
   const [showPlaces, setPlaces] = useState(() => read(KEYS.places));
+  const [showParkings, setParkings] = useState(() => read(KEYS.parkings));
   const [hiddenPlaceKinds, setHidden] = useState(readHiddenKinds);
   const [mapStyle, setStyle] = useState(readStyle);
   return (
@@ -92,6 +97,11 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
         setShowPlaces: (v) => {
           setPlaces(v);
           write(KEYS.places, v);
+        },
+        showParkings,
+        setShowParkings: (v) => {
+          setParkings(v);
+          write(KEYS.parkings, v);
         },
         hiddenPlaceKinds,
         setHiddenPlaceKinds: (v) => {

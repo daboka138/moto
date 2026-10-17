@@ -19,6 +19,7 @@ type WebMessage =
   | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
   | { type: 'beep'; ok: boolean }
+  | { type: 'view'; latitude: number; longitude: number; zoom: number }
   | { type: 'error'; message: string };
 
 const BASE_URL = 'https://localhost/';
@@ -427,7 +428,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
         el.textContent = p.label;
         icon = L.divIcon({ className: 'pin-wrap', html: el, iconSize: null, iconAnchor: [14, 14] });
       }
-      var marker = L.marker([p.latitude, p.longitude], { icon: icon, zIndexOffset: p.kind === 'dropped' ? 2000 : 500 }).addTo(map);
+      var marker = L.marker([p.latitude, p.longitude], { icon: icon, zIndexOffset: p.kind === 'dropped' ? 2000 : p.kind === 'parking' ? 300 : 500 }).addTo(map);
       marker.on('click', function () { post({ type: 'pin', id: p.id }); });
       pins[p.id] = marker;
     });
@@ -489,6 +490,19 @@ function buildHtml(Colors: Palette, dark: boolean) {
     else map.fitBounds(points, { padding: [40, 40], maxZoom: 15, animate: false });
   };
 
+  // Zone affichée (chargement des parkings moto de la zone) : regroupée, la carte bouge souvent en suivi
+  var viewTimer = null, lastView = '';
+  map.on('moveend zoomend', function () {
+    clearTimeout(viewTimer);
+    viewTimer = setTimeout(function () {
+      var c = map.getCenter(), z = map.getZoom();
+      var key = c.lat.toFixed(3) + ',' + c.lng.toFixed(3) + ',' + Math.round(z);
+      if (key === lastView) return;
+      lastView = key;
+      post({ type: 'view', latitude: c.lat, longitude: c.lng, zoom: z });
+    }, 700);
+  });
+
   post({ type: 'ready' });
 </script>
 </body>
@@ -514,6 +528,7 @@ export function LeafletMap({
   onMarkersRendered,
   beepKey = 0,
   onBeepFailed,
+  onViewChange,
 }: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -597,6 +612,7 @@ export function LeafletMap({
     else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
     else if (msg.type === 'beep' && !msg.ok) onBeepFailed?.();
+    else if (msg.type === 'view') onViewChange?.({ latitude: msg.latitude, longitude: msg.longitude }, msg.zoom);
     else if (msg.type === 'error') console.warn('[carte]', msg.message);
   };
 

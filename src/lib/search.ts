@@ -8,7 +8,15 @@ import { distanceM, type LatLng } from '@/lib/geo';
 // - lieux (restos, stations…) : Nominatim (OpenStreetMap). Sa charte interdit
 //   l'autocomplétion : on ne l'appelle que sur demande explicite, 1 requête à la fois.
 
-export type SearchResult = LatLng & { label: string; detail?: string; source: 'adresse' | 'lieu' };
+export type SearchResult = LatLng & {
+  label: string;
+  detail?: string;
+  source: 'adresse' | 'lieu';
+  /** Catégorie du lieu (🍴 restaurant, ⛽ station…) */
+  emoji?: string;
+  /** Distance depuis ma position (m), si connue */
+  distanceM?: number;
+};
 
 const BAN = 'https://data.geopf.fr/geocodage';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';

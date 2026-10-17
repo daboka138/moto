@@ -28,7 +28,7 @@ export type MapPin = {
   id: string;
   latitude: number;
   longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event';
+  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event' | 'parking';
   label: string;
   /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
   sign?: SignStyle;
@@ -66,6 +66,6 @@ export type MapProps = {
   beepKey?: number;
   /** Le bip n'a pas pu être joué (son bloqué par la page) */
   onBeepFailed?: () => void;
-  /** Web uniquement : centre de la carte après un déplacement (chargement des signalements de la zone) */
-  onViewChange?: (center: LatLng) => void;
+  /** Centre et zoom de la carte après un déplacement (signalements, parkings moto de la zone) */
+  onViewChange?: (center: LatLng, zoom: number) => void;
 };

@@ -46,6 +46,12 @@ export function mapCss(Colors: Palette) {
   .pin.step { background: ${Colors.neutral}; } .pin.meeting { background: ${Colors.accent}; }
   .pin.place { background: ${Colors.placePin}; font-size: 15px; min-width: 32px; height: 32px; border-radius: 16px; }
   .pin.event { background: ${Colors.eventPin}; font-size: 13px; }
+  /* Parking moto OpenStreetMap : panneau carré « P » + petite moto */
+  .pin.parking {
+    background: ${Colors.parkingPin}; border-radius: 6px; min-width: 26px; height: 26px; padding: 0 3px;
+    font: 900 15px sans-serif;
+  }
+  .pin.parking::after { content: '🏍'; font-size: 9px; margin-left: 1px; align-self: flex-end; margin-bottom: 3px; }
   .pin.report {
     background: ${Colors.white}; border: 3px solid ${Colors.danger}; color: ${Colors.text}; font-size: 18px;
     min-width: 36px; height: 36px; border-radius: 18px; padding: 0;

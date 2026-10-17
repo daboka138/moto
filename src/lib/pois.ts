@@ -39,7 +39,9 @@ const CORRIDOR_M = 1000;
 const SAMPLE_EVERY_M = 1000;
 const MAX_RESULTS = 15;
 
-type OverpassElement = {
+export type OverpassElement = {
+  type?: string;
+  id?: number;
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
@@ -64,7 +66,7 @@ function corridor(route: NavRoute, fromM: number): LatLng[] {
   return out;
 }
 
-async function overpass(query: string) {
+export async function overpass(query: string) {
   let lastError: unknown = null;
   // Serveur public souvent chargé : on essaie le miroir si le premier ne répond pas
   for (const server of SERVERS) {

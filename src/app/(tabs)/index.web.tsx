@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { EventCard, PlaceCard } from '@/components/community-cards';
+import { EventCard, ParkingCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { LeafletMap, type MapMarker, type MapPin, type MapRoute } from '@/components/leaflet-map';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
@@ -19,6 +19,7 @@ import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { useMapLayers } from '@/lib/map-layers';
+import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { usePrivacy } from '@/lib/privacy-context';
 import { photoUrl } from '@/lib/profile';
 import { deleteReport, reportInfo } from '@/lib/reports';
@@ -41,6 +42,7 @@ const RIDE_PREFIX = 'ride:';
 const REPORT_PREFIX = 'report:';
 const PLACE_PREFIX = 'place:';
 const EVENT_PREFIX = 'event:';
+const PARKING_PREFIX = 'parking:';
 const RIDES_ON_MAP_DAYS = 30;
 const EVENTS_ON_MAP_DAYS = 60;
 
@@ -55,6 +57,7 @@ export default function MapScreen() {
   const ghost = settings?.mode === 'ghost';
   const [me, setMe] = useState<(LatLng & { accuracy: number | null }) | null>(null);
   const [center, setCenter] = useState<LatLng | null>(null);
+  const [zoom, setZoom] = useState(0);
   const [follow, setFollow] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [placeFilter, setPlaceFilter] = useState(false);
@@ -128,8 +131,11 @@ export default function MapScreen() {
   const mapEvents = layers.showRides ? (events ?? []).filter((e) => isWithinDays(e.startsAt, EVENTS_ON_MAP_DAYS)) : [];
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
+  const parkings = useMotoParkings(center ? { center, zoom } : null, layers.showParkings);
+  const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
 
   const pins: MapPin[] = [
+    ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, label: 'P', latitude: p.latitude, longitude: p.longitude })),
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
       kind: 'meeting' as const,
@@ -177,7 +183,7 @@ export default function MapScreen() {
       : [];
 
   const onPinPress = (id: string) => {
-    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
       return;
@@ -234,9 +240,9 @@ export default function MapScreen() {
   };
 
   // « Aller ici » : la navigation guidée est dans l'app, qui ouvre directement l'aperçu du trajet
-  const goInApp = () => {
-    if (!dropped) return;
-    const { place } = dropped;
+  const goInApp = (target?: LatLng & { label: string }) => {
+    const place = target ?? dropped?.place;
+    if (!place) return;
     const query = new URLSearchParams({
       goLat: place.latitude.toFixed(6),
       goLng: place.longitude.toFixed(6),
@@ -274,7 +280,10 @@ export default function MapScreen() {
         position={me ? { ...me, heading: null } : null}
         follow={follow}
         onUserPan={() => setFollow(false)}
-        onViewChange={setCenter}
+        onViewChange={(c, z) => {
+          setCenter(c);
+          setZoom(z);
+        }}
         markers={markers}
         selectedMarkerId={selectedId}
         onMarkerPress={(id) => {
@@ -366,11 +375,19 @@ export default function MapScreen() {
               place={dropped.place}
               resolving={dropped.resolving}
               distanceM={me ? distanceM(me, dropped.place) : null}
-              onGo={goInApp}
+              onGo={() => goInApp()}
               onRide={rideFromDropped}
               onAddPlace={() => communityFromDropped('/place/new')}
               onAddEvent={() => communityFromDropped('/event/new')}
               onClose={() => setDropped(null)}
+            />
+          )}
+          {selectedParking && (
+            <ParkingCard
+              parking={selectedParking}
+              distanceM={me ? distanceM(me, selectedParking) : null}
+              onGo={() => goInApp({ ...selectedParking, label: `🅿️ ${parkingTitle(selectedParking)}` })}
+              onClose={() => setSelectedId(null)}
             />
           )}
           {selectedPlace && (

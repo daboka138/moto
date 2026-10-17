@@ -6,7 +6,7 @@ import { makeStyles, useColors } from '@/constants/theme';
 import { useMapLayers } from '@/lib/map-layers';
 import { PLACE_KINDS } from '@/lib/places';
 
-/** Filtres de la carte : spots (tout / par catégorie), mémorisés. */
+/** Filtres de la carte : parkings moto OSM, spots (tout / par catégorie), mémorisés. */
 export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -21,6 +21,18 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Fermer">
               <Ionicons name="close" size={24} color={Colors.textMuted} />
             </Pressable>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Text style={styles.label}>🅿️ Parkings moto</Text>
+              <Text style={styles.sub}>Parkings OpenStreetMap, visibles en zoomant</Text>
+            </View>
+            <Switch
+              value={layers.showParkings}
+              onValueChange={layers.setShowParkings}
+              trackColor={{ true: Colors.accent, false: Colors.border }}
+              thumbColor={Colors.white}
+            />
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Afficher les spots</Text>
@@ -61,6 +73,8 @@ const useStyles = makeStyles((Colors) => ({
   title: { fontSize: 18, fontWeight: '800', color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  flex: { flex: 1 },
+  sub: { fontSize: 13, color: Colors.textMuted },
   hint: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 }));

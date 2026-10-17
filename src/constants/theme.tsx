@@ -54,6 +54,8 @@ export const LightColors = {
   /** Repères de la carte : lieux motards et événements */
   placePin: '#EA580C',
   eventPin: '#DB2777',
+  /** Parkings moto OpenStreetMap (bleu des panneaux de parking) */
+  parkingPin: '#1D4ED8',
 
   // Navigation
   /** Bandeau d'instruction pendant le guidage */

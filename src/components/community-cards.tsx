@@ -5,6 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { formatDistance } from '@/components/person-card';
 import { makeStyles, useColors } from '@/constants/theme';
 import { eventKindInfo, formatEventDates, type MotoEvent } from '@/lib/events';
+import { parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { placeKindInfo, type CommunityPlace } from '@/lib/places';
 
 /** Étoiles : affichage, ou saisie si onChange est fourni */
@@ -133,6 +134,51 @@ export function EventCard({
   );
 }
 
+/** Parking moto OpenStreetMap (carte) : nom / adresse, payant ou gratuit, places, « Y aller » */
+export function ParkingCard({
+  parking,
+  distanceM,
+  onGo,
+  onClose,
+}: {
+  parking: MotoParking;
+  distanceM?: number | null;
+  onGo: () => void;
+  onClose: () => void;
+}) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const facts = parkingFacts(parking);
+  return (
+    <View style={styles.card}>
+      <View style={[styles.thumb, styles.parkingSign]}>
+        <Text style={styles.parkingP}>P</Text>
+        <Text style={styles.parkingMoto}>🏍️</Text>
+      </View>
+      <View style={styles.body}>
+        <Text style={styles.title} numberOfLines={1}>
+          {parkingTitle(parking)}
+        </Text>
+        {!!parking.address && (
+          <Text style={styles.meta} numberOfLines={1}>
+            {parking.address}
+          </Text>
+        )}
+        <Text style={styles.meta} numberOfLines={1}>
+          {[facts, distanceM != null ? `à ${formatDistance(distanceM)}` : null].filter(Boolean).join(' · ') || 'Parking moto'}
+        </Text>
+        <Pressable style={styles.go} onPress={onGo} accessibilityLabel="Y aller">
+          <Ionicons name="navigate" size={16} color={Colors.white} />
+          <Text style={styles.goText}>Y aller</Text>
+        </Pressable>
+      </View>
+      <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Fermer" style={styles.closeTop}>
+        <Ionicons name="close" size={22} color={Colors.textMuted} />
+      </Pressable>
+    </View>
+  );
+}
+
 const useStyles = makeStyles((Colors) => ({
   card: {
     flexDirection: 'row',
@@ -157,4 +203,20 @@ const useStyles = makeStyles((Colors) => ({
   date: { width: 56, alignItems: 'center', borderRadius: 12, backgroundColor: Colors.accentSoft, paddingVertical: 8 },
   dateDay: { fontSize: 22, fontWeight: '900', color: Colors.accent },
   dateMonth: { fontSize: 12, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
+  parkingSign: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.parkingPin },
+  parkingP: { fontSize: 30, fontWeight: '900', color: Colors.white, lineHeight: 32 },
+  parkingMoto: { fontSize: 12 },
+  go: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: Colors.accent,
+  },
+  goText: { color: Colors.white, fontWeight: '800' },
+  closeTop: { alignSelf: 'flex-start' },
 }));

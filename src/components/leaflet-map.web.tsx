@@ -135,7 +135,7 @@ export function LeafletMap({
     });
     const sendView = () => {
       const c = map.getCenter();
-      handlers.current.onViewChange?.({ latitude: c.lat, longitude: c.lng });
+      handlers.current.onViewChange?.({ latitude: c.lat, longitude: c.lng }, map.getZoom());
     };
     map.on('moveend', sendView);
     sendView();
@@ -273,7 +273,7 @@ export function LeafletMap({
     if (!group) return;
     group.clearLayers();
     for (const p of JSON.parse(pinsJson) as MapPin[]) {
-      L.marker([p.latitude, p.longitude], { icon: pinIcon(p), zIndexOffset: p.kind === 'dropped' ? 2000 : 500 })
+      L.marker([p.latitude, p.longitude], { icon: pinIcon(p), zIndexOffset: p.kind === 'dropped' ? 2000 : p.kind === 'parking' ? 300 : 500 })
         .on('click', () => handlers.current.onPinPress?.(p.id))
         .addTo(group);
     }
