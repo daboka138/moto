@@ -8,7 +8,7 @@ import { ExpandableMap } from '@/components/expandable-map';
 import { OpenInApp } from '@/components/open-in-app';
 import { Button, Chip } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { setPendingGpx } from '@/lib/gpx';
@@ -346,22 +346,22 @@ function LoopScreenContent() {
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
-  section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  hint: { fontSize: 13, color: Colors.textMuted },
-  warn: { flex: 1, fontSize: 13, color: Colors.warning, fontWeight: '700' },
-  warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 4 },
-  progress: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
-  map: { height: 280, borderRadius: 16, overflow: 'hidden' },
-  loopCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 2, borderColor: Colors.surface },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
+  warn: { flex: 1, fontSize: Type.small, color: Colors.warning, fontWeight: '700' },
+  warnBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 4 },
+  progress: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  map: { height: 280, borderRadius: Radius.md, overflow: 'hidden' },
+  loopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: Colors.surface },
   loopSelected: { borderColor: Colors.accent },
   scoreBar: { width: 50, height: 8, borderRadius: 4, backgroundColor: Colors.border, overflow: 'hidden' },
   scoreFill: { height: '100%', backgroundColor: Colors.warning },
   actions: { gap: 8 },
-  credit: { fontSize: 11, color: Colors.textMuted, textAlign: 'center' },
+  credit: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
 }));
 
 export default function LoopScreen() {

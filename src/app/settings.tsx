@@ -9,7 +9,7 @@ import { useIsAdmin } from '@/lib/admin';
 import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
-import { makeStyles, useColors, useTheme, type ThemePreference } from '@/constants/theme';
+import { makeStyles, Radius, Type, type ThemePreference, useColors, useTheme } from '@/constants/theme';
 import { resetTips } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
 import { signOut } from '@/lib/auth';
@@ -643,9 +643,9 @@ function SwitchRow({ label, description, value, onChange, disabled }: {
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 10, paddingBottom: 48 },
+  content: { padding: 16, gap: 12, paddingBottom: 48 },
   section: {
-    fontSize: 13,
+    fontSize: Type.small,
     fontWeight: '800',
     color: Colors.textMuted,
     textTransform: 'uppercase',
@@ -653,17 +653,17 @@ const useStyles = makeStyles((Colors) => ({
     marginTop: 12,
     marginLeft: 4,
   },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 8, gap: 4 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 8, gap: 4 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: Radius.md },
   optionSelected: { backgroundColor: Colors.accentSoft },
   optionText: { flex: 1, gap: 2 },
-  optionLabel: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  optionDescription: { fontSize: 13, color: Colors.textMuted },
+  optionLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  optionDescription: { fontSize: Type.small, color: Colors.textMuted },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  voiceBlock: { paddingHorizontal: 12, paddingBottom: 8, gap: 10 },
+  voiceBlock: { paddingHorizontal: 12, paddingBottom: 8, gap: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  testVoice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
-  testVoiceText: { fontSize: 16, fontWeight: '700', color: Colors.accent },
+  testVoice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
+  testVoiceText: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
   appOnly: { alignItems: 'center', padding: 16, gap: 12 },
 }));
 

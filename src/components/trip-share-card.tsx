@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { shortDistance } from '@/lib/navigation';
 import { fetchTripShare, SHARE_STALE_MS, type TripShare } from '@/lib/trip-share';
 
@@ -102,22 +102,22 @@ export function TripShareCard({ id, mine, fallback }: { id: string; mine: boolea
 const useStyles = makeStyles((Colors) => ({
   card: { gap: 4, paddingVertical: 2, minWidth: 220 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 15, fontWeight: '900' },
+  title: { fontSize: Type.body, fontWeight: '900' },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.success },
-  dest: { fontSize: 15, fontWeight: '700' },
-  eta: { fontSize: 20, fontWeight: '900' },
-  small: { fontSize: 13 },
+  dest: { fontSize: Type.body, fontWeight: '700' },
+  eta: { fontSize: Type.large, fontWeight: '900' },
+  small: { fontSize: Type.small },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 8,
     minHeight: 40,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     backgroundColor: Colors.surface,
   },
   buttonText: { color: Colors.accent, fontWeight: '800' },
-  text: { fontSize: 16, lineHeight: 21, color: Colors.text },
+  text: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
   textMine: { color: Colors.white },
 }));

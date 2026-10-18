@@ -4,7 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SearchBar } from '@/components/nav/search-bar';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { LatLng } from '@/lib/geo';
 import { shortDistance, type NavRoute } from '@/lib/navigation';
 import { POI_KINDS, poisAlongRoute, type PoiKind, type RoutePoi } from '@/lib/pois';
@@ -126,13 +126,13 @@ const useStyles = makeStyles((Colors) => ({
   sheet: {
     maxHeight: '85%',
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: 16,
     gap: 12,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
-  title: { flex: 1, fontSize: 20, fontWeight: '900', color: Colors.text },
+  title: { flex: 1, fontSize: Type.large, fontWeight: '900', color: Colors.text },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   kinds: { flexDirection: 'row', gap: 8 },
   kind: {
@@ -141,21 +141,21 @@ const useStyles = makeStyles((Colors) => ({
     gap: 4,
     minHeight: 72,
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: Radius.md,
     borderWidth: 2,
     borderColor: Colors.border,
     paddingHorizontal: 4,
   },
   kindOn: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
-  kindEmoji: { fontSize: 26 },
-  kindText: { fontSize: 13, fontWeight: '800', color: Colors.text },
+  kindEmoji: { fontSize: Type.title },
+  kindText: { fontSize: Type.small, fontWeight: '800', color: Colors.text },
   kindTextOn: { color: Colors.accent },
   results: { maxHeight: 300 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 60, paddingVertical: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 8 },
   rowText: { flex: 1, gap: 2 },
-  label: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  muted: { fontSize: 13, color: Colors.textMuted },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  muted: { fontSize: Type.small, color: Colors.textMuted },
   error: { color: Colors.danger, fontWeight: '600', padding: 8 },
-  section: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
 }));

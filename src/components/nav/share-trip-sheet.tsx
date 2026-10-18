@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { PublicProfile } from '@/lib/friends';
 import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
@@ -95,19 +95,19 @@ const useStyles = makeStyles((Colors) => ({
   sheet: {
     maxHeight: '80%',
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
-  title: { flex: 1, fontSize: 20, fontWeight: '900', color: Colors.text },
+  title: { flex: 1, fontSize: Type.large, fontWeight: '900', color: Colors.text },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  muted: { fontSize: 14, color: Colors.textMuted },
+  muted: { fontSize: Type.body, color: Colors.textMuted },
   list: { maxHeight: 380 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },
-  name: { flex: 1, fontSize: 17, fontWeight: '700', color: Colors.text },
+  name: { flex: 1, fontSize: Type.large, fontWeight: '700', color: Colors.text },
   sharedTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   sharedText: { color: Colors.success, fontWeight: '700' },
 }));

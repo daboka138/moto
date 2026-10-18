@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
 
-import { useColors } from '@/constants/theme';
+import { Radius, useColors } from '@/constants/theme';
 
 /**
  * QR code dessiné en SVG (qrcode-generator = JavaScript pur, react-native-svg déjà dans l'app :
@@ -28,7 +28,7 @@ export function QrCode({ value, size = 220 }: { value: string; size?: number }) 
   const margin = 2;
   const box = count + margin * 2;
   return (
-    <View style={{ width: size, height: size, borderRadius: 12, overflow: 'hidden', backgroundColor: Colors.white }}>
+    <View style={{ width: size, height: size, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.white }}>
       <Svg width={size} height={size} viewBox={`${-margin} ${-margin} ${box} ${box}`}>
         <Rect x={-margin} y={-margin} width={box} height={box} fill={Colors.white} />
         <Path d={path} fill={Colors.black} />

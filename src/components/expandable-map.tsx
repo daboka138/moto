@@ -5,7 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { LeafletMap } from '@/components/leaflet-map';
 import type { MapProps } from '@/components/map-types';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 
 /**
  * Mini-carte avec un bouton ⤢ qui l'ouvre en plein écran : barre en haut (←, titre, sous-titre),
@@ -97,13 +97,13 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   back: { padding: 4 },
-  title: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  subtitle: { fontSize: 13, color: Colors.textMuted },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  subtitle: { fontSize: Type.small, color: Colors.textMuted },
   footer: { padding: 12, gap: 8, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border },
 }));

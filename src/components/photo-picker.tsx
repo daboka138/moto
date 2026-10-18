@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { pickImage } from '@/lib/pick-image';
 import { photoUrl, type PhotoValue } from '@/lib/profile';
 
@@ -52,12 +52,12 @@ const useStyles = makeStyles((Colors) => ({
   wide: {
     width: '100%',
     aspectRatio: 4 / 3,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     backgroundColor: Colors.border,
   },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, padding: 8 },
-  placeholderText: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
+  placeholderText: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
   badge: {
     position: 'absolute',
     right: 8,

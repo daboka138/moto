@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, ScrollView, Switch, Text, View } from 'react-
 
 import { ExpandableMap } from '@/components/expandable-map';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import {
   elevationGain,
@@ -201,20 +201,20 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 14, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, backgroundColor: Colors.background },
-  kicker: { fontSize: 13, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text },
-  text: { fontSize: 15, color: Colors.text, lineHeight: 21 },
-  muted: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
-  small: { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  map: { height: 280, borderRadius: 18, overflow: 'hidden', backgroundColor: Colors.surface },
-  stats: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: 18, padding: 14 },
+  content: { padding: 16, gap: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: Colors.background },
+  kicker: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  text: { fontSize: Type.body, color: Colors.text, lineHeight: 21 },
+  muted: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
+  small: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 17 },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  map: { height: 280, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.surface },
+  stats: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16 },
   stat: { flex: 1, alignItems: 'center', gap: 2 },
-  statValue: { fontSize: 20, fontWeight: '900', color: Colors.accent },
-  reward: { backgroundColor: Colors.accentSoft, borderRadius: 14, padding: 12, gap: 4 },
-  rewardText: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 14, padding: 12 },
-  row: { flexDirection: 'row', gap: 10 },
+  statValue: { fontSize: Type.large, fontWeight: '900', color: Colors.accent },
+  reward: { backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 12, gap: 4 },
+  rewardText: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
+  row: { flexDirection: 'row', gap: 12 },
 }));

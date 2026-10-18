@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 
 import { showActionSheet } from '@/components/action-sheet';
 import { Button, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { sendTestSms } from '@/lib/alert-sms';
 import {
   addMemberContact,
@@ -374,35 +374,35 @@ function ContactRow({
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 10, paddingBottom: 48 },
+  content: { padding: 16, gap: 12, paddingBottom: 48 },
   intro: {
-    fontSize: 16,
+    fontSize: Type.body,
     fontWeight: '700',
     color: Colors.text,
     lineHeight: 22,
   },
   section: {
-    fontSize: 13,
+    fontSize: Type.small,
     fontWeight: '800',
     color: Colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 12,
   },
-  help: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  help: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
   error: {
-    fontSize: 13,
+    fontSize: Type.small,
     color: Colors.danger,
     lineHeight: 18,
     fontWeight: '600',
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 12,
-    gap: 10,
+    gap: 12,
   },
-  formTitle: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  formTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 },
   rowText: { flex: 1 },
   avatar: {
@@ -419,7 +419,7 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  name: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   remove: {
     width: 44,
     height: 44,
@@ -429,12 +429,12 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.background,
   },
   action: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.background,
   },
   actionText: { fontWeight: '800', color: Colors.accent },
   pressed: { opacity: 0.6 },
-  testResult: { fontSize: 13, fontWeight: '700', lineHeight: 18, marginTop: 2 },
+  testResult: { fontSize: Type.small, fontWeight: '700', lineHeight: 18, marginTop: 2 },
 }));

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { Chip, Section } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import { fetchMyAdminClubs } from '@/lib/clubs';
 
 /**
@@ -40,5 +40,5 @@ export function ClubPicker({ userId, value, onChange }: { userId: string | undef
 
 const useStyles = makeStyles((Colors) => ({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  hint: { fontSize: 13, color: Colors.textMuted },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
 }));

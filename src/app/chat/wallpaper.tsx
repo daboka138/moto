@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, View, ty
 
 import { ChatWallpaper } from '@/components/chat-wallpaper';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors, WallpaperColors, WallpaperPresets } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors, WallpaperColors, WallpaperPresets } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { useSession } from '@/lib/session';
 import {
@@ -216,9 +216,9 @@ const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 12, paddingBottom: 40 },
   preview: {
     height: 220,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     overflow: 'hidden',
-    padding: 14,
+    padding: 16,
     gap: 8,
     justifyContent: 'flex-end',
     borderWidth: 1,
@@ -226,39 +226,39 @@ const useStyles = makeStyles((Colors) => ({
   },
   defaultBg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: Colors.background },
   previewSpinner: { position: 'absolute', top: 90, alignSelf: 'center' },
-  bubble: { maxWidth: '78%', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
+  bubble: { maxWidth: '78%', borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
   bubbleOther: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.surface,
-    borderBottomLeftRadius: 6,
+    borderBottomLeftRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  bubbleMine: { alignSelf: 'flex-end', backgroundColor: Colors.accent, borderBottomRightRadius: 6 },
-  bubbleText: { fontSize: 15, color: Colors.text },
-  bubbleTextMine: { fontSize: 15, color: Colors.white },
-  hint: { fontSize: 13, color: Colors.textMuted },
-  section: { fontSize: 16, fontWeight: '800', color: Colors.text, marginTop: 8 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  bubbleMine: { alignSelf: 'flex-end', backgroundColor: Colors.accent, borderBottomRightRadius: Radius.sm },
+  bubbleText: { fontSize: Type.body, color: Colors.text },
+  bubbleTextMine: { fontSize: Type.body, color: Colors.white },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
+  section: { fontSize: Type.body, fontWeight: '800', color: Colors.text, marginTop: 8 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   thumb: {
     width: 96,
     height: 150,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     overflow: 'hidden',
     justifyContent: 'flex-end',
     borderWidth: 2,
     borderColor: Colors.border,
   },
   thumbSelected: { borderColor: Colors.accent, borderWidth: 3 },
-  thumbLabel: { fontSize: 12, fontWeight: '700', color: Colors.dark, textAlign: 'center', paddingVertical: 6 },
+  thumbLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.dark, textAlign: 'center', paddingVertical: 8 },
   thumbLabelDark: { color: Colors.white },
-  colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colors: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatch: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: Colors.border },
   swatchSelected: { borderColor: Colors.accent, borderWidth: 4 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 8 },
-  switchLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.text },
-  sliderRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sliderIcon: { fontSize: 18 },
+  switchLabel: { flex: 1, fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  sliderRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  sliderIcon: { fontSize: Type.large },
   sliderTrack: { flex: 1, height: 36, justifyContent: 'center' },
   sliderRail: { height: 6, borderRadius: 3, backgroundColor: Colors.border, overflow: 'hidden' },
   sliderFill: { height: 6, backgroundColor: Colors.accent },
@@ -272,5 +272,5 @@ const useStyles = makeStyles((Colors) => ({
     borderWidth: 2,
     borderColor: Colors.accent,
   },
-  sliderValue: { width: 48, textAlign: 'right', fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  sliderValue: { width: 48, textAlign: 'right', fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
 }));

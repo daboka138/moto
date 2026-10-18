@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, Text, View } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PhotoSocialPanel } from '@/components/photo-comments';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { askReport } from '@/lib/moderation';
 import { useSession } from '@/lib/session';
 import type { WallPhoto } from '@/lib/wall';
@@ -81,13 +81,13 @@ const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, backgroundColor: Colors.viewerBackdrop },
   safe: { flex: 1 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  author: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  author: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.darkSoft },
-  username: { color: Colors.white, fontWeight: '700', fontSize: 16 },
+  username: { color: Colors.white, fontWeight: '700', fontSize: Type.body },
   image: { flex: 1 },
   // Grand écran (version web) : légende et commentaires en colonne centrée
-  bottom: { padding: 16, gap: 6, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  caption: { color: Colors.white, fontSize: 16, lineHeight: 22 },
-  date: { color: Colors.textFaint, fontSize: 13 },
+  bottom: { padding: 16, gap: 8, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  caption: { color: Colors.white, fontSize: Type.body, lineHeight: 22 },
+  date: { color: Colors.textFaint, fontSize: Type.small },
 }));

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { fetchRiderStats, unlockedBadges, type RiderStats } from '@/lib/badges';
 
 /** Statistiques d'un motard : fournies par l'appelant, sinon chargées depuis le serveur */
@@ -56,13 +56,13 @@ export function BadgesCard({ stats, onPress }: { stats: RiderStats | null; onPre
 }
 
 const useStyles = makeStyles((Colors) => ({
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 10, marginHorizontal: 16 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12, marginHorizontal: 16 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  summary: { flex: 1, fontSize: 13, color: Colors.textMuted, textAlign: 'right' },
-  muted: { fontSize: 13, color: Colors.textMuted },
+  title: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  summary: { flex: 1, fontSize: Type.small, color: Colors.textMuted, textAlign: 'right' },
+  muted: { fontSize: Type.small, color: Colors.textMuted },
   strip: { gap: 8 },
-  badge: { width: 84, alignItems: 'center', gap: 4, padding: 8, borderRadius: 14, backgroundColor: Colors.accentSoft },
-  emoji: { fontSize: 28 },
-  label: { fontSize: 11, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  badge: { width: 84, alignItems: 'center', gap: 4, padding: 8, borderRadius: Radius.md, backgroundColor: Colors.accentSoft },
+  emoji: { fontSize: Type.title },
+  label: { fontSize: Type.small, fontWeight: '700', color: Colors.text, textAlign: 'center' },
 }));

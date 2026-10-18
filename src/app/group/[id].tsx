@@ -8,7 +8,7 @@ import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { PersonRow } from '@/components/person-row';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import {
   fetchMembers,
@@ -200,11 +200,11 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  head: { alignItems: 'center', gap: 6 },
+  head: { alignItems: 'center', gap: 8 },
   photo: { width: 96, height: 96, borderRadius: 48, backgroundColor: Colors.border },
   photoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
-  title: { fontSize: 22, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12, gap: 8 },
-  section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 8 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
 }));

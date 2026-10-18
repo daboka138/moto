@@ -10,7 +10,7 @@ import { ExpandableMap } from '@/components/expandable-map';
 import { ridePins } from '@/components/ride-view';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import { ClubPicker } from '@/components/club-picker';
 import { canUse } from '@/lib/features';
@@ -512,24 +512,24 @@ export default function NewRideScreen() {
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
-  addStep: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
-  addStepText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addStep: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  addStepText: { color: Colors.accent, fontWeight: '700', fontSize: Type.body },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   stepField: { flex: 1 },
   stepArrows: { gap: 2 },
   disabled: { opacity: 0.3 },
-  preview: { height: 240, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
-  mapHint: { fontSize: 13, color: Colors.textMuted, marginTop: -6 },
-  routeInfo: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  routeInfoMuted: { fontSize: 14, color: Colors.textMuted },
+  preview: { height: 240, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.border },
+  mapHint: { fontSize: Type.small, color: Colors.textMuted, marginTop: -6 },
+  routeInfo: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  routeInfoMuted: { fontSize: Type.body, color: Colors.textMuted },
   computing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 2 },
   colSmall: { flex: 1 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  hint: { fontSize: 13, color: Colors.textMuted, marginTop: -6 },
+  hint: { fontSize: Type.small, color: Colors.textMuted, marginTop: -6 },
   description: { minHeight: 90, textAlignVertical: 'top' },
   note: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
-  noteText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  noteText: { flex: 1, fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
 }));

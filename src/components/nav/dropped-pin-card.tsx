@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { formatDistance } from '@/components/person-card';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 
 export type RidePlaceRole = 'start' | 'end' | 'meeting';
@@ -131,44 +131,44 @@ function RoleButton({
 const useStyles = makeStyles((Colors) => ({
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 16,
     gap: 12,
-    elevation: 6,
+    elevation: 4,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   headerBody: { flex: 1, gap: 2 },
-  label: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  muted: { fontSize: 13, color: Colors.textMuted },
-  resolving: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  muted: { fontSize: Type.small, color: Colors.textMuted },
+  resolving: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   go: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.accent,
-    borderRadius: 24,
+    borderRadius: Radius.lg,
     paddingVertical: 12,
   },
-  goText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
-  section: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  goText: { color: Colors.white, fontSize: Type.body, fontWeight: '700' },
+  section: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
   row: { flexDirection: 'row', gap: 8 },
   role: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  roleText: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 6 },
-  reportText: { fontSize: 15, fontWeight: '700', color: Colors.danger },
+  roleText: { fontSize: Type.small, fontWeight: '600', color: Colors.text },
+  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 8 },
+  reportText: { fontSize: Type.body, fontWeight: '700', color: Colors.danger },
   pressed: { opacity: 0.7 },
   regroup: { backgroundColor: Colors.success },
 }));

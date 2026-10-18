@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useMessages } from '@/lib/messages-context';
 
 /**
@@ -50,17 +50,17 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: Radius.md,
+    padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    elevation: 4,
   },
   text: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  body: { fontSize: 14, color: Colors.textMuted },
+  title: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  body: { fontSize: Type.body, color: Colors.textMuted },
 }));

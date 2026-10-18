@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { formatVoiceDuration } from '@/lib/messages';
 import { useVoicePlayback } from '@/lib/voice-playback';
 import type { VoiceRecorder } from '@/lib/use-voice-recorder';
@@ -79,19 +79,19 @@ export function RecordingWave({ elapsedMs }: { elapsedMs: number }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  voice: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 210, paddingVertical: 2 },
+  voice: { flexDirection: 'row', alignItems: 'center', gap: 12, width: 210, paddingVertical: 2 },
   play: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
   playMine: { backgroundColor: Colors.white },
   track: { flex: 1, height: 4, borderRadius: 2, backgroundColor: Colors.border, overflow: 'hidden' },
   trackMine: { backgroundColor: Colors.accentDark },
   fill: { height: 4 },
-  time: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, minWidth: 32 },
+  time: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted, minWidth: 32 },
   timeMine: { color: Colors.white },
   mic: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
   micActive: { backgroundColor: Colors.danger, transform: [{ scale: 1.2 }] },
   micTap: { width: 76, transform: [], paddingHorizontal: 8 },
   micInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  micTime: { fontSize: 13, fontWeight: '800', color: Colors.white, fontVariant: ['tabular-nums'] },
+  micTime: { fontSize: Type.small, fontWeight: '800', color: Colors.white, fontVariant: ['tabular-nums'] },
   wave: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 20 },
   waveBar: { width: 3, borderRadius: 2, backgroundColor: Colors.danger },
 }));

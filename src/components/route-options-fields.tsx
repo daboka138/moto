@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import type { RoutePrefs } from '@/lib/route-prefs';
 
 const ROWS: { key: keyof RoutePrefs; label: string; hint?: string }[] = [
@@ -62,9 +62,9 @@ export function RouteOptionsFields({
 
 const useStyles = makeStyles((Colors) => ({
   list: { gap: 4 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 },
   locked: { opacity: 0.6 },
   body: { flex: 1, gap: 2 },
-  label: { fontSize: 15, color: Colors.text },
-  hint: { fontSize: 12, color: Colors.textMuted },
+  label: { fontSize: Type.body, color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
 }));

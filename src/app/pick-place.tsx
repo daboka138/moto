@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LeafletMap } from '@/components/leaflet-map';
 import { SearchBar } from '@/components/nav/search-bar';
 import { Button, Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { FAVORITE_LABELS, sortFavorites, useFavorites } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -175,15 +175,15 @@ export default function PickPlaceScreen() {
 
 const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
-  search: { position: 'absolute', top: 12, left: 12, right: 12, gap: 6 },
+  search: { position: 'absolute', top: 12, left: 12, right: 12, gap: 8 },
   hint: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.overlay,
     color: Colors.white,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 13,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: Type.small,
   },
   bottom: {
     position: 'absolute',
@@ -191,20 +191,20 @@ const useStyles = makeStyles((Colors) => ({
     right: 0,
     bottom: 0,
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     padding: 16,
     gap: 12,
   },
   selected: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   selectedBody: { flex: 1 },
-  selectedText: { fontSize: 16, fontWeight: '600', color: Colors.text },
-  resolving: { fontSize: 13, color: Colors.textMuted },
+  selectedText: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  resolving: { fontSize: Type.small, color: Colors.textMuted },
   chips: { gap: 8 },
   spots: { gap: 2 },
-  spotsTitle: { fontSize: 12, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
+  spotsTitle: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 },
   spot: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-  spotEmoji: { fontSize: 18 },
-  spotName: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.text },
-  spotMeta: { fontSize: 13, color: Colors.textMuted },
+  spotEmoji: { fontSize: Type.large },
+  spotName: { flex: 1, fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  spotMeta: { fontSize: Type.small, color: Colors.textMuted },
 }));

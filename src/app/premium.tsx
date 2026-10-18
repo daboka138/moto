@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useFeatures } from '@/lib/features';
 
 /**
@@ -58,11 +58,11 @@ export default function PremiumScreen() {
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 14, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  title: { fontSize: 26, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 8 },
-  label: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  text: { fontSize: 15, color: Colors.text, lineHeight: 21 },
-  small: { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
-  row: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  content: { padding: 16, gap: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 8 },
+  label: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  text: { fontSize: Type.body, color: Colors.text, lineHeight: 21 },
+  small: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 17 },
+  row: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
 }));

@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 
 import { formatDistance } from '@/components/person-card';
-import { makeStyles, useColors } from '@/constants/theme';
+import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { eventKindInfo, formatEventDates, type MotoEvent } from '@/lib/events';
 import { parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { placeKindInfo, type CommunityPlace } from '@/lib/places';
@@ -117,7 +117,7 @@ export function EventCard({
           {event.place.label}
           {distanceM != null ? ` · à ${formatDistance(distanceM)}` : ''}
         </Text>
-        <Text style={[styles.meta, event.myStatus && { color: Colors.accent, fontWeight: '800' }]}>
+        <Text style={[styles.meta, event.myStatus && { color: Colors.accent, fontFamily: Fonts.bold }]}>
           {event.myStatus === 'going' ? '✓ J’y vais · ' : event.myStatus === 'interested' ? '☆ Intéressé · ' : ''}
           {event.going} participant{event.going > 1 ? 's' : ''}
           {event.interested ? ` · ${event.interested} intéressé${event.interested > 1 ? 's' : ''}` : ''}
@@ -185,7 +185,7 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     backgroundColor: Colors.surface,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 12,
     elevation: 3,
     shadowColor: Colors.shadow,
@@ -193,28 +193,28 @@ const useStyles = makeStyles((Colors) => ({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  thumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: Colors.border },
+  thumb: { width: 64, height: 64, borderRadius: Radius.md, backgroundColor: Colors.border },
   thumbEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
-  thumbEmoji: { fontSize: 30 },
+  thumbEmoji: { fontSize: Type.title },
   body: { flex: 1, gap: 3 },
-  title: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  meta: { fontSize: 13, color: Colors.textMuted },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  date: { width: 56, alignItems: 'center', borderRadius: 12, backgroundColor: Colors.accentSoft, paddingVertical: 8 },
-  dateDay: { fontSize: 22, fontWeight: '900', color: Colors.accent },
-  dateMonth: { fontSize: 12, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
+  title: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  meta: { fontSize: Type.small, color: Colors.textMuted },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  date: { width: 56, alignItems: 'center', borderRadius: Radius.md, backgroundColor: Colors.accentSoft, paddingVertical: 8 },
+  dateDay: { fontSize: Type.title, fontWeight: '900', color: Colors.accent },
+  dateMonth: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
   parkingSign: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.parkingPin },
-  parkingP: { fontSize: 30, fontWeight: '900', color: Colors.white, lineHeight: 32 },
-  parkingMoto: { fontSize: 12 },
+  parkingP: { fontSize: Type.title, fontWeight: '900', color: Colors.white, lineHeight: 32 },
+  parkingMoto: { fontSize: Type.small },
   go: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 6,
+    gap: 8,
     marginTop: 4,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     backgroundColor: Colors.accent,
   },
   goText: { color: Colors.white, fontWeight: '800' },

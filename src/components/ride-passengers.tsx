@@ -4,7 +4,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 
 import { Card } from '@/components/profile-view';
 import { Chip } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { openDirectConversation } from '@/lib/messages';
 import {
@@ -123,11 +123,11 @@ export function RidePassengers({ ride, meId, onChanged }: { ride: RideDetails; m
 }
 
 const useStyles = makeStyles((Colors) => ({
-  counter: { fontSize: 15, fontWeight: '800', color: Colors.text },
+  counter: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rowText: { flex: 1, fontSize: 15, color: Colors.text },
-  action: { backgroundColor: Colors.accent, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  actionText: { color: Colors.white, fontWeight: '800', fontSize: 13 },
-  notice: { fontSize: 13, color: Colors.textMuted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowText: { flex: 1, fontSize: Type.body, color: Colors.text },
+  action: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
+  actionText: { color: Colors.white, fontWeight: '800', fontSize: Type.small },
+  notice: { fontSize: Type.small, color: Colors.textMuted },
 }));

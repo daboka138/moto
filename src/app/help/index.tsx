@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { FicheRow, openFiche, SupportButton } from '@/components/guide/guide-ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { FAQ, ficheById, fichesOfTheme, searchGuide, THEMES, type Question } from '@/guide/contenu';
 import { IS_WEB } from '@/lib/app-link';
 import { useDrivingLock } from '@/lib/driving-lock';
@@ -134,20 +134,20 @@ function FaqItem({ question, initiallyOpen }: { question: Question; initiallyOpe
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 10, paddingBottom: 48 },
+  content: { padding: 16, gap: 12, paddingBottom: 48 },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,
   },
-  input: { flex: 1, fontSize: 16, paddingVertical: 12, color: Colors.text },
+  input: { flex: 1, fontSize: Type.body, paddingVertical: 12, color: Colors.text },
   section: {
-    fontSize: 13,
+    fontSize: Type.small,
     fontWeight: '800',
     color: Colors.textMuted,
     textTransform: 'uppercase',
@@ -155,15 +155,15 @@ const useStyles = makeStyles((Colors) => ({
     marginTop: 12,
     marginLeft: 4,
   },
-  theme: { gap: 10 },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, paddingHorizontal: 16 },
-  empty: { fontSize: 15, color: Colors.textMuted, textAlign: 'center', padding: 24 },
-  webNote: { fontSize: 14, color: Colors.text, backgroundColor: Colors.accentSoft, borderRadius: 14, padding: 12 },
-  faqHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  faqQ: { flex: 1, fontSize: 16, fontWeight: '700', color: Colors.text },
-  faqBody: { gap: 6, paddingBottom: 14 },
-  faqLine: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  faqLink: { fontSize: 15, fontWeight: '700', color: Colors.accent, marginTop: 4 },
-  replay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14 },
-  replayText: { fontSize: 16, fontWeight: '700', color: Colors.accent },
+  theme: { gap: 12 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingHorizontal: 16 },
+  empty: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', padding: 24 },
+  webNote: { fontSize: Type.body, color: Colors.text, backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 12 },
+  faqHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 },
+  faqQ: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  faqBody: { gap: 8, paddingBottom: 16 },
+  faqLine: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  faqLink: { fontSize: Type.body, fontWeight: '700', color: Colors.accent, marginTop: 4 },
+  replay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
+  replayText: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
 }));

@@ -7,7 +7,7 @@ import { ExpandableMap } from '@/components/expandable-map';
 import type { MapPin } from '@/components/leaflet-map';
 import { Card } from '@/components/profile-view';
 import { WeatherStrip } from '@/components/weather-strip';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { categoryInfo, PACE_REMINDER, surfaceInfo, type MotoCategory } from '@/lib/moto';
 import { formatRideDate, levelInfo, PASSENGER_MODES, routeOptionsLabel, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
@@ -256,31 +256,31 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 8,
     backgroundColor: Colors.successSoft,
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: Radius.md,
+    padding: 12,
   },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.success },
-  liveText: { flex: 1, color: Colors.successDark, fontWeight: '700', fontSize: 13 },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text },
+  liveText: { flex: 1, color: Colors.successDark, fontWeight: '700', fontSize: Type.small },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
   chipOutline: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
-  chipText: { color: Colors.white, fontSize: 12, fontWeight: '700' },
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  categoryChip: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: Colors.border },
+  chipText: { color: Colors.white, fontSize: Type.small, fontWeight: '700' },
+  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: Colors.border },
   categoryChipMine: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  categoryText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  categoryText: { fontSize: Type.small, fontWeight: '700', color: Colors.text },
   categoryTextMine: { color: Colors.white },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  infoText: { flex: 1, fontSize: 15, color: Colors.text, textTransform: 'none' },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  infoText: { flex: 1, fontSize: Type.body, color: Colors.text, textTransform: 'none' },
+  person: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },
-  username: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  username: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   personCompact: { alignItems: 'center', width: 64, gap: 4 },
   avatarSmall: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
-  usernameSmall: { fontSize: 11, color: Colors.text, maxWidth: 64 },
-  badge: { fontSize: 10, fontWeight: '800', color: Colors.accent, maxWidth: 64 },
-  subtle: { fontSize: 13, color: Colors.textMuted, fontWeight: '600' },
-  description: { fontSize: 15, lineHeight: 21, color: Colors.text },
+  usernameSmall: { fontSize: Type.small, color: Colors.text, maxWidth: 64 },
+  badge: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, maxWidth: 64 },
+  subtle: { fontSize: Type.small, color: Colors.textMuted, fontWeight: '600' },
+  description: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
 }));

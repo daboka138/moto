@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { timeAgo } from '@/lib/feed';
 import { askReport, type ReportTarget } from '@/lib/moderation';
@@ -134,27 +134,27 @@ export function CommentsSection({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  wrap: { gap: 10 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 22 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  count: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  muted: { fontSize: 14, color: Colors.textMuted },
-  comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  wrap: { gap: 12 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  count: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  muted: { fontSize: Type.body, color: Colors.textMuted },
+  comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.border },
   body: { flex: 1, gap: 2 },
-  text: { fontSize: 14, lineHeight: 19, color: Colors.text },
+  text: { fontSize: Type.body, lineHeight: 19, color: Colors.text },
   username: { fontWeight: '800' },
-  time: { fontSize: 12, color: Colors.textMuted },
+  time: { fontSize: Type.small, color: Colors.textMuted },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     paddingHorizontal: 12,
     paddingVertical: 4,
     backgroundColor: Colors.background,
   },
-  input: { flex: 1, color: Colors.text, fontSize: 15, maxHeight: 90, paddingVertical: 8 },
+  input: { flex: 1, color: Colors.text, fontSize: Type.body, maxHeight: 90, paddingVertical: 8 },
 }));

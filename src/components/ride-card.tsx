@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { formatRideDate, levelInfo, type RideSummary } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 
@@ -96,21 +96,21 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 6 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 8 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  date: { fontSize: 13, fontWeight: '700', color: Colors.accent, textTransform: 'capitalize' },
-  level: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  levelText: { color: Colors.white, fontSize: 12, fontWeight: '700' },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  info: { flex: 1, fontSize: 13, color: Colors.textMuted },
-  fit: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  fitText: { fontSize: 13, fontWeight: '800' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  date: { fontSize: Type.small, fontWeight: '700', color: Colors.accent, textTransform: 'capitalize' },
+  level: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 3 },
+  levelText: { color: Colors.white, fontSize: Type.small, fontWeight: '700' },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  info: { flex: 1, fontSize: Type.small, color: Colors.textMuted },
+  fit: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
+  fitText: { fontSize: Type.small, fontWeight: '800' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   avatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.border },
-  organizer: { fontSize: 13, fontWeight: '600', color: Colors.text, flexShrink: 1 },
+  organizer: { fontSize: Type.small, fontWeight: '600', color: Colors.text, flexShrink: 1 },
   badges: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' },
-  badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  count: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
+  badgeText: { fontSize: Type.small, fontWeight: '700' },
+  count: { fontSize: Type.small, fontWeight: '700', color: Colors.text },
 }));

@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { sendFriendRequest } from '@/lib/friends';
 import { dismissSuggestion, type FriendSuggestion } from '@/lib/suggestions';
@@ -90,13 +90,13 @@ export function FriendSuggestions({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  box: { gap: 10, paddingVertical: 4 },
-  title: { fontSize: 16, fontWeight: '800', color: Colors.text, paddingHorizontal: 4 },
-  row: { gap: 10, paddingHorizontal: 2, paddingBottom: 4 },
+  box: { gap: 12, paddingVertical: 4 },
+  title: { fontSize: Type.body, fontWeight: '800', color: Colors.text, paddingHorizontal: 4 },
+  row: { gap: 12, paddingHorizontal: 2, paddingBottom: 4 },
   card: {
     width: 156,
     backgroundColor: Colors.surface,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 12,
     gap: 8,
     borderWidth: 1,
@@ -105,11 +105,11 @@ const useStyles = makeStyles((Colors) => ({
   close: { position: 'absolute', top: 8, right: 8, zIndex: 1 },
   person: { alignItems: 'center', gap: 3 },
   avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.border, marginBottom: 4 },
-  username: { fontSize: 15, fontWeight: '800', color: Colors.text, maxWidth: 130 },
-  moto: { fontSize: 12, color: Colors.textMuted, maxWidth: 130 },
-  reason: { fontSize: 12, fontWeight: '700', color: Colors.accent, textAlign: 'center', minHeight: 32 },
-  add: { backgroundColor: Colors.accent, borderRadius: 14, paddingVertical: 8, alignItems: 'center' },
+  username: { fontSize: Type.body, fontWeight: '800', color: Colors.text, maxWidth: 130 },
+  moto: { fontSize: Type.small, color: Colors.textMuted, maxWidth: 130 },
+  reason: { fontSize: Type.small, fontWeight: '700', color: Colors.accent, textAlign: 'center', minHeight: 32 },
+  add: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 8, alignItems: 'center' },
   added: { backgroundColor: Colors.successSoft },
-  addText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
-  addedText: { color: Colors.successDark, fontSize: 12 },
+  addText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
+  addedText: { color: Colors.successDark, fontSize: Type.small, fontWeight: '800' },
 }));

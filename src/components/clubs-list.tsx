@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
 import { Chip, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { searchClubs, type ClubSummary } from '@/lib/clubs';
 import type { LatLng } from '@/lib/geo';
 
@@ -101,14 +101,14 @@ export function ClubsList({ me }: { me: LatLng | null }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  list: { padding: 16, gap: 10, paddingBottom: 48 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 16, padding: 12 },
+  list: { padding: 16, gap: 12, paddingBottom: 48 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
   logo: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
   logoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
-  name: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  small: { fontSize: 12, color: Colors.textMuted },
-  badge: { fontSize: 12, fontWeight: '800', color: Colors.accent },
-  muted: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
-  empty: { alignItems: 'center', gap: 10, paddingVertical: 32 },
-  emptyTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  name: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  badge: { fontSize: Type.small, fontWeight: '800', color: Colors.accent },
+  muted: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
+  empty: { alignItems: 'center', gap: 12, paddingVertical: 32 },
+  emptyTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
 }));

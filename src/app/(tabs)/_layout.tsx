@@ -3,7 +3,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { Platform, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useColors } from '@/constants/theme';
+import { Type, useColors } from '@/constants/theme';
 import { useGuideState } from '@/guide/state';
 import { useNotificationsBadge } from '@/lib/notifications';
 import { useInbox } from '@/lib/use-inbox';
@@ -23,7 +23,7 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { unreadTotal } = useInbox();
   const { unread: unreadNotifs } = useNotificationsBadge();
-  const badgeStyle = { backgroundColor: Colors.danger, color: Colors.white, fontSize: 11, fontWeight: '800' as const };
+  const badgeStyle = { backgroundColor: Colors.danger, color: Colors.white, fontSize: Type.small, fontWeight: '800' as const };
   const badge = (n: number) => (n > 0 ? (n > 99 ? '99+' : n) : undefined);
   // Web sur grand écran : onglets en colonne à gauche, contenu centré (sauf la carte, plein écran)
   const wide = useWideLayout();
@@ -48,7 +48,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: Colors.textMuted,
         // 6 onglets : libellés courts en 11 px, sans agrandissement par la taille de police du système
         // (sinon « Messages » est coupé sur un écran de 360 dp)
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: Type.small, fontWeight: '700' },
         tabBarAllowFontScaling: false,
         tabBarItemStyle: { paddingHorizontal: 0 },
         tabBarStyle: wide
@@ -58,7 +58,7 @@ export default function TabsLayout() {
               borderTopColor: Colors.border,
               // Web : libellés un peu plus hauts (interligne du navigateur)
               height: (Platform.OS === 'web' ? 70 : 62) + insets.bottom,
-              paddingTop: 6,
+              paddingTop: 8,
               paddingBottom: insets.bottom + 6,
             },
       }}>

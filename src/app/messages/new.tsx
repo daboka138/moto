@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react
 
 import { PersonRow } from '@/components/person-row';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { openDirectConversation } from '@/lib/messages';
 import { photoUrl } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
@@ -91,9 +91,9 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   hint: { color: Colors.textMuted, marginBottom: 8 },
   header: { gap: 8 },
-  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
+  groupRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   groupIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
-  groupText: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  empty: { gap: 10, paddingTop: 16 },
+  groupText: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  empty: { gap: 12, paddingTop: 16 },
   muted: { color: Colors.textMuted, textAlign: 'center', padding: 24 },
 }));

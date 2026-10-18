@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { photoUrl } from '@/lib/profile';
 import { useSession } from '@/lib/session';
 import { groupStories } from '@/lib/stories';
@@ -57,7 +57,7 @@ export function StoryRow() {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  row: { paddingHorizontal: 16, paddingVertical: 12, gap: 14 },
+  row: { paddingHorizontal: 16, paddingVertical: 12, gap: 16 },
   item: { alignItems: 'center', width: 70, gap: 4 },
   ring: { width: 70, height: 70, borderRadius: 35, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
   ringNew: { borderColor: Colors.accent },
@@ -77,6 +77,6 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontSize: 12, color: Colors.text, maxWidth: 70 },
+  name: { fontSize: Type.small, color: Colors.text, maxWidth: 70 },
   nameSeen: { color: Colors.textMuted },
 }));

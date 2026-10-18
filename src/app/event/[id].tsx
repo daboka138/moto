@@ -8,7 +8,7 @@ import { showActionSheet } from '@/components/action-sheet';
 import { ExpandableMap } from '@/components/expandable-map';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { goToPlace } from '@/lib/app-link';
 import {
   deleteEvent,
@@ -253,19 +253,19 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14 },
+  muted: { color: Colors.textMuted, fontSize: Type.body },
   photo: { width: '100%', height: 220, backgroundColor: Colors.border },
   body: { padding: 16, gap: 12 },
-  kind: { fontSize: 14, fontWeight: '700', color: Colors.accent },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text },
-  info: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  infoText: { flex: 1, fontSize: 15, color: Colors.text },
-  buttons: { gap: 10 },
-  map: { height: 200, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
-  description: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  subtle: { fontSize: 13, fontWeight: '600', color: Colors.textMuted },
+  kind: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  info: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  infoText: { flex: 1, fontSize: Type.body, color: Colors.text },
+  buttons: { gap: 12 },
+  map: { height: 200, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.border },
+  description: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  subtle: { fontSize: Type.small, fontWeight: '600', color: Colors.textMuted },
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   person: { alignItems: 'center', width: 64, gap: 4 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
-  username: { fontSize: 11, color: Colors.text, maxWidth: 64 },
+  username: { fontSize: Type.small, color: Colors.text, maxWidth: 64 },
 }));

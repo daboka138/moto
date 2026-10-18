@@ -9,7 +9,7 @@ import { ClubsList } from '@/components/clubs-list';
 import { EventsList, PlacesList } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { useCanUse } from '@/lib/features';
 import { importGpx } from '@/lib/gpx-import';
@@ -229,30 +229,30 @@ const useStyles = makeStyles((Colors) => ({
     paddingTop: 8,
     paddingBottom: 4,
   },
-  title: { fontSize: 28, fontWeight: '900', color: Colors.text },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
   create: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: Colors.accent,
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  createText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
+  createText: { color: Colors.white, fontWeight: '700', fontSize: Type.body },
   headerButtons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   segments: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginTop: 6,
+    marginTop: 8,
     padding: 4,
     gap: 4,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     backgroundColor: Colors.border,
   },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
+  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: Radius.sm },
   segmentOn: { backgroundColor: Colors.surface },
-  segmentText: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
+  segmentText: { fontSize: Type.body, fontWeight: '700', color: Colors.textMuted },
   segmentTextOn: { color: Colors.text },
   gpx: {
     flexDirection: 'row',
@@ -262,18 +262,18 @@ const useStyles = makeStyles((Colors) => ({
     borderColor: Colors.accent,
     borderRadius: 999,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
-  gpxText: { color: Colors.accent, fontWeight: '700', fontSize: 15 },
-  loopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.accent, borderRadius: 16, padding: 14 },
-  loopTitle: { color: Colors.white, fontSize: 16, fontWeight: '900' },
-  loopText: { color: Colors.white, fontSize: 13 },
+  gpxText: { color: Colors.accent, fontWeight: '700', fontSize: Type.body },
+  loopCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.accent, borderRadius: Radius.md, padding: 16 },
+  loopTitle: { color: Colors.white, fontSize: Type.body, fontWeight: '900' },
+  loopText: { color: Colors.white, fontSize: Type.small },
   filters: { gap: 8, paddingVertical: 8 },
   filterRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },
   list: { padding: 16, gap: 12, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { alignItems: 'center', gap: 8, paddingTop: 48, paddingHorizontal: 24 },
-  emptyTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  emptyTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
 }));

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Button, Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { useSession } from '@/lib/session';
 import { MAX_VIDEO_S, publishStory, type StoryVisibility } from '@/lib/stories';
@@ -153,11 +153,11 @@ const useStyles = makeStyles((Colors) => ({
   source: {
     flex: 1,
     aspectRatio: 0.8,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     backgroundColor: Colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
   },
   sourceText: { fontWeight: '800', color: Colors.text },
   preview: {
@@ -172,13 +172,13 @@ const useStyles = makeStyles((Colors) => ({
   captionBox: { position: 'absolute', left: 12, right: 12, bottom: '20%', alignItems: 'center' },
   captionText: {
     color: Colors.white,
-    fontSize: 18,
+    fontSize: Type.large,
     fontWeight: '800',
     textAlign: 'center',
     backgroundColor: Colors.overlayLight,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.sm,
     overflow: 'hidden',
   },
   change: {
@@ -190,21 +190,21 @@ const useStyles = makeStyles((Colors) => ({
     gap: 4,
     backgroundColor: Colors.overlayLight,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  changeText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
-  label: { fontSize: 14, fontWeight: '700', color: Colors.text, marginTop: 4 },
+  changeText: { color: Colors.white, fontWeight: '700', fontSize: Type.small },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text, marginTop: 4 },
   input: {
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
+    paddingVertical: 12,
+    fontSize: Type.body,
     color: Colors.text,
     backgroundColor: Colors.surface,
   },
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  hint: { fontSize: 13, color: Colors.textMuted },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
 }));

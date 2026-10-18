@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 
 import { QrCode } from '@/components/qr-code';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { fetchMyInvite, inviteUrl, shareInvite, type MyInvite } from '@/lib/invite';
 import { photoUrl } from '@/lib/profile';
 
@@ -86,14 +86,14 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  text: { fontSize: 15, color: Colors.text, lineHeight: 21 },
-  muted: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
-  small: { fontSize: 12, color: Colors.textMuted, lineHeight: 17, textAlign: 'center' },
-  label: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  qrCard: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 10, alignItems: 'center' },
-  code: { fontSize: 28, fontWeight: '900', letterSpacing: 4, color: Colors.accent },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 10 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  text: { fontSize: Type.body, color: Colors.text, lineHeight: 21 },
+  muted: { fontSize: Type.body, color: Colors.textMuted, lineHeight: 20 },
+  small: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 17, textAlign: 'center' },
+  label: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  qrCard: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12, alignItems: 'center' },
+  code: { fontSize: Type.title, fontWeight: '900', letterSpacing: 4, color: Colors.accent },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },
 }));

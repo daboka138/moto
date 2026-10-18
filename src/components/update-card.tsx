@@ -5,7 +5,7 @@ import { Alert, Text } from 'react-native';
 
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 
 /**
  * Version de l'app et mise à jour à distance (EAS Update).
@@ -59,6 +59,6 @@ export function UpdateCard() {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  line: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  hint: { fontSize: 13, color: Colors.textMuted },
+  line: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
 }));

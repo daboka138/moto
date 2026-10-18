@@ -1,6 +1,6 @@
 import { Linking, Pressable, ScrollView, Text } from 'react-native';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 import { useHistoryIndex } from '@/lib/history';
 
 /** Crédits de toutes les images de « Histoire de la moto » (licences libres) */
@@ -32,10 +32,10 @@ export default function HistoryCreditsScreen() {
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 10, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  intro: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
-  row: { backgroundColor: Colors.surface, borderRadius: 12, padding: 12, gap: 2 },
-  owner: { fontSize: 12, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
-  caption: { fontSize: 14, color: Colors.text },
-  small: { fontSize: 12, color: Colors.textMuted },
+  content: { padding: 16, gap: 12, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  intro: { fontSize: Type.body, color: Colors.textMuted, lineHeight: 20 },
+  row: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 2 },
+  owner: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
+  caption: { fontSize: Type.body, color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted },
 }));

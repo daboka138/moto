@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, Text, Vibration, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { alertSmsLabel } from '@/lib/alert-sms';
 import { fetchMemberContacts, getPhoneContacts, resolveSos, sendSos, type SosResult } from '@/lib/emergency';
 import type { LatLng } from '@/lib/geo';
@@ -169,10 +169,10 @@ export function SafetyOverlay({
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.danger, paddingHorizontal: 24, justifyContent: 'center', gap: 16 },
   center: { alignSelf: 'center' },
-  title: { color: Colors.white, fontSize: 32, fontWeight: '900', textAlign: 'center' },
-  subtitle: { color: Colors.white, fontSize: 24, fontWeight: '800', textAlign: 'center' },
+  title: { color: Colors.white, fontSize: Type.title, fontWeight: '900', textAlign: 'center' },
+  subtitle: { color: Colors.white, fontSize: Type.title, fontWeight: '800', textAlign: 'center' },
   count: { color: Colors.white, fontSize: 96, fontWeight: '900', textAlign: 'center', fontVariant: ['tabular-nums'] },
-  text: { color: Colors.white, fontSize: 17, textAlign: 'center', lineHeight: 24 },
+  text: { color: Colors.white, fontSize: Type.large, textAlign: 'center', lineHeight: 24 },
   // Gros bouton, utilisable avec des gants
   fine: {
     flexDirection: 'row',
@@ -180,29 +180,29 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     gap: 12,
     minHeight: 110,
-    borderRadius: 28,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.white,
   },
-  fineText: { color: Colors.guidance, fontSize: 32, fontWeight: '900' },
-  fineSmall: { color: Colors.guidance, fontSize: 20, fontWeight: '900' },
+  fineText: { color: Colors.guidance, fontSize: Type.title, fontWeight: '900' },
+  fineSmall: { color: Colors.guidance, fontSize: Type.large, fontWeight: '900' },
   call: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
     minHeight: 76,
-    borderRadius: 24,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.white,
   },
-  callText: { color: Colors.danger, fontSize: 24, fontWeight: '900' },
+  callText: { color: Colors.danger, fontSize: Type.title, fontWeight: '900' },
   secondary: {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 60,
-    borderRadius: 20,
+    borderRadius: Radius.lg,
     borderWidth: 2,
     borderColor: Colors.white,
   },
-  secondaryText: { color: Colors.white, fontSize: 17, fontWeight: '800' },
+  secondaryText: { color: Colors.white, fontSize: Type.large, fontWeight: '800' },
   pressed: { opacity: 0.7 },
 }));

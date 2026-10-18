@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, Switch, Text, View } from 'react-native';
 
 import { Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useMapLayers } from '@/lib/map-layers';
 import { PLACE_KINDS } from '@/lib/places';
 
@@ -94,13 +94,13 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
 
 const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, backgroundColor: Colors.backdrop, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 12, paddingBottom: 32 },
+  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, padding: 16, gap: 12, paddingBottom: 32 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   flex: { flex: 1 },
-  sub: { fontSize: 13, color: Colors.textMuted },
-  hint: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  sub: { fontSize: Type.small, color: Colors.textMuted },
+  hint: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 }));

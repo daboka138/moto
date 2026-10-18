@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { openFiche } from '@/components/guide/guide-ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 import { ASTUCES, type AstuceId } from '@/guide/contenu';
 import { markTipSeen, useGuideState } from '@/guide/state';
 
@@ -60,13 +60,13 @@ const useStyles = makeStyles((Colors) => ({
     borderRadius: 20,
     borderTopWidth: 4,
     borderTopColor: Colors.accent,
-    padding: 18,
+    padding: 16,
     gap: 8,
   },
-  title: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  text: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  more: { fontSize: 15, fontWeight: '700', color: Colors.accent },
-  ok: { backgroundColor: Colors.accent, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
-  okText: { fontSize: 15, fontWeight: '800', color: Colors.white },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  text: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  more: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  ok: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingHorizontal: 16, paddingVertical: 12 },
+  okText: { fontSize: Type.body, fontWeight: '800', color: Colors.white },
 }));

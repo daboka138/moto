@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, Text } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
 
 /** Case « J'accepte les conditions d'utilisation et la politique de confidentialité ». */
@@ -32,6 +32,6 @@ export function TermsCheckbox({ checked, onChange }: { checked: boolean; onChang
 
 const useStyles = makeStyles((Colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
-  text: { flex: 1, fontSize: 15, lineHeight: 21, color: Colors.text },
+  text: { flex: 1, fontSize: Type.body, lineHeight: 21, color: Colors.text },
   link: { color: Colors.accent, fontWeight: '700', textDecorationLine: 'underline' },
 }));

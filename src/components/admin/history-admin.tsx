@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { showActionSheet } from '@/components/action-sheet';
 import { Flag } from '@/components/history/flag';
 import { Button, Chip, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import {
   COUNTRY_NAMES,
@@ -417,15 +417,15 @@ function ImagesEditor({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  form: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12, gap: 8 },
+  form: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 8 },
   big: { minHeight: 260, textAlignVertical: 'top' },
   medium: { minHeight: 110, textAlignVertical: 'top' },
-  section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12, gap: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   hidden: { opacity: 0.5 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  small: { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
-  thumb: { width: 64, height: 48, borderRadius: 8, backgroundColor: Colors.border },
-  preview: { width: '100%', height: 180, borderRadius: 12, backgroundColor: Colors.border },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 17 },
+  thumb: { width: 64, height: 48, borderRadius: Radius.sm, backgroundColor: Colors.border },
+  preview: { width: '100%', height: 180, borderRadius: Radius.md, backgroundColor: Colors.border },
 }));

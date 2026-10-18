@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TermsCheckbox } from '@/components/terms-checkbox';
 import { Button, Field } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import {
   AuthFailure,
   PASSWORD_MAX,
@@ -204,11 +204,11 @@ export default function SignInScreen() {
 const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
-  hero: { alignItems: 'center', marginBottom: 24, gap: 6 },
+  hero: { alignItems: 'center', marginBottom: 24, gap: 8 },
   logo: { fontSize: 40, fontWeight: '900', letterSpacing: 1, color: Colors.accent },
-  tagline: { fontSize: 16, color: Colors.textMuted },
-  info: { fontSize: 15, lineHeight: 21, color: Colors.text, textAlign: 'center' },
-  inviter: { fontSize: 14, fontWeight: '700', color: Colors.accent },
+  tagline: { fontSize: Type.body, color: Colors.textMuted },
+  info: { fontSize: Type.body, lineHeight: 21, color: Colors.text, textAlign: 'center' },
+  inviter: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
 }));
 
 /** Pseudo du parrain si le code est valable */

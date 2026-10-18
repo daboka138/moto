@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useCreatorId } from '@/lib/creator';
 import { errorMessage } from '@/lib/errors';
 import { bodyBlocks, type HistoryImage, type TimelineItem } from '@/lib/history';
@@ -129,31 +129,31 @@ export function ReportHistoryError({ subject }: { subject: string }) {
 
 const useStyles = makeStyles((Colors) => ({
   figure: { gap: 4 },
-  image: { width: '100%', borderRadius: 14, backgroundColor: Colors.border },
-  caption: { fontSize: 13, color: Colors.text, fontStyle: 'italic' },
-  credit: { fontSize: 11, color: Colors.textMuted },
+  image: { width: '100%', borderRadius: Radius.md, backgroundColor: Colors.border },
+  caption: { fontSize: Type.small, color: Colors.text, fontStyle: 'italic' },
+  credit: { fontSize: Type.small, color: Colors.textMuted },
   neutral: {
     width: '100%',
-    borderRadius: 14,
+    borderRadius: Radius.md,
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
   },
-  neutralText: { color: Colors.white, fontSize: 20, fontWeight: '900' },
+  neutralText: { color: Colors.white, fontSize: Type.large, fontWeight: '900' },
   body: { gap: 12 },
-  h2: { fontSize: 19, fontWeight: '800', color: Colors.text, marginTop: 8 },
-  paragraph: { fontSize: 16, lineHeight: 25, color: Colors.text },
+  h2: { fontSize: Type.large, fontWeight: '800', color: Colors.text, marginTop: 8 },
+  paragraph: { fontSize: Type.body, lineHeight: 25, color: Colors.text },
   timeline: { gap: 0 },
   tlRow: { flexDirection: 'row', gap: 12 },
   tlRail: { width: 14, alignItems: 'center' },
   tlDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.accent, marginTop: 4 },
   tlLine: { flex: 1, width: 2, backgroundColor: Colors.border, marginVertical: 2 },
-  tlBody: { flex: 1, paddingBottom: 14, gap: 2 },
-  tlYear: { fontSize: 14, fontWeight: '900', color: Colors.accent },
-  tlText: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  card: { backgroundColor: Colors.surface, borderRadius: 16, padding: 16, gap: 10 },
-  cardTitle: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
+  tlBody: { flex: 1, paddingBottom: 16, gap: 2 },
+  tlYear: { fontSize: Type.body, fontWeight: '900', color: Colors.accent },
+  tlText: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12 },
+  cardTitle: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   reportText: { color: Colors.textMuted, fontWeight: '700' },
 }));

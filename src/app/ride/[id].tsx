@@ -8,7 +8,7 @@ import { RidePassengers } from '@/components/ride-passengers';
 import { RideView } from '@/components/ride-view';
 import { openRideConversation } from '@/lib/messages';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import {
   canStartNow,
   deleteRide,
@@ -281,9 +281,9 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   unavailableEmoji: { fontSize: 44, marginBottom: 8 },
-  unavailableTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 6 },
-  unavailableActions: { marginTop: 18, gap: 10, alignSelf: 'stretch', maxWidth: 360, width: '100%' },
-  actions: { gap: 10 },
-  hint: { fontSize: 13, color: Colors.textMuted },
-  appOnly: { gap: 10, alignItems: 'center' },
+  unavailableTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center', marginBottom: 8 },
+  unavailableActions: { marginTop: 16, gap: 12, alignSelf: 'stretch', maxWidth: 360, width: '100%' },
+  actions: { gap: 12 },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
+  appOnly: { gap: 12, alignItems: 'center' },
 }));

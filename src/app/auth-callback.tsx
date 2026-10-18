@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Field } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { openInApp, IS_WEB, webDevice } from '@/lib/app-link';
 import { PASSWORD_MAX, PASSWORD_MIN, updatePassword, verifyEmailLink } from '@/lib/auth';
@@ -187,14 +187,14 @@ function Screen({ children }: { children: ReactNode }) {
 
 const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 14, width: '100%', maxWidth: 480, alignSelf: 'center' },
+  content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16, width: '100%', maxWidth: 480, alignSelf: 'center' },
   emoji: { fontSize: 52, textAlign: 'center' },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  text: { fontSize: 16, lineHeight: 22, color: Colors.textMuted, textAlign: 'center' },
-  appBox: { backgroundColor: Colors.accentSoft, borderRadius: 16, padding: 14, gap: 10 },
-  appText: { fontSize: 15, fontWeight: '700', color: Colors.text, textAlign: 'center' },
-  hint: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
-  warn: { fontSize: 14, color: Colors.warning },
-  error: { fontSize: 15, color: Colors.danger, textAlign: 'center' },
-  link: { fontSize: 15, fontWeight: '700', color: Colors.accent, textAlign: 'center', padding: 8 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  text: { fontSize: Type.body, lineHeight: 22, color: Colors.textMuted, textAlign: 'center' },
+  appBox: { backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 16, gap: 12 },
+  appText: { fontSize: Type.body, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  hint: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
+  warn: { fontSize: Type.body, color: Colors.warning },
+  error: { fontSize: Type.body, color: Colors.danger, textAlign: 'center' },
+  link: { fontSize: Type.body, fontWeight: '700', color: Colors.accent, textAlign: 'center', padding: 8 },
 }));

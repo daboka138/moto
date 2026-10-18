@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { Flag } from '@/components/history/flag';
 import { CreditedImage, HistoryBody, HistoryCard, NeutralCover, ReportHistoryError, Timeline } from '@/components/history/history-ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { countryName, readingMinutes, useHistoryIndex } from '@/lib/history';
 
 /** Fiche d'une marque : création, fondateurs, histoire, frise, modèles mythiques, anecdotes, aujourd'hui */
@@ -104,14 +104,14 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   muted: { color: Colors.textMuted },
   head: { gap: 4 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { flex: 1, fontSize: 28, fontWeight: '900', color: Colors.text },
-  tagline: { fontSize: 16, fontWeight: '700', color: Colors.accent },
-  meta: { fontSize: 14, color: Colors.textMuted },
-  reading: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { flex: 1, fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  tagline: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  meta: { fontSize: Type.body, color: Colors.textMuted },
+  reading: { fontSize: Type.small, color: Colors.textMuted, marginTop: 2 },
   model: { gap: 2 },
-  modelName: { fontSize: 16, fontWeight: '800', color: Colors.text },
+  modelName: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
   modelYear: { fontWeight: '600', color: Colors.textMuted },
-  modelText: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  line: { fontSize: 15, lineHeight: 22, color: Colors.text },
+  modelText: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  line: { fontSize: Type.body, lineHeight: 22, color: Colors.text },
 }));

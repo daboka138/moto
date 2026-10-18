@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Chip } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { fetchPopularSpots, placeKindInfo, spotAsPlace, type CommunityPlace, type PlaceKind } from '@/lib/places';
@@ -61,7 +61,7 @@ export function SpotSuggestions({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  box: { gap: 6 },
-  title: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  box: { gap: 8 },
+  title: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
   row: { gap: 8 },
 }));

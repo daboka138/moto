@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { isDropped, roleLabel, type Convoy, type ConvoyMember } from '@/lib/convoy';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -170,54 +170,54 @@ function MemberRow({ member: m, onGo }: { member: ConvoyMember; onGo?: () => voi
 }
 
 const useStyles = makeStyles((Colors) => ({
-  wrap: { alignSelf: 'center', alignItems: 'center', gap: 6, maxWidth: '100%' },
+  wrap: { alignSelf: 'center', alignItems: 'center', gap: 8, maxWidth: '100%' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: Colors.success,
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     elevation: 4,
   },
   chipAlert: { backgroundColor: Colors.danger },
   chipRegroup: { backgroundColor: Colors.accent },
-  chipText: { color: Colors.white, fontWeight: '800', fontSize: 14, flexShrink: 1 },
+  chipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body, flexShrink: 1 },
   list: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     padding: 12,
     gap: 8,
     width: 300,
     maxWidth: '100%',
-    elevation: 6,
+    elevation: 4,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   scroll: { maxHeight: 260 },
   scrollCompact: { maxHeight: 150 },
-  actions: { gap: 6 },
+  actions: { gap: 8 },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     minHeight: 44,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     backgroundColor: Colors.accentSoft,
   },
-  actionText: { color: Colors.accent, fontWeight: '800', fontSize: 14 },
-  hint: { fontSize: 12, color: Colors.textMuted, textAlign: 'center' },
-  go: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.danger },
-  goText: { color: Colors.white, fontWeight: '800', fontSize: 13 },
-  title: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  actionText: { color: Colors.accent, fontWeight: '800', fontSize: Type.body },
+  hint: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
+  go: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.sm, backgroundColor: Colors.danger },
+  goText: { color: Colors.white, fontWeight: '800', fontSize: Type.small },
+  title: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },
-  name: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  detail: { fontSize: 12, fontWeight: '600' },
+  name: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  detail: { fontSize: Type.small, fontWeight: '600' },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  link: { color: Colors.accent, fontWeight: '700', fontSize: 14, textAlign: 'center', paddingTop: 4 },
+  link: { color: Colors.accent, fontWeight: '700', fontSize: Type.body, textAlign: 'center', paddingTop: 4 },
 }));

@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 
 /** Groupe de lignes cliquables (profil, paramètres). */
 export function LinkGroup({ children }: { children: ReactNode }) {
@@ -45,19 +45,19 @@ export function LinkRow({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  group: { backgroundColor: Colors.surface, borderRadius: 18, paddingHorizontal: 16 },
-  link: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, minHeight: 52 },
-  label: { flex: 1, fontSize: 16, fontWeight: '700', color: Colors.text },
-  value: { fontSize: 15, color: Colors.textMuted },
+  group: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingHorizontal: 16 },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, minHeight: 52 },
+  label: { flex: 1, fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  value: { fontSize: Type.body, color: Colors.textMuted },
   badge: {
     backgroundColor: Colors.accent,
     color: Colors.white,
-    fontSize: 12,
+    fontSize: Type.small,
     fontWeight: '700',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  separator: { height: 1, backgroundColor: Colors.border },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
 }));

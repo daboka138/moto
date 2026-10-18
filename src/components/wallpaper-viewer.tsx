@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatWallpaper } from '@/components/chat-wallpaper';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { Wallpaper } from '@/lib/wallpapers';
 
 /**
@@ -57,13 +57,13 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   back: { padding: 4 },
-  title: { flex: 1, fontSize: 17, fontWeight: '800', color: Colors.text },
-  change: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16, backgroundColor: Colors.accent },
-  changeText: { fontSize: 15, fontWeight: '700', color: Colors.white },
+  title: { flex: 1, fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  change: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.md, backgroundColor: Colors.accent },
+  changeText: { fontSize: Type.body, fontWeight: '700', color: Colors.white },
 }));

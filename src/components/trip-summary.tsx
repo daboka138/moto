@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { shortDistance } from '@/lib/navigation';
 import { formatDuration } from '@/lib/routing';
 import type { TripSummary } from '@/lib/trips';
@@ -74,20 +74,20 @@ export function TripSummaryModal({
 
 const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: Colors.backdrop },
-  card: { backgroundColor: Colors.surface, borderRadius: 22, padding: 20, gap: 12 },
-  title: { fontSize: 22, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  dest: { fontSize: 15, color: Colors.textMuted, textAlign: 'center' },
-  note: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: 16, gap: 12 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  dest: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
+  note: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stat: {
     flexGrow: 1,
     flexBasis: '45%',
     alignItems: 'center',
     gap: 2,
-    padding: 10,
-    borderRadius: 14,
+    padding: 12,
+    borderRadius: Radius.md,
     backgroundColor: Colors.background,
   },
-  statValue: { fontSize: 18, fontWeight: '900', color: Colors.text },
-  statLabel: { fontSize: 12, color: Colors.textMuted },
+  statValue: { fontSize: Type.large, fontWeight: '900', color: Colors.text },
+  statLabel: { fontSize: Type.small, color: Colors.textMuted },
 }));

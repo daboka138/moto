@@ -6,7 +6,7 @@ import { PlaceField } from '@/components/form-fields';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
 import { createPlace, PLACE_KINDS, type PlaceKind } from '@/lib/places';
@@ -119,7 +119,7 @@ const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   description: { minHeight: 90, textAlignVertical: 'top' },
-  hint: { fontSize: 13, color: Colors.textMuted },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
   stars: { flexDirection: 'row', gap: 8 },
   star: { fontSize: 40 },
 }));

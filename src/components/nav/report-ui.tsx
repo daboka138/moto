@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { formatDistance } from '@/components/person-card';
 import { ReportSign } from '@/components/report-sign';
 import { REPORT_TYPES, reportAge, reportInfo, type ReportType, type RoadReport, type Vote } from '@/lib/reports';
@@ -116,9 +116,9 @@ export function ReportCard({
 
 const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, backgroundColor: Colors.backdrop, justifyContent: 'flex-end' },
-  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
-  title: { fontSize: 20, fontWeight: '900', color: Colors.text, marginBottom: 12, textAlign: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between' },
+  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, padding: 16 },
+  title: { fontSize: Type.large, fontWeight: '900', color: Colors.text, marginBottom: 12, textAlign: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
   tile: {
     width: '31%',
     aspectRatio: 1,
@@ -128,41 +128,41 @@ const useStyles = makeStyles((Colors) => ({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 6,
+    padding: 8,
     gap: 4,
   },
   tilePressed: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
-  tileLabel: { fontSize: 13, fontWeight: '700', color: Colors.text, textAlign: 'center' },
-  cancel: { marginTop: 14, minHeight: 58, borderRadius: 16, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
-  cancelText: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  tileLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  cancel: { marginTop: 16, minHeight: 58, borderRadius: Radius.md, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 20,
+    borderRadius: Radius.lg,
     padding: 16,
-    gap: 14,
-    elevation: 6,
+    gap: 16,
+    elevation: 4,
     shadowColor: Colors.shadow,
     shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   close: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 28 },
-  cardTitle: { fontSize: 20, fontWeight: '900', color: Colors.text },
-  meta: { fontSize: 13, color: Colors.textMuted },
-  row: { flexDirection: 'row', gap: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 32 },
+  cardTitle: { fontSize: Type.large, fontWeight: '900', color: Colors.text },
+  meta: { fontSize: Type.small, color: Colors.textMuted },
+  row: { flexDirection: 'row', gap: 12 },
   big: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     minHeight: 64,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     paddingHorizontal: 12,
   },
   still: { backgroundColor: Colors.success },
   gone: { backgroundColor: Colors.danger },
-  bigText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  bigText: { color: Colors.white, fontSize: Type.large, fontWeight: '900' },
   thanks: { textAlign: 'center', color: Colors.textMuted, fontWeight: '700' },
 }));

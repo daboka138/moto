@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { CreditedImage, HistoryBody, HistoryCard, NeutralCover, ReportHistoryError, Timeline } from '@/components/history/history-ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { bodyBlocks, readingMinutes, useHistoryIndex } from '@/lib/history';
 
 /** Chapitre (ex. « Les débuts du deux-roues ») : texte, images intercalées entre les parties, frise */
@@ -65,8 +65,8 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   muted: { color: Colors.textMuted },
   head: { gap: 4 },
-  title: { fontSize: 28, fontWeight: '900', color: Colors.text },
-  subtitle: { fontSize: 16, fontWeight: '700', color: Colors.accent },
-  reading: { fontSize: 13, color: Colors.textMuted },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  subtitle: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  reading: { fontSize: Type.small, color: Colors.textMuted },
   part: { gap: 16 },
 }));

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { DOWNLOAD_URL, openInApp, webDevice } from '@/lib/app-link';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -79,7 +79,7 @@ export function AppOnlyScreen({
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 14 },
+  content: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   iconCircle: {
     width: 84,
     height: 84,
@@ -88,10 +88,10 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     backgroundColor: Colors.accentSoft,
   },
-  title: { fontSize: 22, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  description: { fontSize: 15, lineHeight: 22, color: Colors.textMuted, textAlign: 'center', maxWidth: 420 },
+  title: { fontSize: Type.title, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  description: { fontSize: Type.body, lineHeight: 22, color: Colors.textMuted, textAlign: 'center', maxWidth: 420 },
   badge: {
-    fontSize: 12,
+    fontSize: Type.small,
     fontWeight: '800',
     color: Colors.accent,
     textTransform: 'uppercase',
@@ -104,21 +104,21 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: Colors.accent,
-    borderRadius: 24,
-    paddingHorizontal: 20,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  compact: { paddingHorizontal: 14, paddingVertical: 8 },
-  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
-  hint: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
+  compact: { paddingHorizontal: 16, paddingVertical: 8 },
+  buttonText: { color: Colors.white, fontSize: Type.body, fontWeight: '700' },
+  hint: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
   note: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: Radius.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  noteText: { fontSize: 15, fontWeight: '600', color: Colors.textMuted },
+  noteText: { fontSize: Type.body, fontWeight: '600', color: Colors.textMuted },
 }));

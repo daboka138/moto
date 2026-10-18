@@ -6,7 +6,7 @@ import { ClubPicker } from '@/components/club-picker';
 import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { createEvent, EVENT_KINDS, type EventKind } from '@/lib/events';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
@@ -159,7 +159,7 @@ const useStyles = makeStyles((Colors) => ({
   col: { flex: 2 },
   colSmall: { flex: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   description: { minHeight: 90, textAlignVertical: 'top' },
-  hint: { fontSize: 13, color: Colors.textMuted },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
 }));

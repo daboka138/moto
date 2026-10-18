@@ -182,5 +182,5 @@ const useStyles = makeStyles((Colors) => ({
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   muted: { color: Colors.textMuted },
   error: { color: Colors.danger },
-  actions: { flexDirection: 'row', gap: 6 },
+  actions: { flexDirection: 'row', gap: 8 },
 }));

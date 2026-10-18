@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileForm } from '@/components/profile-form';
 import { Button } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import { signOut } from '@/lib/auth';
 import { useSession } from '@/lib/session';
 
@@ -38,7 +38,7 @@ export default function OnboardingScreen() {
 const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
   header: { gap: 4 },
-  title: { fontSize: 28, fontWeight: '900', color: Colors.text },
-  subtitle: { fontSize: 15, color: Colors.textMuted },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  subtitle: { fontSize: Type.body, color: Colors.textMuted },
   signOut: { alignSelf: 'flex-start', marginLeft: -20 },
 }));

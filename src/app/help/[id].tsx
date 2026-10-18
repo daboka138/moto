@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
 import { AndroidOnlyNote, FicheRow, SupportButton } from '@/components/guide/guide-ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 import { ficheById, fichesOfTheme, themeInfo } from '@/guide/contenu';
 
 /** Une fiche du guide : à quoi ça sert, comment faire, astuces, limites */
@@ -87,14 +87,14 @@ export default function HelpFicheScreen() {
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
-  empty: { fontSize: 16, color: Colors.textMuted, textAlign: 'center', padding: 32 },
+  empty: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', padding: 32 },
   head: { alignItems: 'center', gap: 4, paddingVertical: 8 },
   emoji: { fontSize: 44 },
-  theme: { fontSize: 13, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  but: { fontSize: 16, color: Colors.textMuted, textAlign: 'center', lineHeight: 22 },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 10 },
-  cardTitle: { fontSize: 17, fontWeight: '800', color: Colors.text },
+  theme: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase', letterSpacing: 1 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  but: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', lineHeight: 22 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12 },
+  cardTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
   step: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   stepNumber: {
     width: 26,
@@ -107,10 +107,10 @@ const useStyles = makeStyles((Colors) => ({
     lineHeight: 26,
     overflow: 'hidden',
   },
-  stepText: { flex: 1, fontSize: 15, lineHeight: 22, color: Colors.text },
-  line: { fontSize: 15, lineHeight: 22, color: Colors.text },
+  stepText: { flex: 1, fontSize: Type.body, lineHeight: 22, color: Colors.text },
+  line: { fontSize: Type.body, lineHeight: 22, color: Colors.text },
   section: {
-    fontSize: 13,
+    fontSize: Type.small,
     fontWeight: '800',
     color: Colors.textMuted,
     textTransform: 'uppercase',
@@ -118,5 +118,5 @@ const useStyles = makeStyles((Colors) => ({
     marginTop: 8,
     marginLeft: 4,
   },
-  list: { backgroundColor: Colors.surface, borderRadius: 18, paddingHorizontal: 16 },
+  list: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingHorizontal: 16 },
 }));

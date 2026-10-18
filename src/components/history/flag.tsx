@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Text } from 'react-native';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 
-import { FlagColors as F, useColors } from '@/constants/theme';
+import { FlagColors as F, Fonts, useColors } from '@/constants/theme';
 
 /**
  * Drapeau dessiné (les émojis drapeaux ne s'affichent pas sous Windows : « FR » en lettres).
@@ -91,7 +91,7 @@ export function Flag({ country, width = 24 }: { country: string; width?: number 
       );
       break;
     default:
-      return <Text style={{ fontSize: width * 0.45, fontWeight: '800', color: Colors.textMuted }}>{country}</Text>;
+      return <Text style={{ fontSize: width * 0.45, fontFamily: Fonts.bold, color: Colors.textMuted }}>{country}</Text>;
   }
   return (
     <Svg width={width} height={h} viewBox="0 0 30 20" accessibilityLabel={country}>

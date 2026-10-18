@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 
 import { Button, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { deleteAccount } from '@/lib/auth';
 
 const CONFIRM_WORD = 'SUPPRIMER';
@@ -82,14 +82,14 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     padding: 16,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.danger,
     backgroundColor: Colors.surface,
   },
-  warningText: { flex: 1, fontSize: 15, fontWeight: '700', color: Colors.text },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 10 },
-  title: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  itemText: { flex: 1, fontSize: 14, color: Colors.textMuted },
+  warningText: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12 },
+  title: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  itemText: { flex: 1, fontSize: Type.body, color: Colors.textMuted },
 }));

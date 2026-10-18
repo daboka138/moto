@@ -7,6 +7,7 @@ import {
   useNavigationContainerRef,
   usePathname,
 } from 'expo-router';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, type ReactNode } from 'react';
@@ -20,7 +21,7 @@ import { MessageToast } from '@/components/message-toast';
 import { UpdateBanner } from '@/components/update-banner';
 import { PushRegistrar } from '@/components/push-registrar';
 import { Button } from '@/components/ui';
-import { makeStyles, ThemeProvider, useTheme } from '@/constants/theme';
+import { FontFiles, Fonts, makeStyles, Radius, ThemeProvider, Type, useTheme } from '@/constants/theme';
 import { loadRoutePrefs } from '@/lib/route-prefs';
 import { signOut } from '@/lib/auth';
 import { setAuthNotice, useAuthLinkState } from '@/lib/auth-link';
@@ -132,11 +133,15 @@ function RootNavigator() {
   // contenu centré sur grand écran (les onglets gèrent le leur)
   const contentStyle = usePageStyle(Colors.background);
 
-  useEffect(() => {
-    if (session !== undefined) SplashScreen.hideAsync();
-  }, [session]);
+  // Polices Barlow (assets/fonts) : chargées avant le premier écran ; en cas d'échec, police du système
+  const [fontsLoaded, fontsError] = useFonts(FontFiles);
+  const fontsReady = fontsLoaded || !!fontsError;
 
-  if (session === undefined) return null;
+  useEffect(() => {
+    if (session !== undefined && fontsReady) SplashScreen.hideAsync();
+  }, [session, fontsReady]);
+
+  if (session === undefined || !fontsReady) return null;
 
   if (session && profileError && !onAuthLink) {
     return (
@@ -158,7 +163,13 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, contentStyle }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle,
+          headerTitleStyle: { fontFamily: Fonts.title, fontSize: Type.title },
+          headerShadowVisible: false,
+        }}>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="sign-in" />
         </Stack.Protected>
@@ -268,11 +279,11 @@ const useStyles = makeStyles((Colors) => ({
     left: 16,
     right: 16,
     backgroundColor: Colors.overlayStrong,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  bannerText: { color: Colors.white, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  bannerText: { color: Colors.white, fontSize: Type.body, fontWeight: '600', textAlign: 'center' },
   center: {
     flex: 1,
     alignItems: 'stretch',
@@ -281,5 +292,5 @@ const useStyles = makeStyles((Colors) => ({
     gap: 12,
     backgroundColor: Colors.background,
   },
-  message: { fontSize: 16, textAlign: 'center', color: Colors.text },
+  message: { fontSize: Type.body, textAlign: 'center', color: Colors.text },
 }));

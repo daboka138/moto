@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } 
 
 import { LeafletMap } from '@/components/leaflet-map';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { fetchSos, mapLink, resolveSos, SOS_KIND_LABELS, type SosEvent } from '@/lib/emergency';
 import { openDirectConversation } from '@/lib/messages';
 import { useSession } from '@/lib/session';
@@ -120,23 +120,23 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  banner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.danger, borderRadius: 18, padding: 16 },
+  banner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.danger, borderRadius: Radius.md, padding: 16 },
   bannerOk: { backgroundColor: Colors.guidance },
-  bannerTitle: { color: Colors.white, fontSize: 19, fontWeight: '900' },
-  bannerText: { color: Colors.white, fontSize: 14 },
+  bannerTitle: { color: Colors.white, fontSize: Type.large, fontWeight: '900' },
+  bannerText: { color: Colors.white, fontSize: Type.body },
   person: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.border },
-  name: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  muted: { fontSize: 14, color: Colors.textMuted, textAlign: 'left' },
-  map: { height: 260, borderRadius: 18, overflow: 'hidden' },
+  name: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  muted: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'left' },
+  map: { height: 260, borderRadius: Radius.md, overflow: 'hidden' },
   call: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 12,
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     backgroundColor: Colors.danger,
   },
-  callText: { color: Colors.white, fontSize: 17, fontWeight: '900' },
+  callText: { color: Colors.white, fontSize: Type.large, fontWeight: '900' },
 }));

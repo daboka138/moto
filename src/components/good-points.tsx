@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useCanUse } from '@/lib/features';
 import {
   dismissCelebration,
@@ -19,7 +19,7 @@ export function LevelBar({ total }: { total: number }) {
   const styles = useStyles();
   const { level, next, progress } = levelOf(total);
   return (
-    <View style={{ gap: 6 }}>
+    <View style={{ gap: 8 }}>
       <View style={styles.levelRow}>
         <Text style={styles.levelEmoji}>{level.emoji}</Text>
         <View style={{ flex: 1 }}>
@@ -130,31 +130,31 @@ export function BadgeCelebrationHost() {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 10, marginHorizontal: 16, marginTop: 12 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12, marginHorizontal: 16, marginTop: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  private: { fontSize: 11, color: Colors.textMuted },
-  small: { fontSize: 12, color: Colors.textMuted },
-  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  levelEmoji: { fontSize: 30 },
-  levelLabel: { fontSize: 17, fontWeight: '900', color: Colors.text },
+  title: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  private: { fontSize: Type.small, color: Colors.textMuted },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  levelEmoji: { fontSize: Type.title },
+  levelLabel: { fontSize: Type.large, fontWeight: '900', color: Colors.text },
   bar: { height: 8, borderRadius: 4, backgroundColor: Colors.border, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: Colors.accent },
   strip: { gap: 8 },
-  badge: { width: 84, alignItems: 'center', gap: 4, padding: 8, borderRadius: 14, backgroundColor: Colors.accentSoft },
-  badgeEmoji: { fontSize: 28 },
-  badgeLabel: { fontSize: 11, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  badge: { width: 84, alignItems: 'center', gap: 4, padding: 8, borderRadius: Radius.md, backgroundColor: Colors.accentSoft },
+  badgeEmoji: { fontSize: Type.title },
+  badgeLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.text, textAlign: 'center' },
   overlay: { flex: 1, backgroundColor: Colors.backdrop, alignItems: 'center', justifyContent: 'center', padding: 32 },
   celebration: {
     backgroundColor: Colors.surface,
-    borderRadius: 24,
+    borderRadius: Radius.lg,
     paddingVertical: 24,
-    paddingHorizontal: 28,
+    paddingHorizontal: 32,
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     maxWidth: 320,
   },
   celebrationEmoji: { fontSize: 64 },
-  celebrationTitle: { fontSize: 20, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  celebrationText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
+  celebrationTitle: { fontSize: Type.large, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  celebrationText: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
 }));

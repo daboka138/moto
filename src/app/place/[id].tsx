@@ -10,7 +10,7 @@ import { ExpandableMap } from '@/components/expandable-map';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Card } from '@/components/profile-view';
 import { Button, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { goToPlace } from '@/lib/app-link';
 import { timeAgo } from '@/lib/feed';
 import { askReport } from '@/lib/moderation';
@@ -261,22 +261,22 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14 },
+  muted: { color: Colors.textMuted, fontSize: Type.body },
   photo: { width: '100%', height: 240, backgroundColor: Colors.border },
   map: { height: 220, backgroundColor: Colors.border },
-  mapSmall: { height: 160, borderRadius: 14, overflow: 'hidden', backgroundColor: Colors.border },
-  body: { padding: 16, gap: 14 },
-  kind: { fontSize: 14, fontWeight: '700', color: Colors.accent },
-  title: { fontSize: 24, fontWeight: '900', color: Colors.text },
+  mapSmall: { height: 160, borderRadius: Radius.md, overflow: 'hidden', backgroundColor: Colors.border },
+  body: { padding: 16, gap: 16 },
+  kind: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ratingText: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  description: { fontSize: 15, lineHeight: 21, color: Colors.text },
+  ratingText: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  description: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
   form: { gap: 12 },
-  review: { gap: 6, paddingVertical: 6 },
-  reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  review: { gap: 8, paddingVertical: 8 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.border },
-  username: { fontSize: 14, fontWeight: '800', color: Colors.text },
-  time: { fontSize: 12, color: Colors.textMuted },
-  reviewText: { fontSize: 14, lineHeight: 19, color: Colors.text },
-  reviewPhoto: { width: '100%', height: 180, borderRadius: 12, backgroundColor: Colors.border },
+  username: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  time: { fontSize: Type.small, color: Colors.textMuted },
+  reviewText: { fontSize: Type.body, lineHeight: 19, color: Colors.text },
+  reviewPhoto: { width: '100%', height: 180, borderRadius: Radius.md, backgroundColor: Colors.border },
 }));

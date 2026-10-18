@@ -5,7 +5,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
 import { TripStatsGrid } from '@/components/trip-summary';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { buildGpx, gpxFileName } from '@/lib/gpx';
 import { canUse } from '@/lib/features';
 import { saveGpxFile } from '@/lib/gpx-file';
@@ -153,21 +153,21 @@ function TripRow({ trip }: { trip: TripSummary }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  recent: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, gap: 8, marginBottom: 12 },
-  recentTitle: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  recentEmoji: { fontSize: 22 },
-  recentLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  recentMeta: { fontSize: 12, color: Colors.textMuted },
+  recent: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 8, marginBottom: 12 },
+  recentTitle: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  recentEmoji: { fontSize: Type.title },
+  recentLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  recentMeta: { fontSize: Type.small, color: Colors.textMuted },
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  total: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  clear: { fontSize: 14, fontWeight: '700', color: Colors.danger },
-  empty: { color: Colors.textMuted, textAlign: 'center', padding: 24, fontSize: 15 },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 14, gap: 12 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  total: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  clear: { fontSize: Type.body, fontWeight: '700', color: Colors.danger },
+  empty: { color: Colors.textMuted, textAlign: 'center', padding: 24, fontSize: Type.body },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 12 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardTitle: { flex: 1 },
-  dest: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  date: { fontSize: 13, color: Colors.textMuted },
+  dest: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  date: { fontSize: Type.small, color: Colors.textMuted },
 }));

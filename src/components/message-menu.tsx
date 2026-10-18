@@ -1,6 +1,6 @@
 import { Modal, Pressable, Text, View } from 'react-native';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import { REACTIONS } from '@/lib/messages';
 
 export type MessageAction = { label: string; destructive?: boolean; onPress: () => void };
@@ -72,15 +72,15 @@ const useStyles = makeStyles((Colors) => ({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   emoji: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   emojiMine: { backgroundColor: Colors.accentSoft, borderWidth: 2, borderColor: Colors.accent },
-  emojiText: { fontSize: 24 },
-  action: { paddingVertical: 14, paddingHorizontal: 20 },
-  actionText: { fontSize: 16, color: Colors.text, fontWeight: '600' },
+  emojiText: { fontSize: Type.title },
+  action: { paddingVertical: 16, paddingHorizontal: 16 },
+  actionText: { fontSize: Type.body, color: Colors.text, fontWeight: '600' },
   destructive: { color: Colors.danger },
-  cancel: { fontSize: 16, color: Colors.textMuted, textAlign: 'center' },
+  cancel: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
 }));

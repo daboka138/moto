@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { weatherInfo, type RouteWeather, type WeatherAhead } from '@/lib/weather';
 
 function clock(d: Date) {
@@ -98,10 +98,10 @@ export function WeatherStrip({
                 <>
                   <Text style={styles.emoji}>{weatherInfo(f.code).emoji}</Text>
                   <Text style={styles.temp}>{Math.round(f.tempC)}°</Text>
-                  <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontWeight: '800' }]}>
+                  <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontFamily: Fonts.bold }]}>
                     💧{f.precipProb !== null ? `${f.precipProb}%` : `${f.precipMm.toFixed(1)}`}
                   </Text>
-                  <Text style={[styles.small, f.gustKmh >= 60 && { color: Colors.danger, fontWeight: '800' }]}>
+                  <Text style={[styles.small, f.gustKmh >= 60 && { color: Colors.danger, fontFamily: Fonts.bold }]}>
                     💨{Math.round(f.windKmh)}
                   </Text>
                 </>
@@ -120,44 +120,44 @@ export function WeatherStrip({
 const useStyles = makeStyles((Colors) => ({
   wrap: { gap: 8 },
   endpoints: { gap: 4 },
-  endpoint: { fontSize: 14, color: Colors.text },
+  endpoint: { fontSize: Type.body, color: Colors.text },
   endpointLabel: { fontWeight: '800' },
   navChip: {
     alignSelf: 'center',
     maxWidth: '100%',
     backgroundColor: Colors.warning,
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     elevation: 4,
   },
-  navChipText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
+  navChipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  muted: { fontSize: 13, color: Colors.textMuted },
+  muted: { fontSize: Type.small, color: Colors.textMuted },
   alerts: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.warning,
-    padding: 10,
+    padding: 12,
   },
-  alertText: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.text },
+  alertText: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
   strip: { gap: 8 },
   cell: {
     alignItems: 'center',
     gap: 1,
     minWidth: 58,
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    borderRadius: Radius.md,
     backgroundColor: Colors.background,
   },
-  time: { fontSize: 13, fontWeight: '800', color: Colors.text },
-  km: { fontSize: 11, color: Colors.textMuted },
-  emoji: { fontSize: 22 },
-  temp: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  small: { fontSize: 11, color: Colors.textMuted },
-  credit: { fontSize: 10, color: Colors.textFaint },
+  time: { fontSize: Type.small, fontWeight: '800', color: Colors.text },
+  km: { fontSize: Type.small, color: Colors.textMuted },
+  emoji: { fontSize: Type.title },
+  temp: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  credit: { fontSize: Type.small, color: Colors.textFaint },
 }));

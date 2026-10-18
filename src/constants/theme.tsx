@@ -7,12 +7,22 @@
 //   const Colors = useColors();          // couleurs du thème actif
 //   const styles = useStyles();          // styles créés avec makeStyles
 //   const useStyles = makeStyles((Colors) => ({ ... }));
+//
+// Règles (note 24) :
+// - couleurs : 1 principale (bleu du logo), danger (alerte / SOS), succès, des gris.
+//   Le reste (épingles de carte, panneaux, drapeaux) sert à reconnaître un repère.
+// - texte : 3 tailles (Type.small / body / large) + 1 titre (Type.title) ;
+//   au-delà de 36 px = affichage (compteur de vitesse, gros chiffres).
+// - espacements : 4 / 8 / 12 / 16 / 24 / 32 uniquement.
+// - coins : Radius.sm (badges), Radius.md (boutons, champs, cartes), Radius.lg (panneaux), pill.
+// - polices : makeStyles pose la bonne police (Barlow / Barlow Condensed) selon
+//   fontWeight et fontSize : rien à écrire dans les composants.
 // =====================================================================
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 
-/** Couleur principale, identique dans les deux thèmes : bleu ciel */
+/** Couleur principale (celle du logo), identique dans les deux thèmes : bleu ciel */
 const ACCENT = '#0EA5E9';
 const ACCENT_DARK = '#0284C7';
 
@@ -50,7 +60,8 @@ export const LightColors = {
   successDark: '#166534',
   successSoft: '#DCFCE7',
   warning: '#F59E0B',
-  ghost: '#7C3AED',
+  /** Mode fantôme : gris (caché, pas une couleur de plus) */
+  ghost: '#52525B',
   /** Repères de la carte : lieux motards et événements */
   placePin: '#EA580C',
   eventPin: '#DB2777',
@@ -59,12 +70,12 @@ export const LightColors = {
 
   // Navigation
   /** Bandeau d'instruction pendant le guidage */
-  guidance: '#15803D',
+  guidance: '#16A34A',
   guidanceSoft: '#DCFCE7',
   /** Ma position (point / flèche) */
-  me: '#2563EB',
+  me: ACCENT_DARK,
   /** Tracé de l'itinéraire */
-  route: '#2563EB',
+  route: ACCENT,
   /** Fond de carte pendant le chargement des tuiles (proche du fond MapTiler Streets) */
   mapBackground: '#F2EFE9',
 
@@ -103,11 +114,11 @@ export const DarkColors: Palette = {
   success: '#22C55E',
   successDark: '#86EFAC',
   successSoft: '#0F2E1C',
-  ghost: '#8B5CF6',
+  ghost: '#71717A',
 
   guidanceSoft: '#BBF7D0',
-  me: '#3B82F6',
-  route: '#60A5FA',
+  me: ACCENT,
+  route: '#38BDF8',
   mapBackground: '#1B1E23',
 
   backdrop: 'rgba(0,0,0,0.6)',
@@ -123,17 +134,17 @@ export const WallpaperPresets: Record<
   { label: string; dark: boolean; stops: string[]; motif: WallpaperMotif; ink: string }
 > = {
   ciel: { label: 'Ciel', dark: false, stops: ['#E0F2FE', '#F8FAFC'], motif: 'none', ink: 'transparent' },
-  nuit: { label: 'Nuit', dark: true, stops: ['#0B1120', '#0C2A45', '#075985'], motif: 'none', ink: 'transparent' },
-  aube: { label: 'Aube', dark: false, stops: ['#BAE6FD', '#FDE7D3', '#FED7AA'], motif: 'none', ink: 'transparent' },
-  crepuscule: { label: 'Crépuscule', dark: true, stops: ['#1E1B4B', '#7C2D12', '#EA580C'], motif: 'none', ink: 'transparent' },
+  nuit: { label: 'Nuit', dark: true, stops: ['#0B0F14', '#111827'], motif: 'none', ink: 'transparent' },
+  aube: { label: 'Aube', dark: false, stops: ['#FAFAF9', '#F5F5F4'], motif: 'none', ink: 'transparent' },
+  crepuscule: { label: 'Crépuscule', dark: true, stops: ['#1C1917', '#292524'], motif: 'none', ink: 'transparent' },
   route: { label: 'Route', dark: true, stops: ['#1F2937', '#111827'], motif: 'road', ink: 'rgba(250,204,21,0.16)' },
   'route-claire': { label: 'Route claire', dark: false, stops: ['#F4F4F5', '#E4E4E7'], motif: 'road', ink: 'rgba(14,165,233,0.14)' },
   montagne: { label: 'Montagne', dark: false, stops: ['#E0F2FE', '#F0F9FF'], motif: 'mountains', ink: 'rgba(2,132,199,0.12)' },
-  'montagne-nuit': { label: 'Montagne de nuit', dark: true, stops: ['#020617', '#0C2A45'], motif: 'mountains', ink: 'rgba(125,211,252,0.12)' },
+  'montagne-nuit': { label: 'Montagne de nuit', dark: true, stops: ['#0B0F14', '#161B22'], motif: 'mountains', ink: 'rgba(125,211,252,0.12)' },
   virages: { label: 'Virages', dark: false, stops: ['#F0F9FF', '#E0F2FE'], motif: 'curves', ink: 'rgba(14,165,233,0.16)' },
   'virages-nuit': { label: 'Virages de nuit', dark: true, stops: ['#0B0F14', '#161B22'], motif: 'curves', ink: 'rgba(14,165,233,0.2)' },
   roues: { label: 'Roues', dark: true, stops: ['#0F172A', '#1E293B'], motif: 'wheels', ink: 'rgba(148,163,184,0.12)' },
-  etoiles: { label: 'Étoiles', dark: true, stops: ['#020617', '#1E1B4B'], motif: 'stars', ink: 'rgba(255,255,255,0.5)' },
+  etoiles: { label: 'Étoiles', dark: true, stops: ['#0B0F14', '#18181B'], motif: 'stars', ink: 'rgba(255,255,255,0.5)' },
 };
 
 /** Collines sombres du fond « Étoiles » */
@@ -149,7 +160,7 @@ export const WallpaperColors = [
   '#0EA5E9',
   '#0F766E',
   '#7C2D12',
-  '#1E1B4B',
+  '#27272A',
   '#18181B',
   '#0B0F14',
 ];
@@ -183,6 +194,64 @@ export type SignStyle = (typeof ReportSigns)[keyof typeof ReportSigns];
 
 /** Couleur du pictogramme dans les panneaux */
 export const SIGN_INK = '#18181B';
+
+// ---------- Typographie, espacements, coins ----------
+
+/** Polices (assets/fonts, licence OFL, chargées par useAppFonts dans _layout) */
+export const Fonts = {
+  regular: 'Barlow-Regular',
+  medium: 'Barlow-Medium',
+  semibold: 'Barlow-SemiBold',
+  bold: 'Barlow-Bold',
+  /** Titres : condensée, style plaque / panneau */
+  title: 'BarlowCondensed-Bold',
+  titleSemi: 'BarlowCondensed-SemiBold',
+};
+
+export const FontFiles = {
+  [Fonts.regular]: require('../../assets/fonts/Barlow-Regular.ttf'),
+  [Fonts.medium]: require('../../assets/fonts/Barlow-Medium.ttf'),
+  [Fonts.semibold]: require('../../assets/fonts/Barlow-SemiBold.ttf'),
+  [Fonts.bold]: require('../../assets/fonts/Barlow-Bold.ttf'),
+  [Fonts.title]: require('../../assets/fonts/BarlowCondensed-Bold.ttf'),
+  [Fonts.titleSemi]: require('../../assets/fonts/BarlowCondensed-SemiBold.ttf'),
+};
+
+/** 3 tailles de texte + 1 taille de titre */
+export const Type = { small: 12, body: 15, large: 17, title: 24 };
+
+/** Échelle d'espacement : 4 / 8 / 12 / 16 / 24 / 32 */
+export const Space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+
+/** Coins arrondis */
+export const Radius = { sm: 8, md: 12, lg: 16, pill: 999 };
+
+type TextLike = { fontFamily?: string; fontWeight?: unknown; fontSize?: number };
+
+/** Police à utiliser pour un style de texte (poids + taille) */
+export function fontFor(weight: unknown, size?: number): string {
+  const w = weight === 'bold' ? 700 : weight === 'normal' || weight == null ? 400 : Number(weight) || 400;
+  // Titres : gras et grand (titres d'écran, de section, gros chiffres)
+  if (w >= 800 && (size ?? 0) >= Type.large) return Fonts.title;
+  if (w >= 700 && (size ?? 0) >= Type.title) return Fonts.title;
+  if (w >= 700) return Fonts.bold;
+  if (w >= 600) return Fonts.semibold;
+  if (w >= 500) return Fonts.medium;
+  return Fonts.regular;
+}
+
+/** Ajoute la police aux styles de texte (ceux qui ont une taille ou un poids) */
+function withFonts<T>(styles: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(styles as Record<string, unknown>)) {
+    const st = value as TextLike;
+    if (st && typeof st === 'object' && !st.fontFamily && (st.fontSize != null || st.fontWeight != null)) {
+      const { fontWeight, ...rest } = st;
+      out[key] = { ...rest, fontFamily: fontFor(fontWeight, st.fontSize) };
+    } else out[key] = value;
+  }
+  return out as T;
+}
 
 // ---------- Thème actif ----------
 
@@ -271,8 +340,8 @@ export function useColors(): Palette {
 
 /** Crée un hook qui renvoie les styles du thème actif (calculés une fois par thème). */
 export function makeStyles<T extends StyleSheet.NamedStyles<T>>(factory: (colors: Palette) => T): () => T {
-  const light = StyleSheet.create(factory(LightColors));
-  const dark = StyleSheet.create(factory(DarkColors));
+  const light = StyleSheet.create(withFonts(factory(LightColors)));
+  const dark = StyleSheet.create(withFonts(factory(DarkColors)));
   return function useStyles() {
     return useContext(ThemeContext).scheme === 'dark' ? dark : light;
   };

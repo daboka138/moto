@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 
 // Menu d'actions en bas de l'écran. Remplace Alert.alert quand il y a plus de
 // 3 choix (Android n'affiche que 3 boutons dans une alerte).
@@ -64,18 +64,18 @@ const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: Colors.backdrop },
   sheet: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     paddingTop: 16,
     paddingHorizontal: 16,
     gap: 4,
   },
-  title: { fontSize: 17, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  message: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', marginBottom: 6 },
-  option: { paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  message: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', marginBottom: 8 },
+  option: { paddingVertical: 16, borderRadius: Radius.md, alignItems: 'center' },
   pressed: { backgroundColor: Colors.background },
-  optionText: { fontSize: 16, fontWeight: '600', color: Colors.text },
+  optionText: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   destructive: { color: Colors.danger },
   cancel: { marginTop: 4, borderTopWidth: 1, borderTopColor: Colors.border, borderRadius: 0 },
-  cancelText: { fontSize: 16, fontWeight: '800', color: Colors.textMuted },
+  cancelText: { fontSize: Type.body, fontWeight: '800', color: Colors.textMuted },
 }));

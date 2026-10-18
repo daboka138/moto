@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Animated, PanResponder, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius } from '@/constants/theme';
 
 type Props = {
   /** Toujours visible, sous la poignée (résumé, bouton Arrêter…) */
@@ -87,18 +87,18 @@ export function BottomSheet({ header, children, footer, initiallyExpanded = true
 const useStyles = makeStyles((Colors) => ({
   sheet: {
     backgroundColor: Colors.surface,
-    borderRadius: 22,
+    borderRadius: Radius.lg,
     paddingHorizontal: 16,
-    paddingBottom: 14,
-    elevation: 8,
+    paddingBottom: 16,
+    elevation: 4,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: -2 },
   },
-  handleZone: { alignItems: 'center', paddingTop: 10, paddingBottom: 8 },
+  handleZone: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: Colors.textFaint },
-  header: { gap: 8, paddingBottom: 6 },
-  body: { gap: 12, paddingTop: 6, paddingBottom: 8 },
-  footer: { paddingTop: 10 },
+  header: { gap: 8, paddingBottom: 8 },
+  body: { gap: 12, paddingTop: 8, paddingBottom: 8 },
+  footer: { paddingTop: 12 },
 }));

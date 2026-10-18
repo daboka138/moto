@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { canUse, featureStatus, useFeatures, type FeatureKey } from '@/lib/features';
 
 /** Écran réservé : affiche son contenu si canUse(feature), sinon une explication (premium / indisponible). */
@@ -28,6 +28,6 @@ export function FeatureGate({ feature, children }: { feature: FeatureKey; childr
 
 const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24, backgroundColor: Colors.background },
-  title: { fontSize: 20, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  text: { fontSize: 15, color: Colors.textMuted, textAlign: 'center', lineHeight: 21 },
+  title: { fontSize: Type.large, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  text: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', lineHeight: 21 },
 }));

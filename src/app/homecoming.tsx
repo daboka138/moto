@@ -8,7 +8,7 @@ import { DateTimeField } from '@/components/form-fields';
 import { SearchBar } from '@/components/nav/search-bar';
 import { Button, Chip, Field } from '@/components/ui';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { alertSmsLabel } from '@/lib/alert-sms';
 import { fetchMemberContacts, formatPhone, parseFrenchMobile, PHONE_ERROR, usePhoneContacts, type MemberContact } from '@/lib/emergency';
 import { useFavorites } from '@/lib/favorites';
@@ -288,25 +288,25 @@ function CheckRow({ checked, title, subtitle, onPress }: { checked: boolean; tit
 
 const useStyles = makeStyles((Colors) => ({
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 },
-  error: { fontSize: 13, color: Colors.danger, fontWeight: '600', lineHeight: 18 },
+  error: { fontSize: Type.small, color: Colors.danger, fontWeight: '600', lineHeight: 18 },
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, padding: 16, gap: 8 },
-  big: { fontSize: 26, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  muted: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
-  section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, gap: 8 },
+  big: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  muted: { fontSize: Type.body, color: Colors.textMuted, lineHeight: 20 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   extend: {
     flex: 1,
     minHeight: 64,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.accentSoft,
   },
-  extendText: { fontSize: 20, fontWeight: '900', color: Colors.accent },
-  dest: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.surface, borderRadius: 14, padding: 14 },
-  destText: { flex: 1, fontSize: 16, fontWeight: '700', color: Colors.text },
-  warning: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.surface, borderRadius: 14, padding: 14 },
+  extendText: { fontSize: Type.large, fontWeight: '900', color: Colors.accent },
+  dest: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16 },
+  destText: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  warning: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16 },
   warningText: { flex: 1, color: Colors.danger, fontWeight: '700' },
 }));

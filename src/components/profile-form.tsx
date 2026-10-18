@@ -5,7 +5,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Vie
 import { PhotoPicker } from '@/components/photo-picker';
 import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACE_REMINDER, PACES, paceInfo } from '@/lib/moto';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage, PhotoUnreadableError } from '@/lib/errors';
 import {
   emptyMotorcycleDraft,
@@ -328,33 +328,33 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
 const useStyles = makeStyles((Colors) => ({
   errorBox: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.danger,
     backgroundColor: Colors.surface,
   },
-  errorTitle: { fontSize: 15, fontWeight: '800', color: Colors.danger },
-  errorText: { fontSize: 14, color: Colors.text },
+  errorTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.danger },
+  errorText: { fontSize: Type.body, color: Colors.text },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   hint: { color: Colors.textMuted },
   privateNote: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  privateText: { flex: 1, fontSize: 13, color: Colors.textMuted },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  paceHint: { fontSize: 13, color: Colors.textMuted, marginTop: -4 },
+  privateText: { flex: 1, fontSize: Type.small, color: Colors.textMuted },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  paceHint: { fontSize: Type.small, color: Colors.textMuted, marginTop: -4 },
   moto: {
     gap: 12,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.background,
   },
   motoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mainToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto', marginRight: 12 },
-  mainText: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
-  motoTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  mainText: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
+  motoTitle: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

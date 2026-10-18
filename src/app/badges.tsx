@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 
 import { useRiderStats } from '@/components/badges-card';
 import { Card } from '@/components/profile-view';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { badgeProgress, fetchMyPasses, monthlyChallenges, type RiderPass } from '@/lib/badges';
 import { useSession } from '@/lib/session';
 
@@ -117,22 +117,22 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14 },
-  totals: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: 18, padding: 14 },
+  muted: { color: Colors.textMuted, fontSize: Type.body },
+  totals: { flexDirection: 'row', backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16 },
   total: { flex: 1, alignItems: 'center' },
-  totalValue: { fontSize: 22, fontWeight: '900', color: Colors.accent },
-  small: { fontSize: 12, color: Colors.textMuted },
+  totalValue: { fontSize: Type.title, fontWeight: '900', color: Colors.accent },
+  small: { fontSize: Type.small, color: Colors.textMuted },
   challenge: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  emoji: { fontSize: 26 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  emoji: { fontSize: Type.title },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   bar: { height: 8, borderRadius: 4, backgroundColor: Colors.border, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: Colors.accent },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badge: { width: '30%', flexGrow: 1, alignItems: 'center', gap: 3, padding: 10, borderRadius: 14, backgroundColor: Colors.accentSoft },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  badge: { width: '30%', flexGrow: 1, alignItems: 'center', gap: 3, padding: 12, borderRadius: Radius.md, backgroundColor: Colors.accentSoft },
   locked: { backgroundColor: Colors.background, opacity: 0.7 },
-  badgeEmoji: { fontSize: 30 },
-  badgeLabel: { fontSize: 12, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  badgeDesc: { fontSize: 11, color: Colors.textMuted, textAlign: 'center' },
-  pass: { fontSize: 15, color: Colors.text },
-  hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  badgeEmoji: { fontSize: Type.title },
+  badgeLabel: { fontSize: Type.small, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  badgeDesc: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
+  pass: { fontSize: Type.body, color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
 }));

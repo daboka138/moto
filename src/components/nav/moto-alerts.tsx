@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { FUEL_LEVELS } from '@/lib/garage';
 import type { BreakReminder } from '@/lib/moto-alerts';
 import { shortDistance } from '@/lib/navigation';
@@ -61,7 +61,7 @@ export function BreakBanner({ reminder, stopped, onAdd, onClose }: { reminder: B
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Text style={{ fontSize: 26 }}>☕</Text>
+        <Text style={{ fontSize: Type.title }}>☕</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Pause conseillée</Text>
           <Text style={styles.small} numberOfLines={2}>
@@ -95,19 +95,19 @@ const useStyles = makeStyles((Colors) => ({
     maxWidth: '100%',
     backgroundColor: Colors.warning,
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     elevation: 4,
   },
   chipNight: { backgroundColor: Colors.accentDark },
-  chipText: { color: Colors.white, fontWeight: '800', fontSize: 14 },
-  card: { gap: 10, backgroundColor: Colors.surface, borderRadius: 20, padding: 14, borderWidth: 2, borderColor: Colors.accent, elevation: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  small: { fontSize: 13, color: Colors.textMuted },
+  chipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
+  card: { gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: 16, borderWidth: 2, borderColor: Colors.accent, elevation: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  title: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted },
   levels: { flexDirection: 'row', gap: 8 },
-  level: { flex: 1, minHeight: 52, borderRadius: 14, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
-  levelText: { fontSize: 15, fontWeight: '900', color: Colors.text },
-  add: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56, borderRadius: 16, backgroundColor: Colors.accent },
-  addText: { fontSize: 17, fontWeight: '900', color: Colors.white },
+  level: { flex: 1, minHeight: 52, borderRadius: Radius.md, backgroundColor: Colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  levelText: { fontSize: Type.body, fontWeight: '900', color: Colors.text },
+  add: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56, borderRadius: Radius.md, backgroundColor: Colors.accent },
+  addText: { fontSize: Type.large, fontWeight: '900', color: Colors.white },
 }));

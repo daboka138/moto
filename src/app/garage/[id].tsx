@@ -6,7 +6,7 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, Vie
 import { showActionSheet } from '@/components/action-sheet';
 import { DateTimeField } from '@/components/form-fields';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
   addRecord,
   deletePlan,
@@ -398,22 +398,22 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14 },
-  hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  muted: { color: Colors.textMuted, fontSize: Type.body },
+  hint: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  fuel: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.accentSoft, borderRadius: 12, padding: 12 },
-  fuelValue: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  plan: { borderWidth: 1, borderColor: Colors.border, borderRadius: 14, backgroundColor: Colors.background },
-  planHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, minHeight: 56 },
-  planLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  emoji: { fontSize: 22 },
-  small: { fontSize: 13, color: Colors.textMuted },
+  fuel: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 12 },
+  fuelValue: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  plan: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, backgroundColor: Colors.background },
+  planHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, minHeight: 56 },
+  planLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  emoji: { fontSize: Type.title },
+  small: { fontSize: Type.small, color: Colors.textMuted },
   editor: { gap: 12, padding: 12, paddingTop: 0 },
-  record: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
-  notes: { fontSize: 13, color: Colors.text, marginTop: 2 },
+  record: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 },
+  notes: { fontSize: Type.small, color: Colors.text, marginTop: 2 },
 }));
 
 export default function MotoGarageScreen() {

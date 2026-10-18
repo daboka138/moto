@@ -6,7 +6,7 @@ import { Pressable, ScrollView, Text, View, type NativeScrollEvent, type NativeS
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OpenInApp } from '@/components/open-in-app';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { BIENVENUE, PERMISSIONS } from '@/guide/contenu';
 import { setWelcomeDone } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
@@ -196,34 +196,34 @@ function PermissionRow({
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
-  brand: { fontSize: 18, fontWeight: '900', color: Colors.accent },
-  skip: { fontSize: 16, fontWeight: '700', color: Colors.textMuted },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  brand: { fontSize: Type.large, fontWeight: '900', color: Colors.accent },
+  skip: { fontSize: Type.body, fontWeight: '700', color: Colors.textMuted },
   pager: { flex: 1 },
-  slide: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28, paddingVertical: 16, gap: 14 },
+  slide: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 16, gap: 16 },
   emoji: { fontSize: 72 },
-  title: { fontSize: 28, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  text: { fontSize: 17, lineHeight: 24, color: Colors.textMuted, textAlign: 'center', maxWidth: 420 },
-  points: { gap: 10, marginTop: 8, alignSelf: 'stretch', maxWidth: 420, width: '100%', marginHorizontal: 'auto' },
-  point: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pointText: { flex: 1, fontSize: 16, color: Colors.text },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  text: { fontSize: Type.large, lineHeight: 24, color: Colors.textMuted, textAlign: 'center', maxWidth: 420 },
+  points: { gap: 12, marginTop: 8, alignSelf: 'stretch', maxWidth: 420, width: '100%', marginHorizontal: 'auto' },
+  point: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pointText: { flex: 1, fontSize: Type.body, color: Colors.text },
   perms: { gap: 12, alignSelf: 'stretch', maxWidth: 460, width: '100%', marginHorizontal: 'auto' },
-  perm: { flexDirection: 'row', gap: 12, backgroundColor: Colors.surface, borderRadius: 16, padding: 14 },
+  perm: { flexDirection: 'row', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16 },
   permBody: { flex: 1, gap: 8 },
-  permText: { fontSize: 15, lineHeight: 21, color: Colors.text },
-  permDone: { fontSize: 15, fontWeight: '800', color: Colors.success },
+  permText: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
+  permDone: { fontSize: Type.body, fontWeight: '800', color: Colors.success },
   permButton: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.accentSoft,
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  permButtonText: { fontSize: 15, fontWeight: '800', color: Colors.accentDark },
-  bottom: { padding: 20, gap: 16 },
+  permButtonText: { fontSize: Type.body, fontWeight: '800', color: Colors.accentDark },
+  bottom: { padding: 16, gap: 16 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.border },
   dotOn: { width: 22, backgroundColor: Colors.accent },
-  next: { backgroundColor: Colors.accent, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  nextText: { fontSize: 17, fontWeight: '800', color: Colors.white },
+  next: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 16, alignItems: 'center' },
+  nextText: { fontSize: Type.large, fontWeight: '800', color: Colors.white },
 }));

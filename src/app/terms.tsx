@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { TermsCheckbox } from '@/components/terms-checkbox';
 import { Button } from '@/components/ui';
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { signOut } from '@/lib/auth';
 import { useSession } from '@/lib/session';
@@ -60,7 +60,7 @@ export default function TermsScreen() {
 const useStyles = makeStyles((Colors) => ({
   safe: { flex: 1, backgroundColor: Colors.background },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 },
-  hero: { gap: 10, marginBottom: 8 },
-  title: { fontSize: 26, fontWeight: '900', color: Colors.text },
-  text: { fontSize: 15, lineHeight: 22, color: Colors.textMuted },
+  hero: { gap: 12, marginBottom: 8 },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
+  text: { fontSize: Type.body, lineHeight: 22, color: Colors.textMuted },
 }));

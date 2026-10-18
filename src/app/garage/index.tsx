@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { dueText, fuelRange, kindInfo, planStatus, useMyGarage } from '@/lib/garage';
 import { photoUrl } from '@/lib/profile';
 import { useSession } from '@/lib/session';
@@ -57,7 +57,7 @@ function GarageScreenContent() {
                 {range?.leftKm != null ? ` · autonomie ~${Math.round(range.leftKm)} km` : ''}
               </Text>
               {next ? (
-                <Text style={[styles.line, next.s.level !== 'ok' && { color: next.s.level === 'due' ? Colors.danger : Colors.warning, fontWeight: '800' }]}>
+                <Text style={[styles.line, next.s.level !== 'ok' && { color: next.s.level === 'due' ? Colors.danger : Colors.warning, fontFamily: Fonts.bold }]}>
                   {kindInfo(next.p.kind).emoji} {kindInfo(next.p.kind).label} : {dueText(next.s).toLowerCase()}
                 </Text>
               ) : (
@@ -80,14 +80,14 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   empty: { flex: 1, alignItems: 'stretch', justifyContent: 'center', padding: 24, gap: 16, backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14, textAlign: 'left' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 18, padding: 12 },
-  photo: { width: 72, height: 72, borderRadius: 14, backgroundColor: Colors.border },
+  muted: { color: Colors.textMuted, fontSize: Type.body, textAlign: 'left' },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
+  photo: { width: 72, height: 72, borderRadius: Radius.md, backgroundColor: Colors.border },
   noPhoto: { alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 3 },
-  name: { fontSize: 17, fontWeight: '800', color: Colors.text },
-  line: { fontSize: 14, color: Colors.text },
-  hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  name: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  line: { fontSize: Type.body, color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
 }));
 
 export default function GarageScreen() {

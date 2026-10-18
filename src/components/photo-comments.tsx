@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { timeAgo } from '@/lib/feed';
 import { askReport } from '@/lib/moderation';
 import {
@@ -192,27 +192,27 @@ export function PhotoSocialPanel({ photo }: { photo: WallPhoto }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
-  panel: { gap: 10 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 22 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  count: { color: Colors.white, fontSize: 15, fontWeight: '700' },
-  comments: { backgroundColor: Colors.darkSoft, borderRadius: 16, overflow: 'hidden' },
+  panel: { gap: 12 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  count: { color: Colors.white, fontSize: Type.body, fontWeight: '700' },
+  comments: { backgroundColor: Colors.darkSoft, borderRadius: Radius.md, overflow: 'hidden' },
   list: { maxHeight: 260 },
-  empty: { color: Colors.textFaint, fontSize: 14, padding: 14, textAlign: 'center' },
-  comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  empty: { color: Colors.textFaint, fontSize: Type.body, padding: 16, textAlign: 'center' },
+  comment: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 12, paddingVertical: 8 },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.dark },
   commentBody: { flex: 1, gap: 2 },
-  commentText: { color: Colors.white, fontSize: 14, lineHeight: 19 },
+  commentText: { color: Colors.white, fontSize: Type.body, lineHeight: 19 },
   username: { fontWeight: '800' },
-  time: { color: Colors.textFaint, fontSize: 12 },
+  time: { color: Colors.textFaint, fontSize: Type.small },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.dark,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  input: { flex: 1, color: Colors.white, fontSize: 15, maxHeight: 90, paddingVertical: 6 },
+  input: { flex: 1, color: Colors.white, fontSize: Type.body, maxHeight: 90, paddingVertical: 8 },
 }));

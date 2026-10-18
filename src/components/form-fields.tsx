@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { DateTimeInput } from '@/components/date-time-input';
-import { makeStyles, useColors, useTheme } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors, useTheme } from '@/constants/theme';
 import type { Place } from '@/lib/geocoding';
 
 /** Champ qui affiche un lieu choisi et ouvre le sélecteur au toucher. */
@@ -95,19 +95,19 @@ export function DateTimeField({
 }
 
 const useStyles = makeStyles((Colors) => ({
-  field: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  field: { gap: 8 },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   box: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  value: { flex: 1, fontSize: 16, color: Colors.text },
+  value: { flex: 1, fontSize: Type.body, color: Colors.text },
   placeholder: { color: Colors.textMuted },
 }));

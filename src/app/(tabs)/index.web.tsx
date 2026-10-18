@@ -14,7 +14,7 @@ import { OpenInApp } from '@/components/open-in-app';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
-import { makeStyles, ReportSigns, useColors } from '@/constants/theme';
+import { makeStyles, Radius, ReportSigns, Type, useColors } from '@/constants/theme';
 import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -552,7 +552,7 @@ const useStyles = makeStyles((Colors) => ({
   header: { gap: 12 },
   search: { width: '100%', maxWidth: 520, alignSelf: 'center' },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  column: { gap: 10 },
+  column: { gap: 12 },
   roundButton: {
     width: 48,
     height: 48,
@@ -563,7 +563,7 @@ const useStyles = makeStyles((Colors) => ({
     borderWidth: 2,
     borderColor: Colors.accent,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
@@ -582,27 +582,27 @@ const useStyles = makeStyles((Colors) => ({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: Colors.ghost,
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  ghostBannerText: { color: Colors.white, fontWeight: '700', fontSize: 14 },
+  ghostBannerText: { color: Colors.white, fontWeight: '700', fontSize: Type.body },
   // Fiches en bas à gauche, largeur limitée sur grand écran (le zoom reste à droite)
   bottom: { position: 'absolute', left: 12, bottom: 12, right: 64, maxWidth: 440, gap: 12 },
   locationCard: {
     gap: 8,
-    padding: 14,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: Radius.md,
     backgroundColor: Colors.surface,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
   },
   locationActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  locationButton: { backgroundColor: Colors.accent, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 9 },
+  locationButton: { backgroundColor: Colors.accent, borderRadius: Radius.lg, paddingHorizontal: 16, paddingVertical: 8 },
   locationButtonText: { color: Colors.white, fontWeight: '800' },
   locationLater: { color: Colors.textMuted, fontWeight: '700' },
   rideClose: {
@@ -624,14 +624,14 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     backgroundColor: Colors.surface,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: Radius.md,
+    padding: 16,
     shadowColor: Colors.shadow,
     shadowOpacity: 0.15,
-    shadowRadius: 10,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
   },
   appCardText: { flex: 1, minWidth: 180, gap: 2 },
-  appCardTitle: { fontSize: 14, fontWeight: '800', color: Colors.text },
-  appCardHint: { fontSize: 12, color: Colors.textMuted },
+  appCardTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  appCardHint: { fontSize: Type.small, color: Colors.textMuted },
 }));

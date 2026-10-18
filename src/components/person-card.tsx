@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 
 type Props = {
   photoUrl: string;
@@ -73,25 +73,25 @@ export function motoLabel(moto: { brand: string; model: string; displacement_cc:
 const useStyles = makeStyles((Colors) => ({
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 20,
+    borderRadius: Radius.lg,
     padding: 16,
-    gap: 14,
-    elevation: 6,
+    gap: 16,
+    elevation: 4,
     shadowColor: Colors.shadow,
     shadowOpacity: 0.15,
-    shadowRadius: 16,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
   close: { position: 'absolute', top: 12, right: 12, zIndex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: Colors.accent },
   info: { flex: 1, gap: 2, paddingRight: 24 },
-  username: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  moto: { fontSize: 14, color: Colors.textMuted },
-  badge: { fontSize: 12, fontWeight: '700', color: Colors.accent },
-  stats: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: 14, paddingVertical: 10 },
+  username: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  moto: { fontSize: Type.body, color: Colors.textMuted },
+  badge: { fontSize: Type.small, fontWeight: '700', color: Colors.accent },
+  stats: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: Radius.md, paddingVertical: 12 },
   stat: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: '800', color: Colors.text },
-  statLabel: { fontSize: 12, color: Colors.textMuted },
+  statValue: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  statLabel: { fontSize: Type.small, color: Colors.textMuted },
   divider: { width: 1, backgroundColor: Colors.border },
 }));

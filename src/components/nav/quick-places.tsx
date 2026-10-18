@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import {
   FAVORITE_LABELS,
   removeFavorite,
@@ -104,10 +104,10 @@ const useStyles = makeStyles((Colors) => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     maxWidth: 220,
     minHeight: 44,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderRadius: 999,
     backgroundColor: Colors.surface,
     elevation: 4,
@@ -116,6 +116,6 @@ const useStyles = makeStyles((Colors) => ({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text, flexShrink: 1 },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text, flexShrink: 1 },
   muted: { color: Colors.textMuted },
 }));

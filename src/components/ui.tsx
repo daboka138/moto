@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 
 type ButtonProps = {
@@ -108,33 +108,33 @@ export function Section({ title, children }: { title: string; children: ReactNod
 
 const useStyles = makeStyles((Colors) => ({
   button: {
-    minHeight: 50,
-    borderRadius: 14,
+    minHeight: 48,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   primary: { backgroundColor: Colors.accent },
   secondary: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   ghost: { backgroundColor: 'transparent' },
   danger: { backgroundColor: Colors.danger },
-  buttonText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
-  small: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  smallText: { color: Colors.white, fontSize: 14, fontWeight: '700' },
-  field: { gap: 6 },
-  label: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  buttonText: { color: Colors.white, fontSize: Type.body, fontWeight: '700' },
+  small: { borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
+  smallText: { color: Colors.white, fontSize: Type.small, fontWeight: '700' },
+  field: { gap: 8 },
+  label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   input: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: Type.body,
     color: Colors.text,
   },
   chip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: Colors.surface,
@@ -142,13 +142,13 @@ const useStyles = makeStyles((Colors) => ({
     borderColor: Colors.border,
   },
   chipSelected: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  chipText: { fontSize: 14, color: Colors.text },
+  chipText: { fontSize: Type.body, color: Colors.text },
   chipTextSelected: { color: Colors.white, fontWeight: '600' },
   section: {
     backgroundColor: Colors.surface,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 16,
-    gap: 14,
+    gap: 16,
   },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  sectionTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textTransform: 'uppercase', letterSpacing: 0.5 },
 }));

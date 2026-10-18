@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, 
 import { showActionSheet, type SheetOption } from '@/components/action-sheet';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { Button, Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { GAP_CHOICES_KM, roleLabel } from '@/lib/convoy';
 import {
   canStartNow,
@@ -215,27 +215,27 @@ function RideCheckInScreenContent() {
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 14, paddingBottom: 48 },
+  content: { padding: 16, gap: 16, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  muted: { color: Colors.textMuted, fontSize: 14 },
+  muted: { color: Colors.textMuted, fontSize: Type.body },
   header: { gap: 4 },
-  title: { fontSize: 22, fontWeight: '900', color: Colors.text },
+  title: { fontSize: Type.title, fontWeight: '900', color: Colors.text },
   counter: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 8 },
   counterValue: { fontSize: 40, fontWeight: '900', color: Colors.accent },
-  counterLabel: { fontSize: 16, fontWeight: '700', color: Colors.textMuted },
-  done: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successSoft, borderRadius: 12, padding: 12 },
+  counterLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.textMuted },
+  done: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successSoft, borderRadius: Radius.md, padding: 12 },
   doneText: { flex: 1, color: Colors.successDark, fontWeight: '700' },
-  hint: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
-  gap: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, gap: 8 },
-  gapTitle: { fontSize: 15, fontWeight: '800', color: Colors.text },
+  hint: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
+  gap: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 8 },
+  gapTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
   gapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  list: { backgroundColor: Colors.surface, borderRadius: 18, padding: 8 },
+  list: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, minHeight: 60 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },
-  name: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  role: { fontSize: 13, color: Colors.accent, fontWeight: '700' },
+  name: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  role: { fontSize: Type.small, color: Colors.accent, fontWeight: '700' },
   status: { alignItems: 'center', minWidth: 52 },
-  time: { fontSize: 11, color: Colors.textMuted },
+  time: { fontSize: Type.small, color: Colors.textMuted },
 }));
 
 export default function RideCheckInScreen() {

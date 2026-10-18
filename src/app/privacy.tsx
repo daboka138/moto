@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { PersonRow } from '@/components/person-row';
 import { Card } from '@/components/profile-view';
 import { Button } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import type { PublicProfile } from '@/lib/friends';
 import { PRIVACY_MODES, type PrivacySettings } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
@@ -162,15 +162,15 @@ const useStyles = makeStyles((Colors) => ({
     alignItems: 'center',
     gap: 12,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   optionSelected: { borderColor: Colors.accent, backgroundColor: Colors.accentSoft },
   optionText: { flex: 1, gap: 2 },
-  optionLabel: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  optionDescription: { fontSize: 13, color: Colors.textMuted },
+  optionLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  optionDescription: { fontSize: Type.small, color: Colors.textMuted },
   note: { flexDirection: 'row', gap: 8, paddingHorizontal: 4 },
-  noteText: { flex: 1, fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  noteText: { flex: 1, fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
   muted: { color: Colors.textMuted },
 }));

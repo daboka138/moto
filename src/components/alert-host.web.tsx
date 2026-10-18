@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, Text, View, type AlertButton, type AlertOptions } from 'react-native';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Radius, Type } from '@/constants/theme';
 
 // Version web : Alert.alert de react-native-web ne fait rien. On le remplace par une
 // boîte de dialogue aux couleurs de l'app (mêmes boutons, même ordre que sur Android).
@@ -77,17 +77,17 @@ const useStyles = makeStyles((Colors) => ({
     maxWidth: 400,
     backgroundColor: Colors.surface,
     borderRadius: 20,
-    paddingTop: 22,
-    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingHorizontal: 24,
     paddingBottom: 12,
-    gap: 10,
+    gap: 12,
   },
-  title: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  message: { fontSize: 15, lineHeight: 21, color: Colors.textMuted },
-  buttons: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 4, marginTop: 6 },
-  button: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  title: { fontSize: Type.large, fontWeight: '800', color: Colors.text },
+  message: { fontSize: Type.body, lineHeight: 21, color: Colors.textMuted },
+  buttons: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 4, marginTop: 8 },
+  button: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: Radius.sm },
   buttonHover: { backgroundColor: Colors.background },
-  buttonText: { fontSize: 15, fontWeight: '800', color: Colors.accent },
+  buttonText: { fontSize: Type.body, fontWeight: '800', color: Colors.accent },
   cancelText: { color: Colors.textMuted },
   destructiveText: { color: Colors.danger },
 }));

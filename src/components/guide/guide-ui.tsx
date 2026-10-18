@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { OpenInApp } from '@/components/open-in-app';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { SUPPORT_EMAIL, type Fiche } from '@/guide/contenu';
 import { contactSupport } from '@/guide/support';
 import { IS_WEB } from '@/lib/app-link';
@@ -66,22 +66,22 @@ export function SupportButton() {
 const useStyles = makeStyles((Colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   rowBorder: { borderTopWidth: 1, borderTopColor: Colors.border },
-  rowEmoji: { fontSize: 24, width: 32, textAlign: 'center' },
+  rowEmoji: { fontSize: Type.title, width: 32, textAlign: 'center' },
   rowText: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  rowBut: { fontSize: 13, color: Colors.textMuted },
-  androidTag: { fontSize: 12, fontWeight: '700', color: Colors.accentDark },
-  androidBox: { backgroundColor: Colors.accentSoft, borderRadius: 16, padding: 14, gap: 8 },
-  androidTitle: { fontSize: 15, fontWeight: '800', color: Colors.text },
-  androidText: { fontSize: 14, color: Colors.text },
+  rowTitle: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  rowBut: { fontSize: Type.small, color: Colors.textMuted },
+  androidTag: { fontSize: Type.small, fontWeight: '700', color: Colors.accentDark },
+  androidBox: { backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 16, gap: 8 },
+  androidTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  androidText: { fontSize: Type.body, color: Colors.text },
   support: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     backgroundColor: Colors.accent,
-    borderRadius: 18,
+    borderRadius: Radius.md,
     padding: 16,
   },
-  supportTitle: { fontSize: 16, fontWeight: '800', color: Colors.white },
-  supportText: { fontSize: 13, color: Colors.white, opacity: 0.9 },
+  supportTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.white },
+  supportText: { fontSize: Type.small, color: Colors.white, opacity: 0.9 },
 }));

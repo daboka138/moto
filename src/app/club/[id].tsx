@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { showActionSheet } from '@/components/action-sheet';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, SmallButton } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
   addClubPost,
   decideMember,
@@ -335,7 +335,7 @@ function Outings({ clubId }: { clubId: string }) {
           key={a.kind + a.id}
           style={[styles.card, styles.row]}
           onPress={() => router.push({ pathname: a.kind === 'ride' ? '/ride/[id]' : '/event/[id]', params: { id: a.id } })}>
-          <Text style={{ fontSize: 24 }}>{a.kind === 'ride' ? '🏍️' : '📅'}</Text>
+          <Text style={{ fontSize: Type.title }}>{a.kind === 'ride' ? '🏍️' : '📅'}</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>{a.title}</Text>
             <Text style={styles.small}>
@@ -407,20 +407,20 @@ function Members({ club, userId, run }: { club: Club; userId: string; run: (fn: 
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  content: { padding: 16, gap: 14, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  content: { padding: 16, gap: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: Colors.background },
-  header: { alignItems: 'center', gap: 6 },
+  header: { alignItems: 'center', gap: 8 },
   logo: { width: 96, height: 96, borderRadius: 48, backgroundColor: Colors.border },
   logoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accentSoft },
-  name: { fontSize: 24, fontWeight: '900', color: Colors.text, textAlign: 'center' },
-  text: { fontSize: 15, color: Colors.text, lineHeight: 21 },
-  muted: { fontSize: 14, color: Colors.textMuted, textAlign: 'center' },
-  small: { fontSize: 12, color: Colors.textMuted },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  role: { fontSize: 12, fontWeight: '800', color: Colors.accent },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  name: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
+  text: { fontSize: Type.body, color: Colors.text, lineHeight: 21 },
+  muted: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  role: { fontSize: Type.small, fontWeight: '800', color: Colors.accent },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  card: { backgroundColor: Colors.surface, borderRadius: 16, padding: 12, gap: 8 },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 8 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.border },
-  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 12, backgroundColor: Colors.border },
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: Radius.md, backgroundColor: Colors.border },
 }));

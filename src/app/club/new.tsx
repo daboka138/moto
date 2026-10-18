@@ -5,7 +5,7 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, Switch, Text, View }
 
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import { fetchClub, JOIN_POLICIES, saveClub, type JoinPolicy } from '@/lib/clubs';
 import type { PhotoValue } from '@/lib/profile';
@@ -119,7 +119,7 @@ const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, gap: 16, paddingBottom: 48, width: '100%', maxWidth: 760, alignSelf: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  small: { fontSize: 13, color: Colors.textMuted },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 14, padding: 12 },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
 }));

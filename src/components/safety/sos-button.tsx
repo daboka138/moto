@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 
-import { makeStyles } from '@/constants/theme';
+import { makeStyles, Type } from '@/constants/theme';
 
 /** Durée de l'appui long : évite les SOS envoyés par erreur (gants, poche) */
 const HOLD_MS = 2000;
@@ -68,13 +68,13 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.danger,
     borderWidth: 3,
     borderColor: Colors.white,
-    elevation: 6,
+    elevation: 4,
     shadowColor: Colors.shadow,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   // Se remplit du bas vers le haut pendant l'appui
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: Colors.dark, opacity: 0.45 },
-  text: { color: Colors.white, fontSize: 18, fontWeight: '900', letterSpacing: 1 },
+  text: { color: Colors.white, fontSize: Type.large, fontWeight: '900', letterSpacing: 1 },
 }));

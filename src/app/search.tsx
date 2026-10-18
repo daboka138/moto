@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EventCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { findRiders, EMPTY_FILTERS } from '@/lib/discovery';
 import { useDrivingLock } from '@/lib/driving-lock';
 import { acceptFriendRequest, relationWith, removeFriendship, sendFriendRequest } from '@/lib/friends';
@@ -370,42 +370,42 @@ function RiderRow({
 
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
   inputBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,
   },
-  input: { flex: 1, fontSize: 16, color: Colors.text, paddingVertical: 10 },
+  input: { flex: 1, fontSize: Type.body, color: Colors.text, paddingVertical: 12 },
   tabsBar: { flexGrow: 0 },
-  tabs: { paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
-  tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
+  tabs: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
+  tab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
   tabOn: { backgroundColor: Colors.accent, borderColor: Colors.accent },
-  tabText: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  tabText: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   tabTextOn: { color: Colors.white },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  muted: { fontSize: 14, color: Colors.textMuted },
-  hint: { fontSize: 12, color: Colors.textMuted },
+  muted: { fontSize: Type.body, color: Colors.textMuted },
+  hint: { fontSize: Type.small, color: Colors.textMuted },
   empty: { textAlign: 'center', color: Colors.textMuted, paddingTop: 32 },
-  block: { gap: 10 },
+  block: { gap: 12 },
   blockHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  blockTitle: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  link: { fontSize: 14, fontWeight: '700', color: Colors.accent },
-  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  historyText: { flex: 1, fontSize: 16, color: Colors.text },
-  rider: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: 16, padding: 10 },
+  blockTitle: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  link: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  historyText: { flex: 1, fontSize: Type.body, color: Colors.text },
+  rider: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
-  username: { fontSize: 16, fontWeight: '800', color: Colors.text },
-  details: { fontSize: 13, color: Colors.textMuted },
+  username: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  details: { fontSize: Type.small, color: Colors.textMuted },
   relation: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, minWidth: 92, justifyContent: 'center' },
   relationPrimary: { backgroundColor: Colors.accent },
   relationSecondary: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
-  relationText: { fontSize: 13, fontWeight: '800', color: Colors.text },
+  relationText: { fontSize: Type.small, fontWeight: '800', color: Colors.text },
 }));

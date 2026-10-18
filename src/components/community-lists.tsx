@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } f
 
 import { EventCard, PlaceCard } from '@/components/community-cards';
 import { Chip } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Type, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { EVENT_KINDS, type EventKind, type MotoEvent } from '@/lib/events';
 import { PLACE_KINDS, type CommunityPlace, type PlaceKind } from '@/lib/places';
@@ -171,7 +171,7 @@ export function PlacesList({ me }: { me: LatLng | null }) {
 const useStyles = makeStyles((Colors) => ({
   filterBar: { flexGrow: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
-  radiusLabel: { fontSize: 13, fontWeight: '700', color: Colors.textMuted },
+  radiusLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },
   separator: { width: 1, height: 24, backgroundColor: Colors.border, marginHorizontal: 4 },
   list: { padding: 16, gap: 12, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },

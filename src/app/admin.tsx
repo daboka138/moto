@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Switch
 import { showActionSheet } from '@/components/action-sheet';
 import { HistoryAdmin } from '@/components/admin/history-admin';
 import { Button, Chip, Field } from '@/components/ui';
-import { makeStyles, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
   ADMIN_PAGE,
   CHALLENGE_METRICS,
@@ -484,7 +484,7 @@ function Moderation() {
         const canDelete = r.targetType !== 'user';
         const working = busy === r.targetType + r.targetId;
         return (
-          <View key={r.targetType + r.targetId} style={[styles.card, { gap: 6 }]}>
+          <View key={r.targetType + r.targetId} style={[styles.card, { gap: 8 }]}>
             <Text style={styles.reportType}>
               {REPORT_TYPE_LABELS[r.targetType] ?? r.targetType}
               {r.hidden ? ' · masqué' : ''}
@@ -723,7 +723,7 @@ function Welcome() {
   const save = () => saveWelcome(saved.enabled, body, cleanTest);
 
   return (
-    <View style={[styles.card, { gap: 10 }]}>
+    <View style={[styles.card, { gap: 12 }]}>
       <View style={styles.switchRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>{saved.enabled ? 'Activé' : 'Désactivé'}</Text>
@@ -1263,33 +1263,33 @@ const useStyles = makeStyles((Colors) => ({
   centerSmall: { padding: 24, alignItems: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 12, flexWrap: 'wrap' },
-  content: { padding: 16, gap: 10, paddingBottom: 48 },
-  section: { fontSize: 13, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
+  content: { padding: 16, gap: 12, paddingBottom: 48 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  stat: { flexGrow: 1, minWidth: 90, backgroundColor: Colors.surface, borderRadius: 14, padding: 12, gap: 2 },
+  stat: { flexGrow: 1, minWidth: 90, backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12, gap: 2 },
   statBig: { minWidth: '100%' },
-  statValue: { fontSize: 24, fontWeight: '900', color: Colors.text, fontVariant: ['tabular-nums'] },
-  statLabel: { fontSize: 12, color: Colors.textMuted, fontWeight: '700' },
-  card: { backgroundColor: Colors.surface, borderRadius: 14, padding: 12 },
+  statValue: { fontSize: Type.title, fontWeight: '900', color: Colors.text, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: Type.small, color: Colors.textMuted, fontWeight: '700' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 12 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 2 },
   barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   bar: { backgroundColor: Colors.accent, borderTopLeftRadius: 3, borderTopRightRadius: 3, minHeight: 2 },
   barEmpty: { backgroundColor: Colors.border },
-  chartLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  small: { fontSize: 12, color: Colors.textMuted, lineHeight: 17 },
-  label: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  chartLegend: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+  small: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 17 },
+  label: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },
   more: { alignItems: 'center', padding: 12 },
   link: { color: Colors.accent, fontWeight: '800' },
-  reportType: { fontSize: 12, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
-  premium: { fontSize: 12, fontWeight: '800', color: Colors.accent },
+  reportType: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, textTransform: 'uppercase' },
+  premium: { fontSize: Type.small, fontWeight: '800', color: Colors.accent },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  action: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: Colors.background },
+  action: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.sm, backgroundColor: Colors.background },
   actionDanger: { backgroundColor: Colors.danger },
-  actionText: { fontWeight: '800', color: Colors.text, fontSize: 13 },
+  actionText: { fontWeight: '800', color: Colors.text, fontSize: Type.small },
   actionTextDanger: { color: Colors.white },
-  welcomeBubble: { backgroundColor: Colors.background, borderRadius: 16, borderBottomLeftRadius: 6, padding: 12 },
-  welcomeText: { fontSize: 15, lineHeight: 21, color: Colors.text },
+  welcomeBubble: { backgroundColor: Colors.background, borderRadius: Radius.md, borderBottomLeftRadius: Radius.sm, padding: 12 },
+  welcomeText: { fontSize: Type.body, lineHeight: 21, color: Colors.text },
 }));
