@@ -6,13 +6,15 @@ import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Platform
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FriendSuggestions } from '@/components/friend-suggestions';
+import { NewsCard } from '@/components/news-card';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
 import { StoryRow } from '@/components/story-row';
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { photoItems, rideItems, sortFeed, timeAgo, type FeedItem, type FeedPerson } from '@/lib/feed';
+import { mixNews, photoItems, rideItems, sortFeed, timeAgo, type FeedItem, type FeedPerson } from '@/lib/feed';
 import { fetchFriends } from '@/lib/friends';
+import { fetchNews, sortNewsForEmptyWall, useShowNews, type NewsItem } from '@/lib/news';
 import { mainCategory, photoUrl } from '@/lib/profile';
 import { rideFitsCategory } from '@/lib/moto';
 import { fetchUpcomingRides, joinRide, type RideSummary } from '@/lib/rides';
@@ -24,8 +26,9 @@ import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
 
 type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; rides: RideSummary[] };
 
-/** Fil : publications + carrousel « Motards que tu pourrais connaître » tous les ~8 posts */
-type FeedRow = FeedItem | { kind: 'suggestions'; key: string; slice: number };
+/** Fil : publications + actus moto (1 pour 3 posts) + carrousel « Motards que tu pourrais connaître » tous les ~8 posts */
+type NewsRow = { kind: 'news'; key: string; at: string; news: NewsItem };
+type FeedRow = FeedItem | NewsRow | { kind: 'suggestions'; key: string; slice: number };
 const SUGGESTIONS_EVERY = 8;
 const SUGGESTIONS_PER_CAROUSEL = 6;
 
@@ -43,6 +46,9 @@ export default function FeedScreen() {
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const { refresh: refreshStories } = useStories();
   const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([]);
+  // Actus moto (Paramètres › Afficher les actus moto) : chargées à part, une erreur ne bloque pas le fil
+  const showNews = useShowNews();
+  const [news, setNews] = useState<NewsItem[]>([]);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -58,6 +64,9 @@ export default function FeedScreen() {
       setReal({ userId, friends, photos, rides });
       setError(false);
       // Suggestions : à part, une erreur ne bloque pas le fil
+      fetchNews(30)
+        .then(setNews)
+        .catch((e) => console.warn('Actus indisponibles', e));
       fetchFriendSuggestions(18)
         .then(setSuggestions)
         .catch((e) => console.warn('Suggestions indisponibles', e));
@@ -77,7 +86,15 @@ export default function FeedScreen() {
 
   const current = real && real.userId === userId ? real : null;
   const friends = current?.friends ?? [];
-  const items = current ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends)]) : null;
+  const memberItems = current
+    ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends)])
+    : null;
+  // Mur vide : les actus du jour en premier ; sinon au plus 1 actu pour 3 publications
+  const newsRows: NewsRow[] = (memberItems?.length ? news : sortNewsForEmptyWall(news))
+    .slice(0, 30)
+    .map((n) => ({ kind: 'news', key: `news-${n.id}`, at: n.publishedAt, news: n }));
+  const items: (FeedItem | NewsRow)[] | null = memberItems ? mixNews<FeedItem | NewsRow, NewsRow>(memberItems, showNews ? newsRows : []) : null;
+  const wallEmpty = !!memberItems && memberItems.length === 0;
 
   // Carrousels : après le 3e post (ou le dernier si le fil est court), puis tous les ~8 posts,
   // une tranche différente de suggestions à chaque fois
@@ -103,6 +120,27 @@ export default function FeedScreen() {
       />
     ) : null;
 
+  const emptyWall = (
+    <View style={styles.emptyWrap}>
+      {carousel(0)}
+      <View style={styles.empty}>
+        <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
+        <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Personne ici pour l’instant'}</Text>
+        <Text style={styles.muted}>
+          {friends.length
+            ? 'Tes potes sont calmes. Poste une photo, lance le mouvement !'
+            : 'Invite tes potes ou trouve des motards du coin : leurs photos et leurs balades arriveront ici.'}
+        </Text>
+        <Button title="Trouver des motards" onPress={() => router.push('/riders')} />
+        <Button
+          title={friends.length ? 'Publier une story' : 'Ajouter des amis'}
+          variant="secondary"
+          onPress={() => router.push(friends.length ? '/story/new' : '/friends')}
+        />
+      </View>
+    </View>
+  );
+
   const openPerson = (p: FeedPerson) => router.push({ pathname: '/user/[id]', params: { id: p.id } });
   const openRide = (r: RideSummary) => router.push({ pathname: '/ride/[id]', params: { id: r.id } });
 
@@ -122,6 +160,7 @@ export default function FeedScreen() {
 
   const renderItem = ({ item }: { item: FeedRow }) => {
     if (item.kind === 'suggestions') return carousel(item.slice);
+    if (item.kind === 'news') return userId ? <NewsCard item={item.news} userId={userId} /> : null;
     if (item.kind === 'photo') {
       return (
         <View style={styles.card}>
@@ -211,27 +250,14 @@ export default function FeedScreen() {
               colors={[Colors.accent]}
             />
           }
-          ListHeaderComponent={<StoryRow />}
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-            {carousel(0)}
-            <View style={styles.empty}>
-              <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Personne ici pour l’instant'}</Text>
-              <Text style={styles.muted}>
-                {friends.length
-                  ? 'Tes potes sont calmes. Poste une photo, lance le mouvement !'
-                  : 'Invite tes potes ou trouve des motards du coin : leurs photos et leurs balades arriveront ici.'}
-              </Text>
-              <Button title="Trouver des motards" onPress={() => router.push('/riders')} />
-              <Button
-                title={friends.length ? 'Publier une story' : 'Ajouter des amis'}
-                variant="secondary"
-                onPress={() => router.push(friends.length ? '/story/new' : '/friends')}
-              />
-            </View>
-            </View>
+          ListHeaderComponent={
+            <>
+              <StoryRow />
+              {/* Mur sans publication mais avec des actus : l'invitation reste en haut */}
+              {wallEmpty && !!items?.length && emptyWall}
+            </>
           }
+          ListEmptyComponent={emptyWall}
         />
       )}
 

@@ -617,6 +617,24 @@ export const FICHES: Fiche[] = [
     motsCles: ['fil', 'actualité', 'suggestions', 'amis en commun'],
   },
   {
+    id: 'actus',
+    theme: 'communaute',
+    emoji: '🗞️',
+    titre: 'Actus moto',
+    but: 'Les dernières news moto dans ton Mur, pour en parler entre motards.',
+    etapes: [
+      'Dans le Mur, les cartes « ACTU » viennent de sites d’actu moto (Le Repaire des Motards, Motoservices, Moto Magazine, Motoplanete).',
+      'Tu vois le titre, une ou deux phrases et la source. « Lire l’article » ouvre le site d’origine.',
+      'Touche l’actu pour la liker ou la commenter avec la commu.',
+      'Pas envie ? Paramètres › Mur › « Afficher les actus moto ».',
+    ],
+    limites: [
+      'Au plus 1 actu pour 3 posts de membres. Mise à jour toutes les 3 h, actus gardées 30 jours.',
+      'Jamais d’actu sur la police, les contrôles, les radars ou les retraits de permis.',
+    ],
+    motsCles: ['news', 'actualité', 'rss', 'article', 'presse'],
+  },
+  {
     id: 'photos',
     theme: 'communaute',
     emoji: '📸',

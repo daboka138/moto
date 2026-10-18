@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Switch
 
 import { showActionSheet } from '@/components/action-sheet';
 import { HistoryAdmin } from '@/components/admin/history-admin';
+import { NewsAdmin } from '@/components/admin/news-admin';
 import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
@@ -45,7 +46,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'history';
+type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'history' | 'news';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -77,6 +78,7 @@ export default function AdminScreen() {
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
         <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
         <Chip label="Histoire" selected={tab === 'history'} onPress={() => setTab('history')} />
+        <Chip label="Actus" selected={tab === 'news'} onPress={() => setTab('news')} />
       </View>
       {tab === 'overview' ? (
         <Overview />
@@ -84,6 +86,10 @@ export default function AdminScreen() {
         <Users />
       ) : tab === 'moderation' ? (
         <Moderation />
+      ) : tab === 'news' ? (
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <NewsAdmin />
+        </ScrollView>
       ) : tab === 'history' ? (
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <HistoryAdmin />

@@ -124,6 +124,7 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
   photo: 'Photo du mur',
   comment: 'Commentaire de photo',
   ride_comment: 'Commentaire de balade',
+  news_comment: 'Commentaire d’une actu',
   story: 'Story',
   user: 'Compte',
   club: 'Club',

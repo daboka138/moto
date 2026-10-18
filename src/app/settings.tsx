@@ -27,6 +27,7 @@ import {
   type NotificationPrefs,
   type PushStatus,
 } from '@/lib/push';
+import { setShowNews, useShowNews } from '@/lib/news';
 import { useSession } from '@/lib/session';
 import { CONTACT_EMAIL, LEGAL_NOTICE_URL, PRIVACY_POLICY_URL, TERMS_URL } from '@/lib/terms';
 import { useMapLayers, type MapStyle } from '@/lib/map-layers';
@@ -58,6 +59,7 @@ export default function SettingsScreen() {
   const { preference, setPreference } = useTheme();
   const { settings } = usePrivacy();
   const layers = useMapLayers();
+  const showNews = useShowNews();
   const { session } = useSession();
   // Console développeur : visible pour l'admin seulement (rôle vérifié par le serveur)
   const isAdmin = useIsAdmin(session?.user.id);
@@ -110,6 +112,16 @@ export default function SettingsScreen() {
           onChange={layers.setShowReports}
         />
         <SwitchRow label="Points de RDV des balades" value={layers.showRides} onChange={layers.setShowRides} />
+      </View>
+
+      <Text style={styles.section}>Mur</Text>
+      <View style={styles.card}>
+        <SwitchRow
+          label="Afficher les actus moto"
+          description="Titres et résumés des sites d’actu moto (Le Repaire des Motards, Motoservices…), avec un lien vers l’article. 1 actu max pour 3 posts de la commu."
+          value={showNews}
+          onChange={setShowNews}
+        />
       </View>
 
       {IS_WEB ? (

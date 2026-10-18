@@ -460,3 +460,8 @@ verify_jwt = false
 # SMS d'alerte (Brevo) : jeton vérifié dans la fonction ; pg_cron l'appelle sans jeton pour « Je rentre » en retard
 [functions.send-sms]
 verify_jwt = false
+
+# Actus moto (RSS) : appelée par pg_cron sans jeton (flux publics, 30 min minimum entre deux passages) ;
+# jeton admin vérifié dans la fonction pour un passage forcé depuis la console
+[functions.fetch-news]
+verify_jwt = false
