@@ -1,7 +1,7 @@
 // Génère la migration du contenu initial de « Histoire de la moto » (note 22) et credits-images.md.
 // Inséré une seule fois (on conflict do nothing) : ensuite, tout se modifie dans Console › Histoire.
 // Usage : node scripts/history/build-seed.mjs  (après fetch-images.mjs, qui écrit images.json)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import chapitres from './content/chapitres.mjs';
@@ -83,6 +83,9 @@ for (const i of images) {
   const lic = i.license_url ? `[${i.license}](${i.license_url})` : i.license;
   md += `| ${i.path} | ${nameOf(i)} | ${i.caption} | ${i.author.replace(/\|/g, '/')} | ${lic} | [${i.file.replace(/\|/g, '/')}](${i.source_url}) |\n`;
 }
+// Section « Photos de l'app » (scripts/app-images/fetch.mjs) gardée à la fin
+const appCredits = join(root, 'scripts', 'app-images', 'credits.md');
+if (existsSync(appCredits)) md += readFileSync(appCredits, 'utf8');
 writeFileSync(join(root, 'credits-images.md'), md);
 
 const words = (s) => s.split(/\s+/).filter(Boolean).length;

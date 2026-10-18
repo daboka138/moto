@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -11,6 +12,7 @@ import { BIENVENUE, PERMISSIONS } from '@/guide/contenu';
 import { setWelcomeDone } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
 import { pushPermission, registerForPush, type PushStatus } from '@/lib/push';
+import PHOTO_CREDITS from '../../assets/images/photos/credits.json';
 
 /**
  * Présentation de l'app : au premier lancement (après la création du profil) et depuis
@@ -66,9 +68,18 @@ export default function WelcomeScreen() {
             showsHorizontalScrollIndicator={false}
             onScroll={onScroll}
             scrollEventThrottle={32}>
-            {BIENVENUE.map((d) => (
+            {BIENVENUE.map((d, i) => (
               <ScrollView key={d.titre} style={{ width }} contentContainerStyle={styles.slide}>
-                <Text style={styles.emoji}>{d.emoji}</Text>
+                {PHOTOS[i] ? (
+                  <View style={styles.photoWrap}>
+                    <Image source={PHOTOS[i].source} style={styles.photo} contentFit="cover" transition={150} />
+                    <Text style={styles.credit} numberOfLines={1}>
+                      {PHOTOS[i].credit}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.emoji}>{d.emoji}</Text>
+                )}
                 <Text style={styles.title}>{d.titre}</Text>
                 <Text style={styles.text}>{d.texte}</Text>
                 <View style={styles.points}>
@@ -82,7 +93,7 @@ export default function WelcomeScreen() {
               </ScrollView>
             ))}
             <ScrollView style={{ width }} contentContainerStyle={styles.slide}>
-              <Text style={styles.emoji}>✅</Text>
+              <Ionicons name="checkmark-circle-outline" size={64} color={Colors.accent} />
               <Text style={styles.title}>{PERMISSIONS.titre}</Text>
               {IS_WEB ? <WebPermissions /> : <AppPermissions onContacts={() => finish('/emergency-contacts')} />}
             </ScrollView>
@@ -194,6 +205,15 @@ function PermissionRow({
   );
 }
 
+/** Vraies photos de balades (Wikimedia Commons, crédits dans credits-images.md), une par diapo */
+const PHOTOS = [
+  { source: require('../../assets/images/photos/potes.webp'), credit: PHOTO_CREDITS.potes },
+  { source: require('../../assets/images/photos/ensemble.webp'), credit: PHOTO_CREDITS.ensemble },
+  { source: require('../../assets/images/photos/commu.webp'), credit: PHOTO_CREDITS.commu },
+  { source: require('../../assets/images/photos/securite.webp'), credit: PHOTO_CREDITS.securite },
+  { source: require('../../assets/images/photos/vie-privee.webp'), credit: PHOTO_CREDITS['vie-privee'] },
+];
+
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
@@ -202,6 +222,9 @@ const useStyles = makeStyles((Colors) => ({
   pager: { flex: 1 },
   slide: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 16, gap: 16 },
   emoji: { fontSize: 72 },
+  photoWrap: { alignSelf: 'stretch', maxWidth: 480, width: '100%', marginHorizontal: 'auto', gap: 4 },
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: Radius.md, backgroundColor: Colors.border },
+  credit: { fontSize: Type.small, color: Colors.textFaint, textAlign: 'right' },
   title: { fontSize: Type.title, fontWeight: '900', color: Colors.text, textAlign: 'center' },
   text: { fontSize: Type.large, lineHeight: 24, color: Colors.textMuted, textAlign: 'center', maxWidth: 420 },
   points: { gap: 12, marginTop: 8, alignSelf: 'stretch', maxWidth: 420, width: '100%', marginHorizontal: 'auto' },
