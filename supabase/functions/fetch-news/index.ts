@@ -4,12 +4,15 @@
 // que des flux publics et ne repasse pas avant 30 min. Un admin (jeton vérifié) peut forcer un passage.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
+import { probeImageSize } from './probe.ts';
 import { feedCharset, isMotoNews, parseFeed } from './rss.ts';
 
 const WEB_ORIGINS = ['https://app.passeryder.fr', 'http://localhost:8081'];
 const MIN_GAP_MS = 30 * 60_000;
 const KEEP_DAYS = 30;
 const PER_SOURCE = 15;
+/** Mesures d'images pour rattraper les actus déjà en base, par passage */
+const MAX_PROBES = 60;
 
 function cors(req: Request) {
   const origin = req.headers.get('Origin') ?? '';
@@ -68,6 +71,7 @@ Deno.serve(async (req) => {
 
   const since = Date.now() - KEEP_DAYS * 86400_000;
   const report: Record<string, string> = {};
+  let probes = 0;
   for (const s of sources as Source[]) {
     let status = 'ok';
     let added = 0;
@@ -77,21 +81,48 @@ Deno.serve(async (req) => {
         .filter((e) => !e.publishedAt || Date.parse(e.publishedAt) > since)
         .slice(0, PER_SOURCE);
       if (entries.length) {
-        const rows = entries.map((e) => ({
-          source_id: s.id,
-          guid: e.guid,
-          url: e.url,
-          title: e.title,
-          summary: e.summary,
-          image_url: e.imageUrl,
-          published_at: e.publishedAt ?? new Date().toISOString(),
-        }));
-        const { data, error: insertError } = await admin
+        const { data: known, error: knownError } = await admin
           .from('news_items')
-          .upsert(rows, { onConflict: 'source_id,guid', ignoreDuplicates: true })
-          .select('id');
-        if (insertError) throw insertError;
-        added = data?.length ?? 0;
+          .select('id, guid, image_width')
+          .eq('source_id', s.id)
+          .in('guid', entries.map((e) => e.guid));
+        if (knownError) throw knownError;
+        const byGuid = new Map((known ?? []).map((k) => [k.guid as string, k as { id: string; image_width: number | null }]));
+        const fresh = entries.filter((e) => !byGuid.has(e.guid));
+        if (fresh.length) {
+          const rows = [];
+          for (const e of fresh) {
+            const size = e.image ? await probeImageSize(e.image.url) : null;
+            rows.push({
+              source_id: s.id,
+              guid: e.guid,
+              url: e.url,
+              title: e.title,
+              summary: e.summary,
+              image_url: e.image?.url ?? null,
+              image_width: size?.width ?? null,
+              image_height: size?.height ?? null,
+              published_at: e.publishedAt ?? new Date().toISOString(),
+            });
+          }
+          const { data, error: insertError } = await admin
+            .from('news_items')
+            .upsert(rows, { onConflict: 'source_id,guid', ignoreDuplicates: true })
+            .select('id');
+          if (insertError) throw insertError;
+          added = data?.length ?? 0;
+        }
+        // Actus déjà en base sans taille d'image (avant la note 26) : meilleure image du flux + taille réelle
+        for (const e of entries) {
+          const row = byGuid.get(e.guid);
+          if (!row || row.image_width || probes >= MAX_PROBES) continue;
+          probes++;
+          const size = e.image ? await probeImageSize(e.image.url) : null;
+          await admin
+            .from('news_items')
+            .update({ image_url: e.image?.url ?? null, image_width: size?.width ?? null, image_height: size?.height ?? null })
+            .eq('id', row.id);
+        }
       }
     } catch (e) {
       status = (e instanceof Error ? e.message : String(e)).slice(0, 200);
@@ -101,6 +132,21 @@ Deno.serve(async (req) => {
       .from('news_sources')
       .update({ last_fetch_at: new Date().toISOString(), last_status: status, last_new: added })
       .eq('id', s.id);
+  }
+
+  // Plus dans les flux mais encore en base, image sans taille : on mesure l'image gardée
+  if (probes < MAX_PROBES) {
+    const { data: rest } = await admin
+      .from('news_items')
+      .select('id, image_url')
+      .not('image_url', 'is', null)
+      .is('image_width', null)
+      .gte('published_at', new Date(since).toISOString())
+      .limit(MAX_PROBES - probes);
+    for (const r of (rest ?? []) as { id: string; image_url: string }[]) {
+      const size = await probeImageSize(r.image_url);
+      if (size) await admin.from('news_items').update({ image_width: size.width, image_height: size.height }).eq('id', r.id);
+    }
   }
 
   // 30 jours max (J'aime et commentaires partent avec, en cascade)

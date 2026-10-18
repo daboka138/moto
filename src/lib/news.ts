@@ -16,6 +16,9 @@ export type NewsItem = {
   title: string;
   summary: string | null;
   imageUrl: string | null;
+  /** Taille réelle de l'image (mesurée par le serveur), null si inconnue */
+  imageWidth: number | null;
+  imageHeight: number | null;
   publishedAt: string;
   likes: number;
   likedByMe: boolean;
@@ -30,6 +33,8 @@ type NewsRow = {
   title: string;
   summary: string | null;
   image_url: string | null;
+  image_width: number | null;
+  image_height: number | null;
   published_at: string;
   likes: number;
   liked_by_me: boolean;
@@ -44,11 +49,27 @@ const toNews = (r: NewsRow): NewsItem => ({
   title: r.title,
   summary: r.summary,
   imageUrl: r.image_url,
+  imageWidth: r.image_width ?? null,
+  imageHeight: r.image_height ?? null,
   publishedAt: r.published_at,
   likes: Number(r.likes),
   likedByMe: r.liked_by_me,
   comments: Number(r.comments),
 });
+
+/** En dessous de 600 px de large, une image étirée en pleine largeur serait pixelisée : vignette */
+export const NEWS_LARGE_IMAGE_MIN = 600;
+
+/** Grande image (≥ 600 px), vignette à côté du titre (petite ou taille inconnue), ou rien */
+export function newsImageMode(n: Pick<NewsItem, 'imageUrl' | 'imageWidth'>): 'large' | 'thumb' | 'none' {
+  if (!n.imageUrl) return 'none';
+  return n.imageWidth && n.imageWidth >= NEWS_LARGE_IMAGE_MIN ? 'large' : 'thumb';
+}
+
+/** Proportions de la grande image : jamais plus haute que du 16:9 (recadrée, object-fit cover) */
+export function newsImageRatio(n: Pick<NewsItem, 'imageWidth' | 'imageHeight'>): number {
+  return n.imageWidth && n.imageHeight ? Math.max(n.imageWidth / n.imageHeight, 16 / 9) : 16 / 9;
+}
 
 /** Dernières actus (14 jours), les plus récentes d'abord */
 export async function fetchNews(limit = 30): Promise<NewsItem[]> {

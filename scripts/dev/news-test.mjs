@@ -3,7 +3,8 @@
 // node --import ./scripts/dev/register.mjs scripts/dev/news-test.mjs [--offline]
 import assert from 'node:assert/strict';
 
-import { feedCharset, isMotoNews, parseFeed, shortSummary, toText } from '../../supabase/functions/fetch-news/rss.ts';
+import { probeImageSize } from '../../supabase/functions/fetch-news/probe.ts';
+import { feedCharset, imageSize, isMotoNews, LARGE_IMAGE_MIN, parseFeed, pickImage, shortSummary, toText } from '../../supabase/functions/fetch-news/rss.ts';
 import { mixNews } from '../../src/lib/feed.ts';
 
 // ---------- Filtre ----------
@@ -36,10 +37,36 @@ const sample = `<?xml version="1.0"?><rss><channel>
 const [a, ...rest] = parseFeed(sample, 'https://www.exemple.fr/rss.xml');
 assert.equal(rest.length, 0);
 assert.equal(a.url, 'https://www.exemple.fr/a.php');
-assert.equal(a.imageUrl, 'https://www.exemple.fr/i.jpg');
+assert.deepEqual(a.image, { url: 'https://www.exemple.fr/i.jpg', width: null, height: null });
 assert.equal(a.guid, 'kle500');
 assert.equal(a.summary, 'Kawasaki étend sa gamme. Une version A2 arrive.');
 assert.equal(a.publishedAt, '2026-10-18T07:00:00.000Z');
+
+// ---------- Choix de l'image ----------
+const base = 'https://m.fr/rss';
+// Image mise en avant (media:content) plutôt qu'une photo du corps de l'article
+assert.equal(
+  pickImage(`<item><media:content url="https://m.fr/une.jpg" medium="image" /><description>&lt;img src="https://m.fr/b.jpg" width="2048"&gt;</description></item>`, base).url,
+  'https://m.fr/une.jpg',
+);
+// Plus grande taille du srcset
+assert.deepEqual(
+  pickImage(`<item><description><![CDATA[<img src="https://m.fr/s.jpg" width="300" srcset="https://m.fr/s-300.jpg 300w, https://m.fr/s-1024.jpg 1024w, https://m.fr/s-600.jpg 600w">]]></description></item>`, base),
+  { url: 'https://m.fr/s-1024.jpg', width: 1024, height: null },
+);
+// La plus large des media (largeurs données)
+assert.equal(
+  pickImage(`<item><media:thumbnail url="https://m.fr/t.jpg" width="150" /><media:content url="https://m.fr/g.jpg" width="1200" /></item>`, base).url,
+  'https://m.fr/g.jpg',
+);
+assert.equal(pickImage('<item><enclosure url="https://m.fr/a.mp3" type="audio/mpeg" /></item>', base), null);
+assert.equal(pickImage('<item><title>Rien</title></item>', base), null);
+// Taille d'après les premiers octets
+const png = new Uint8Array(24); png.set([0x89, 0x50, 0x4e, 0x47], 0); png.set([0, 0, 3, 32, 0, 0, 1, 194], 16);
+assert.deepEqual(imageSize(png), { width: 800, height: 450 });
+const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 17, 8, 0x02, 0x1c, 0x03, 0x20, 3, 0, 0]);
+assert.deepEqual(imageSize(jpg), { width: 800, height: 540 });
+assert.equal(imageSize(new Uint8Array([1, 2, 3])), null);
 
 // ---------- Mélange du Mur ----------
 const m = (n) => Array.from({ length: n }, (_, i) => ({ kind: 'photo', key: `m${i}`, at: `2026-10-${String(20 - i).padStart(2, '0')}` }));
@@ -73,9 +100,12 @@ for (const [name, url] of Object.entries(FEEDS)) {
     const days = dates.length > 1 ? (new Date(dates.at(-1)) - new Date(dates[0])) / 86400000 : 0;
     console.log(
       `\n${name} : ${res.status}, ${entries.length} articles (${kept.length} gardés), ` +
-        `${entries.filter((e) => e.imageUrl).length} avec image, ~${days ? (entries.length / days).toFixed(1) : '?'} / jour`,
+        `${entries.filter((e) => e.image).length} avec image, ~${days ? (entries.length / days).toFixed(1) : '?'} / jour`,
     );
     for (const e of entries.slice(0, 3)) {
+      const size = e.image ? await probeImageSize(e.image.url) : null;
+      const shown = !e.image ? 'pas d’image' : !size ? 'taille inconnue → vignette' : size.width >= LARGE_IMAGE_MIN ? 'grande image' : 'vignette';
+      console.log(`      image : ${e.image?.url ?? '—'} ${size ? `${size.width}×${size.height}` : ''} (${shown})`);
       console.log(`  ${isMotoNews(e.title, e.summary) ? '✓' : '✗'} ${e.title}\n      ${e.summary ?? '(pas de résumé)'}`);
     }
   } catch (e) {

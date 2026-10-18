@@ -7,7 +7,7 @@ export type FeedEntry = {
   url: string;
   title: string;
   summary: string | null;
-  imageUrl: string | null;
+  image: FeedImage | null;
   publishedAt: string | null;
 };
 
@@ -82,16 +82,114 @@ function httpsUrl(u: string | null | undefined, base: string): string | null {
   }
 }
 
-/** Image fournie par le flux : enclosure / media, sinon première <img> du résumé */
-function imageOf(block: string, base: string): string | null {
-  const enclosure = block.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*>/i);
-  if (enclosure && !/type=["'](?!image)/i.test(enclosure[0])) return httpsUrl(enclosure[1], base);
-  const media = block.match(/<media:(?:content|thumbnail)[^>]*url=["']([^"']+)["']/i);
-  if (media) return httpsUrl(media[1], base);
+export type FeedImage = { url: string; width: number | null; height: number | null };
+
+const attr = (tagText: string, name: string) => tagText.match(new RegExp(`\\s${name}=["']([^"']*)["']`, 'i'))?.[1] ?? null;
+const px = (v: string | null) => {
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * Plus grande image fournie PAR LE FLUX (jamais la page de l'article) : media:content / media:thumbnail,
+ * enclosure, og:image s'il apparaît dans l'article du flux, <img> du résumé (avec la plus grande
+ * taille de son srcset). Taille connue d'après les attributs ; sinon mesurée plus tard (imageSize).
+ * À taille inconnue, l'ordre compte : media / enclosure d'abord, puis les <img>.
+ */
+export function pickImage(block: string, base: string): FeedImage | null {
+  // main : image mise en avant par le flux (media, enclosure, og:image) ; body : <img> du résumé
+  const found: (FeedImage & { main: boolean })[] = [];
+  let main = true;
+  const add = (u: string | null, width: number | null, height: number | null) => {
+    const url = httpsUrl(u, base);
+    if (url && !found.some((f) => f.url === url)) found.push({ url, width, height, main });
+  };
+  for (const t of block.match(/<media:(?:content|thumbnail)[^>]*>/gi) ?? []) {
+    const medium = attr(t, 'medium');
+    const type = attr(t, 'type');
+    if ((medium && medium !== 'image') || (type && !type.startsWith('image'))) continue;
+    add(attr(t, 'url'), px(attr(t, 'width')), px(attr(t, 'height')));
+  }
+  for (const t of block.match(/<enclosure[^>]*>/gi) ?? []) {
+    const type = attr(t, 'type');
+    if (type && !type.startsWith('image')) continue;
+    add(attr(t, 'url'), null, null);
+  }
   const html = unCdata(block);
-  const decoded = /&lt;img/i.test(html) ? decodeEntities(html) : html;
-  const img = decoded.match(/<img[^>]*src=["']([^"']+)["']/i);
-  return img ? httpsUrl(img[1], base) : null;
+  const decoded = /&lt;(img|meta)/i.test(html) ? decodeEntities(html) : html;
+  for (const t of decoded.match(/<meta[^>]*property=["']og:image["'][^>]*>/gi) ?? []) add(attr(t, 'content'), null, null);
+  main = false;
+  for (const t of decoded.match(/<img[^>]*>/gi) ?? []) {
+    const srcset = attr(t, 'srcset');
+    if (srcset) {
+      // « url 600w, url 1024w » : la plus grande
+      const best = srcset
+        .split(',')
+        .map((part) => part.trim().split(/\s+/))
+        .map(([u, d]) => ({ u, w: d?.endsWith('w') ? parseInt(d, 10) : null }))
+        .filter((c) => c.u && c.w)
+        .sort((a, b) => b.w! - a.w!)[0];
+      if (best) add(best.u, best.w, null);
+    }
+    const width = px(attr(t, 'width'));
+    const height = px(attr(t, 'height'));
+    add(attr(t, 'src'), width, width ? height : null);
+  }
+  // L'image mise en avant par le flux d'abord (c'est la photo de l'article), sinon celles du résumé ;
+  // dans le groupe, la plus large connue, sinon la première (sa taille sera mesurée)
+  const group = found.some((f) => f.main) ? found.filter((f) => f.main) : found;
+  if (!group.length) return null;
+  const biggest = [...group].filter((f) => f.width).sort((a, b) => b.width! - a.width!)[0];
+  const best = biggest && (biggest.width! >= LARGE_IMAGE_MIN || group[0].width !== null) ? biggest : group[0];
+  return { url: best.url, width: best.width, height: best.height };
+}
+
+/** En dessous : vignette à côté du titre (une miniature étirée en pleine largeur serait pixelisée) */
+export const LARGE_IMAGE_MIN = 600;
+
+/** Dimensions d'une image d'après ses premiers octets (JPEG, PNG, GIF, WebP) ; null si inconnu */
+export function imageSize(b: Uint8Array): { width: number; height: number } | null {
+  const u16 = (i: number) => (b[i] << 8) | b[i + 1];
+  const u16le = (i: number) => b[i] | (b[i + 1] << 8);
+  const u24le = (i: number) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
+  const u32 = (i: number) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+  const ascii = (i: number, n: number) => String.fromCharCode(...b.slice(i, i + n));
+  if (b.length >= 24 && b[0] === 0x89 && ascii(1, 3) === 'PNG') return { width: u32(16), height: u32(20) };
+  if (b.length >= 10 && ascii(0, 3) === 'GIF') return { width: u16le(6), height: u16le(8) };
+  if (b.length >= 30 && ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') {
+    const kind = ascii(12, 4);
+    if (kind === 'VP8 ') return { width: u16le(26) & 0x3fff, height: u16le(28) & 0x3fff };
+    if (kind === 'VP8L') {
+      const bits = b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24);
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+    }
+    if (kind === 'VP8X') return { width: u24le(24) + 1, height: u24le(27) + 1 };
+    return null;
+  }
+  if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] !== 0xff) {
+        i++;
+        continue;
+      }
+      const marker = b[i + 1];
+      if (marker === 0xff) {
+        i++;
+        continue;
+      }
+      // SOF0-SOF15 (sauf DHT C4, JPG C8, DAC CC) : hauteur puis largeur
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { width: u16(i + 7), height: u16(i + 5) };
+      }
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+        i += 2;
+        continue;
+      }
+      i += 2 + u16(i + 2);
+    }
+  }
+  return null;
 }
 
 /** Articles d'un flux RSS 2.0, RSS 1.0 ou Atom */
@@ -112,7 +210,7 @@ export function parseFeed(xml: string, feedUrl: string): FeedEntry[] {
       url,
       title: title.slice(0, 300),
       summary: shortSummary(toText(desc)),
-      imageUrl: imageOf(b, feedUrl),
+      image: pickImage(b, feedUrl),
       publishedAt: parsed && !isNaN(parsed.getTime()) ? parsed.toISOString() : null,
     });
   }

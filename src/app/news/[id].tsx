@@ -1,10 +1,9 @@
-import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
 import { CommentsSection } from '@/components/comments-section';
-import { NewsHeader, NewsPlaceholder, openArticle } from '@/components/news-card';
+import { NewsHeader, NewsImage, NewsThumb, openArticle } from '@/components/news-card';
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
@@ -83,12 +82,11 @@ export default function NewsScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <NewsHeader item={item} />
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" transition={150} />
-        ) : (
-          <NewsPlaceholder height={180} />
-        )}
-        <Text style={styles.title}>{item.title}</Text>
+        <NewsImage item={item} />
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{item.title}</Text>
+          <NewsThumb item={item} />
+        </View>
         {!!item.summary && <Text style={styles.summary}>{item.summary}</Text>}
         <Button title={`Lire l’article sur ${item.sourceName}`} icon="open-outline" onPress={() => openArticle(item.url)} />
         <Text style={styles.notice}>
@@ -122,9 +120,9 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   muted: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
-  image: { width: '100%', aspectRatio: 16 / 9, borderRadius: Radius.md, backgroundColor: Colors.border },
-  title: { fontSize: Type.title, fontWeight: '800', color: Colors.text },
+  titleRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  title: { flex: 1, fontSize: Type.title, fontWeight: '800', color: Colors.text },
   summary: { fontSize: Type.large, lineHeight: 24, color: Colors.text },
   notice: { fontSize: Type.small, color: Colors.textMuted },
-  social: { backgroundColor: Colors.surface, borderRadius: Radius.md, padding: 16, marginTop: 8 },
+  social: { backgroundColor: Colors.surface, borderRadius: Radius.sm, borderWidth: 1, borderColor: Colors.border, padding: 16, marginTop: 8 },
 }));
