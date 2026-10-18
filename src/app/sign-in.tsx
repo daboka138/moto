@@ -119,7 +119,7 @@ export default function SignInScreen() {
           <View style={styles.hero}>
             <Text style={styles.logo}>PasseRyder</Text>
             <Text style={styles.tagline}>
-              {mode === 'forgot' ? 'Mot de passe oublié' : 'Roule avec ta communauté.'}
+              {mode === 'forgot' ? 'Mot de passe oublié' : 'Trouve du monde pour rouler.'}
             </Text>
           </View>
 

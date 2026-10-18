@@ -146,7 +146,7 @@ function RootNavigator() {
   if (session && profileError && !onAuthLink) {
     return (
       <View style={styles.center}>
-        <Text style={styles.message}>Impossible de charger ton profil. Vérifie ta connexion.</Text>
+        <Text style={styles.message}>Oups, ton profil n’a pas chargé. Vérifie ton réseau.</Text>
         <Button title="Réessayer" onPress={refreshProfile} />
         <Button title="Se déconnecter" variant="ghost" onPress={signOut} />
       </View>

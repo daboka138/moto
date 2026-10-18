@@ -83,7 +83,7 @@ export function EventsList({ me }: { me: LatLng | null }) {
       )}
       {!filtered ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Impossible de charger les événements.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error ? <Text style={styles.muted}>Oups, les événements n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
         </View>
       ) : (
         <FlatList
@@ -136,7 +136,7 @@ export function PlacesList({ me }: { me: LatLng | null }) {
         </View>
       ) : !filtered ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Impossible de charger les lieux.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error ? <Text style={styles.muted}>Oups, les spots n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
         </View>
       ) : (
         <FlatList
@@ -158,7 +158,7 @@ export function PlacesList({ me }: { me: LatLng | null }) {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="cafe-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.muted}>Aucun lieu par ici. Ajoute ton café biker, ton garage ou ta route préférée !</Text>
+              <Text style={styles.muted}>Aucun spot par ici. Partage ton café motard, ton garage ou ta route préférée !</Text>
               <Chip label="Ajouter un spot" icon="add" selected onPress={() => router.push('/place/new')} />
             </View>
           }

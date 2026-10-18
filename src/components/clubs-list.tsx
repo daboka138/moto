@@ -83,7 +83,7 @@ export function ClubsList({ me }: { me: LatLng | null }) {
       ListEmptyComponent={
         !clubs ? (
           error ? (
-            <Text style={styles.muted}>Impossible de charger les clubs.</Text>
+            <Text style={styles.muted}>Oups, les clubs n’ont pas chargé. Vérifie ton réseau.</Text>
           ) : (
             <ActivityIndicator color={Colors.accent} />
           )

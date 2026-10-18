@@ -99,7 +99,7 @@ export default function FriendsScreen() {
         </Card>
       ) : (
         <>
-          {error && <Text style={styles.error}>Impossible de charger tes amis. Vérifie ta connexion.</Text>}
+          {error && <Text style={styles.error}>Oups, ta liste d’amis n’a pas chargé. Vérifie ton réseau.</Text>}
           {!state && !error && <ActivityIndicator color={Colors.accent} />}
 
           {state && state.incoming.length > 0 && (

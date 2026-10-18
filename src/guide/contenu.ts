@@ -127,7 +127,7 @@ export const FICHES: Fiche[] = [
     theme: 'communaute',
     emoji: '📜',
     titre: 'Histoire de la moto',
-    but: 'Découvrir les premiers deux-roues et l’histoire des grandes marques.',
+    but: 'Les premiers deux-roues et l’histoire des grandes marques.',
     etapes: [
       'App : dans le Mur, touche la bannière « 📜 Histoire de la moto » sous la recherche. Web : onglet « Histoire ».',
       'Commence par le chapitre « Les débuts du deux-roues » : de la draisienne de 1817 à la première moto vendue en série.',
@@ -1231,19 +1231,19 @@ export const BIENVENUE: Diapo[] = [
   {
     emoji: '🗺️',
     titre: 'Tes potes en direct',
-    texte: 'La carte te montre où roulent tes amis, et te guide à la voix jusqu’à ta destination.',
+    texte: 'Vois où roulent tes potes. Le GPS te guide à la voix jusqu’au bout.',
     points: ['Ajoute tes amis dans Profil › Amis', 'Signale les dangers avec le bouton +'],
   },
   {
     emoji: '🏍️',
     titre: 'Rouler ensemble',
-    texte: 'Organise des balades, roule en convoi sans perdre personne, ou laisse l’app te tracer une boucle.',
+    texte: 'Monte une balade, roule en convoi sans perdre personne, ou demande une boucle à l’app.',
     points: ['Onglet Sorties › Balades', 'Ouvreur, serre-file et point de regroupement', '« Fais-moi une boucle » en 2 gestes'],
   },
   {
     emoji: '🤝',
-    titre: 'La communauté',
-    texte: 'Photos, stories, messages, spots motards et événements près de chez toi.',
+    titre: 'La commu',
+    texte: 'Photos, messages, bons spots et rassos du coin.',
     points: ['Le Mur pour l’actu de tes amis', 'Sorties › Lieux et Événements'],
   },
   {
@@ -1262,8 +1262,8 @@ export const BIENVENUE: Diapo[] = [
 
 /** Dernier écran de la présentation : pourquoi on demande les autorisations */
 export const PERMISSIONS = {
-  titre: 'C’est presque prêt',
-  texte: 'Deux autorisations rendent l’app vraiment utile. Tu peux les changer à tout moment.',
+  titre: 'Presque fini',
+  texte: 'Deux autorisations et c’est parti. Tu peux changer d’avis quand tu veux.',
   position: 'Position : pour te montrer sur la carte, te guider et alerter tes proches en cas de pépin.',
   notifications: 'Notifications : pour les messages, les invitations, les dangers proches et les alertes de tes proches.',
   contacts: 'Ajoute 1 à 5 contacts d’urgence : ils seront prévenus en cas de SOS, de chute ou de retard.',
@@ -1300,7 +1300,7 @@ export const ASTUCES: Record<AstuceId, Astuce> = {
   },
   spots: {
     titre: 'Ajouter un spot',
-    texte: 'Partage un bon coin avec la communauté : catégorie, nom, photo et ta note. Les autres pourront donner leur avis.',
+    texte: 'Partage un bon coin avec la commu : catégorie, nom, photo et ta note. Les autres donneront leur avis.',
     fiche: 'spots',
   },
 };

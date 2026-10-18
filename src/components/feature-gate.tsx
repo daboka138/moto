@@ -21,7 +21,7 @@ export function FeatureGate({ feature, children }: { feature: FeatureKey; childr
       <Text style={styles.text}>
         {premium ? 'Cette fonction fait partie de PasseRyder Premium.' : 'Elle revient bientôt. Merci de ta patience !'}
       </Text>
-      {premium && canUse('premium_offer') && <Button title="Découvrir Premium" onPress={() => router.push('/premium')} />}
+      {premium && canUse('premium_offer') && <Button title="Voir Premium" onPress={() => router.push('/premium')} />}
     </View>
   );
 }

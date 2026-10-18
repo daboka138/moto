@@ -378,7 +378,7 @@ export function ChatView(p: Props) {
             keyboardShouldPersistTaps="handled"
             ListFooterComponent={
               p.messages.length === 0 ? (
-                <Text style={[styles.empty, !!p.wallpaper && styles.onWallpaper]}>Aucun message. Dis bonjour 👋</Text>
+                <Text style={[styles.empty, !!p.wallpaper && styles.onWallpaper]}>Pas encore de message. Lance la discussion 👋</Text>
               ) : null
             }
           />

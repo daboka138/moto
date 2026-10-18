@@ -115,7 +115,7 @@ export default function NotificationsScreen() {
       </View>
       {!list ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Impossible de charger les notifications.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error ? <Text style={styles.muted}>Oups, les notifs n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
         </View>
       ) : (
         <SectionList
@@ -141,7 +141,7 @@ export default function NotificationsScreen() {
             <View style={styles.empty}>
               <Ionicons name="notifications-outline" size={44} color={Colors.textMuted} />
               <Text style={styles.muted}>
-                Rien de neuf pour le moment. Tu verras ici les demandes d’ami, les invitations aux balades et aux événements, les J’aime et les commentaires.
+                Rien de neuf. Ici tu verras les demandes d’amis, les invitations et les J’aime.
               </Text>
               <Chip label="Ajouter des amis" icon="person-add-outline" selected onPress={() => router.push('/friends')} />
             </View>

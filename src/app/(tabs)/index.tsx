@@ -1123,7 +1123,7 @@ export default function MapScreen() {
             <>
               <Pressable style={styles.inviteChip} onPress={() => router.push('/friends')}>
                 <Ionicons name="people" size={18} color={Colors.accent} />
-                <Text style={styles.inviteChipText}>Aucun pote sur la carte · Ajoute des amis</Text>
+                <Text style={styles.inviteChipText}>Personne sur ta carte · Ajoute tes potes</Text>
               </Pressable>
               <Pressable style={styles.inviteChip} onPress={() => router.push('/invite')}>
                 <Ionicons name="paper-plane" size={18} color={Colors.accent} />

@@ -38,7 +38,7 @@ export function BadgesCard({ stats, onPress }: { stats: RiderStats | null; onPre
         {onPress && <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />}
       </View>
       {unlocked.length === 0 ? (
-        <Text style={styles.muted}>Pas encore de badge : lance une navigation ou rejoins une balade !</Text>
+        <Text style={styles.muted}>Pas encore de badge. Va rouler, ça vient vite !</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
           {unlocked.map((b) => (

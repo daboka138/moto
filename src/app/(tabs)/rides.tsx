@@ -166,7 +166,7 @@ export default function RidesScreen() {
 
           {!filtered ? (
             <View style={styles.center}>
-              {error ? <Text style={styles.muted}>Impossible de charger les balades.</Text> : <ActivityIndicator color={Colors.accent} />}
+              {error ? <Text style={styles.muted}>Oups, les balades n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
             </View>
           ) : (
             <FlatList
@@ -204,8 +204,8 @@ export default function RidesScreen() {
                     </>
                   ) : (
                     <>
-                      <Text style={styles.emptyTitle}>Aucune balade près de toi</Text>
-                      <Text style={styles.muted}>Crée la première et invite tes potes, ou laisse l’app te tracer une boucle.</Text>
+                      <Text style={styles.emptyTitle}>Personne dans le coin pour l’instant</Text>
+                      <Text style={styles.muted}>Crée la première balade et invite tes potes, ou demande une boucle à l’app.</Text>
                       <Chip label="Créer une balade" icon="add" selected onPress={() => router.push('/ride/new')} />
                     </>
                   )}

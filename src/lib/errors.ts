@@ -1,11 +1,11 @@
 // Messages d'erreur montrés aux membres : jamais de « Failed to fetch » ni d'« [object Object] ».
 
-export const NETWORK_MESSAGE = 'Connexion impossible. Vérifie ta connexion internet, puis réessaie.';
+export const NETWORK_MESSAGE = 'Oups, pas de réseau. Réessaie dans 2 min.';
 
 /** La photo choisie ne peut plus être lue (navigateur Android : fichier devenu inaccessible) */
 export class PhotoUnreadableError extends Error {
   constructor(readonly uri: string) {
-    super('Ta photo n’a pas pu être lue. Choisis-la de nouveau, puis réessaie.');
+    super('Oups, ta photo n’a pas pu être lue. Choisis-la encore une fois.');
     this.name = 'PhotoUnreadableError';
   }
 }
@@ -29,5 +29,5 @@ export function errorMessage(e: unknown): string {
   if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
     return (e as { message: string }).message;
   }
-  return 'Une erreur est survenue. Réessaie dans un instant.';
+  return 'Oups, ça a coincé. Réessaie dans un instant.';
 }

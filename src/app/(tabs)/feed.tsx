@@ -177,7 +177,7 @@ export default function FeedScreen() {
       {/* Recherche : motards par pseudo, balades, lieux, événements */}
       <Pressable style={styles.searchBar} onPress={() => router.push('/search')} accessibilityRole="search" accessibilityLabel="Rechercher">
         <Ionicons name="search" size={20} color={Colors.textMuted} />
-        <Text style={styles.searchPlaceholder}>Rechercher un motard, une balade, un lieu…</Text>
+        <Text style={styles.searchPlaceholder}>Un motard, une balade, un spot…</Text>
       </Pressable>
       {/* Histoire de la moto (sur le web : onglet « Histoire ») */}
       {Platform.OS !== 'web' && (
@@ -193,7 +193,7 @@ export default function FeedScreen() {
 
       {!rows ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Impossible de charger le fil.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error ? <Text style={styles.muted}>Oups, le Mur n’a pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
         </View>
       ) : (
         <FlatList
@@ -217,11 +217,11 @@ export default function FeedScreen() {
             {carousel(0)}
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Ton Mur est encore vide'}</Text>
+              <Text style={styles.emptyTitle}>{friends.length ? 'Rien de neuf chez tes potes' : 'Personne ici pour l’instant'}</Text>
               <Text style={styles.muted}>
                 {friends.length
-                  ? 'Les photos et balades de tes amis apparaîtront ici. Publie la première !'
-                  : 'Invite tes potes motards ou trouve des motards près de chez toi : leurs photos et leurs balades apparaîtront ici.'}
+                  ? 'Tes potes sont calmes. Poste une photo, lance le mouvement !'
+                  : 'Invite tes potes ou trouve des motards du coin : leurs photos et leurs balades arriveront ici.'}
               </Text>
               <Button title="Trouver des motards" onPress={() => router.push('/riders')} />
               <Button

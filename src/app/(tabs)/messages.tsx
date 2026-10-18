@@ -136,7 +136,7 @@ export default function MessagesScreen() {
           <View style={styles.empty}>
             <Ionicons name="chatbubbles-outline" size={40} color={Colors.textMuted} />
             <Text style={styles.muted}>
-              Aucune conversation. Écris à un ami, ou rejoins une balade pour discuter avec le groupe.
+              Pas encore de discussion. Écris à un pote ou rejoins une balade pour parler avec le groupe.
             </Text>
             <Chip label="Écrire à un ami" icon="create-outline" selected onPress={() => router.push('/messages/new')} />
             <Chip label="Trouver des motards" icon="people-outline" onPress={() => router.push('/riders')} />
