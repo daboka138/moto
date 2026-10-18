@@ -59,6 +59,7 @@ export function RoutePreviewSheet({
   onFavorite,
   onStart,
   onCancel,
+  onRetry,
   weather,
   fuel,
   onAddFuel,
@@ -80,6 +81,8 @@ export function RoutePreviewSheet({
   onFavorite: () => void;
   onStart: () => void;
   onCancel: () => void;
+  /** Aucun itinéraire calculé : relancer le calcul */
+  onRetry?: () => void;
   /** Météo le long de l'itinéraire choisi, à l'heure de passage */
   weather: { weather: RouteWeather | null; loading: boolean; error: boolean };
   /** Autonomie (Garage) : null si inconnue ; needed = plein nécessaire avant d'arriver */
@@ -120,7 +123,15 @@ export function RoutePreviewSheet({
               <Text style={styles.muted}>Calcul de l’itinéraire…</Text>
             </View>
           ) : selected?.error ? (
-            <Text style={styles.error}>{selected.error}</Text>
+            <View style={styles.errorRow}>
+              <Text style={[styles.error, styles.errorText]}>{selected.error}</Text>
+              {onRetry && (
+                <Pressable style={styles.retry} onPress={onRetry} accessibilityRole="button">
+                  <Ionicons name="refresh" size={18} color={Colors.accent} />
+                  <Text style={styles.retryText}>Réessayer</Text>
+                </Pressable>
+              )}
+            </View>
           ) : route ? (
             <View style={styles.summary}>
               <Text style={styles.duration}>{formatDuration(route.durationS)}</Text>
@@ -596,6 +607,10 @@ const useStyles = makeStyles((Colors) => ({
   muted: { fontSize: Type.body, color: Colors.textMuted },
   small: { fontSize: Type.small, color: Colors.textMuted },
   error: { color: Colors.danger, fontWeight: '600' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  errorText: { flex: 1 },
+  retry: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.accent },
+  retryText: { color: Colors.accent, fontWeight: '700' },
   warning: { color: Colors.textMuted, fontSize: Type.small },
   section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 },
   variant: {

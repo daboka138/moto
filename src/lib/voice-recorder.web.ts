@@ -20,7 +20,11 @@ export type MicPermission = 'granted' | 'prompt' | 'denied' | 'unknown';
 export const MIC_PROMPT_HINT = 'Pour envoyer un vocal, PasseRyder a besoin du micro : choisis « Autoriser » dans la fenêtre du navigateur.';
 export const MIC_DENIED_HELP =
   'Micro bloqué pour ce site. Pour l’autoriser : touche le cadenas 🔒 (ou ⓘ) à gauche de l’adresse › Autorisations › Micro › Autoriser, puis recharge la page.';
-export const VOICE_UNSUPPORTED = 'Ce navigateur ne permet pas d’enregistrer un message vocal (essaie avec Chrome).';
+// Jamais le message « prochaine version » de l'APK 1.2.0 ici : sur le web, on dit pourquoi le micro manque
+const insecure = typeof window !== 'undefined' && window.isSecureContext === false;
+export const VOICE_UNSUPPORTED = insecure
+  ? 'Les vocaux ont besoin d’une adresse sécurisée : ouvre https://app.passeryder.fr (avec le « s »).'
+  : 'Ce navigateur ne permet pas d’enregistrer un vocal. Ouvre app.passeryder.fr dans Chrome, Edge, Firefox ou Safari à jour (pas depuis l’aperçu d’une autre appli).';
 
 const TYPES = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm'];
 

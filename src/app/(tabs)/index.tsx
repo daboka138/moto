@@ -600,10 +600,8 @@ export default function MapScreen() {
     if (rideRoute?.id === ride.id) return;
     const details = userId ? await fetchRide(ride.id, userId) : null;
     if (!details) return;
-    const points =
-      details.route ??
-      [details.start, ...details.waypoints, details.end].map((p) => [p.latitude, p.longitude] as [number, number]);
-    setRideRoute({ id: ride.id, points });
+    // Tracé sur les routes seulement : sans tracé enregistré, pas de lignes droites entre les étapes
+    if (details.route?.length) setRideRoute({ id: ride.id, points: details.route });
   };
 
   const openRide = (ride: RideSummary) => {
@@ -1300,6 +1298,7 @@ export default function MapScreen() {
                 favorite={!!findFavorite(nav.destination)}
                 onSelectVariant={nav.selectVariant}
                 onChangeOptions={nav.updateOptions}
+                onRetry={nav.retryChoices}
                 onAddStop={() => setStopPicker({ kind: null })}
                 onRemoveStop={nav.removeStop}
                 onMoveStop={nav.moveStop}

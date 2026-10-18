@@ -35,7 +35,7 @@ import {
   type RideLevel,
   type RideVisibility,
 } from '@/lib/rides';
-import { computeRoute, formatDistance, formatDuration, type ComputedRoute } from '@/lib/routing';
+import { computeRoute, formatDistance, formatDuration, ROUTE_FAILED, type ComputedRoute } from '@/lib/routing';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
@@ -104,11 +104,15 @@ export default function NewRideScreen() {
     ? JSON.stringify({ stops: stops.map((s) => [s.latitude, s.longitude]), options: routeOptions ?? null })
     : null;
   const [route, setRoute] = useState<{ key: string; route: ComputedRoute } | null>(null);
+  // Calcul impossible (serveurs injoignables, étape loin d'une route) : message + Réessayer, jamais de ligne droite
+  const [routeError, setRouteError] = useState<{ key: string; message: string } | null>(null);
+  const [routeAttempt, setRouteAttempt] = useState(0);
   // Tracé importé d'un GPX : gardé tant que départ, étapes et arrivée ne changent pas
   const placesKey = stops ? JSON.stringify(stops.map((s) => [s.latitude, s.longitude])) : null;
   const [imported, setImported] = useState<{ key: string; route: ComputedRoute } | null>(null);
   const usingImport = !!imported && imported.key === placesKey;
   const currentRoute = usingImport ? imported.route : route && route.key === stopsKey ? route.route : null;
+  const currentRouteError = !usingImport && routeError && routeError.key === stopsKey ? routeError.message : null;
 
   useEffect(() => {
     if (!stopsKey || usingImport) return;
@@ -117,11 +121,14 @@ export default function NewRideScreen() {
     let cancelled = false;
     computeRoute(points, parsed.options ?? undefined)
       .then((r) => !cancelled && setRoute({ key: stopsKey, route: r }))
-      .catch((e) => console.warn('Calcul du tracé impossible', e));
+      .catch((e) => {
+        console.warn('Calcul du tracé impossible', e);
+        if (!cancelled) setRouteError({ key: stopsKey, message: e instanceof Error ? e.message : ROUTE_FAILED });
+      });
     return () => {
       cancelled = true;
     };
-  }, [stopsKey, usingImport]);
+  }, [stopsKey, usingImport, routeAttempt]);
 
   // GPX importé : départ, arrivée et tracé repris du fichier
   const applyGpx = (data: GpxData) => {
@@ -141,7 +148,6 @@ export default function NewRideScreen() {
         points: simplifyTrack(points, MAX_IMPORTED_POINTS).map((p) => [p.latitude, p.longitude] as [number, number]),
         distanceM: Math.round(distanceM),
         durationS: gpxDurationS(data, distanceM),
-        onRoads: true,
       },
     });
     // Noms des lieux (sans toucher aux coordonnées : le tracé importé est gardé)
@@ -231,7 +237,8 @@ export default function NewRideScreen() {
     const max = maxParticipants.trim() ? Number(maxParticipants) : null;
     if (max !== null && (!Number.isInteger(max) || max < 2 || max > 100))
       errors.push('Nombre max de participants : entre 2 et 100.');
-    if (start && end && !currentRoute) errors.push('Le tracé est encore en cours de calcul, patiente une seconde.');
+    if (start && end && !currentRoute)
+      errors.push(currentRouteError ? ROUTE_FAILED : 'Le tracé est encore en cours de calcul, patiente une seconde.');
     if (!categories.length) errors.push('Coche au moins une catégorie de moto acceptée.');
     if (errors.length) {
       Alert.alert('À compléter', errors.join('\n'));
@@ -273,7 +280,8 @@ export default function NewRideScreen() {
   };
 
   const pins = ridePins({ start, end, waypoints, meeting: meeting ?? start });
-  const previewPoints = currentRoute?.points ?? pins.filter((p) => p.kind !== 'meeting').map((p) => [p.latitude, p.longitude] as [number, number]);
+  // Tracé seulement quand il suit les routes : pendant le calcul (ou s'il a échoué), juste les repères
+  const previewPoints = currentRoute?.points ?? [];
   // Cadrage : le tracé, sinon les points placés, sinon ma position
   const fitPoints = [
     ...(start && end ? previewPoints : []).map(([latitude, longitude]) => ({ latitude, longitude })),
@@ -369,7 +377,7 @@ export default function NewRideScreen() {
             style={styles.preview}
             position={me ? { ...me, accuracy: null } : null}
             pins={pins}
-            routes={start && end ? [{ id: 'route', points: previewPoints }] : []}
+            routes={start && end && previewPoints.length ? [{ id: 'route', points: previewPoints }] : []}
             fitPoints={fitPoints.length ? fitPoints : me ? [me] : undefined}
             onMapLongPress={placeAt}
             title={title.trim() || 'Itinéraire de la balade'}
@@ -389,16 +397,24 @@ export default function NewRideScreen() {
                 <>
                   <Text style={styles.routeInfo}>
                     {formatDistance(currentRoute.distanceM)} · environ {formatDuration(currentRoute.durationS)}
-                    {!currentRoute.onRoads && ' (estimation, calcul d’itinéraire indisponible)'}
                     {usingImport && ' · tracé du GPX (modifie A, B ou les étapes pour le recalculer)'}
                   </Text>
                   {!usingImport && currentRoute.urban && (
                     <Text style={styles.routeInfoMuted}>{urbanText(currentRoute.urban)}</Text>
                   )}
-                  {!usingImport && routeOptions && !currentRoute.options && currentRoute.onRoads && (
+                  {!usingImport && routeOptions && !currentRoute.options && (
                     <Text style={styles.routeInfoMuted}>Options indisponibles pour le moment : itinéraire standard.</Text>
                   )}
                 </>
+              ) : currentRouteError ? (
+                <View style={styles.routeError}>
+                  <Text style={styles.routeErrorText}>{currentRouteError}</Text>
+                  <Button title="Réessayer" icon="refresh" variant="secondary" onPress={() => {
+                      setRouteError(null);
+                      setRouteAttempt((n) => n + 1);
+                    }}
+                  />
+                </View>
               ) : (
                 <View style={styles.computing}>
                   <ActivityIndicator color={Colors.accent} size="small" />
@@ -523,6 +539,8 @@ const useStyles = makeStyles((Colors) => ({
   routeInfo: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
   routeInfoMuted: { fontSize: Type.body, color: Colors.textMuted },
   computing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  routeError: { gap: 8 },
+  routeErrorText: { fontSize: Type.body, color: Colors.danger },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 2 },
   colSmall: { flex: 1 },

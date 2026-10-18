@@ -84,9 +84,25 @@ export async function fetchNavRoute(stops: LatLng[], options: RouteOptions): Pro
       if (options.scooter50) throw new Error('Itinéraire 50 cm³ indisponible pour le moment (serveur injoignable)');
       console.warn('Valhalla indisponible, itinéraire standard', e);
     }
+    return fetchOsrm(stops).catch((e) => {
+      console.warn('OSRM indisponible', e);
+      throw new Error(ROUTE_FAILED_TEXT);
+    });
   }
-  return fetchOsrm(stops);
+  // Itinéraire standard : OSRM, sinon Valhalla (mêmes points, dans l'ordre)
+  try {
+    return await fetchOsrm(stops);
+  } catch (e) {
+    console.warn('OSRM indisponible, essai avec Valhalla', e);
+    return fetchValhallaRoute(stops, options).catch((e2) => {
+      console.warn('Valhalla indisponible', e2);
+      throw new Error(ROUTE_FAILED_TEXT);
+    });
+  }
 }
+
+/** Aucun serveur n'a pu calculer l'itinéraire */
+export const ROUTE_FAILED_TEXT = 'Impossible de calculer l’itinéraire, réessaie ou déplace une étape.';
 
 // ---------- Choix d'itinéraire ----------
 
@@ -169,7 +185,7 @@ type OsrmStep = {
   maneuver: { type: string; modifier?: string; exit?: number; location: [number, number] };
 };
 
-async function fetchOsrm(stops: LatLng[]): Promise<NavRoute> {
+export async function fetchOsrm(stops: LatLng[]): Promise<NavRoute> {
   const coords = stops.map((p) => `${p.longitude},${p.latitude}`).join(';');
   const { ok, json } = await fetchJson(
     `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true`,

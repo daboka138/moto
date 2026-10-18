@@ -1,91 +1,78 @@
-import { distanceM, type LatLng } from '@/lib/geo';
-import type { RouteOptions } from '@/lib/moto';
-import { fetchValhallaRoute, needsValhalla } from '@/lib/navigation';
+import { defaultRouteOptions, type RouteOptions } from '@/lib/moto';
+import type { LatLng } from '@/lib/geo';
+import { fetchOsrm, fetchValhallaRoute, needsValhalla, ROUTE_FAILED_TEXT, type NavRoute } from '@/lib/navigation';
 
-// Calcul d'itinéraire via le serveur de démo public OSRM.
-// OK pour le dev, à remplacer par un service avec clé (ou un OSRM hébergé) avant la prod.
+// Tracé des balades (départ, étapes dans l'ordre, arrivée) : toujours sur de vraies routes.
+// Avec des options (sans autoroute / péages / villes, 50 cm³, chemins) : Valhalla ; sinon OSRM.
+// Chaque moteur a un 2e essai, puis l'autre moteur en secours (jamais OSRM pour les 50 cm³).
+// Si tout échoue : erreur ROUTE_FAILED, l'écran propose « Réessayer ». JAMAIS de ligne droite.
 
 export type ComputedRoute = {
   /** [[lat, lng], ...] */
   points: [number, number][];
   distanceM: number;
   durationS: number;
-  /** false si OSRM n'a pas répondu : tracé en ligne droite et durée estimée */
-  onRoads: boolean;
   /** Options appliquées (Valhalla), avec les points évités pour sortir des villes */
   options?: RouteOptions;
   /** « Éviter les villes » : part en ville dense avant / après (0-1) */
   urban?: { before: number; after: number };
 };
 
+export const ROUTE_FAILED = ROUTE_FAILED_TEXT;
+
 const MAX_POINTS = 500;
-const TIMEOUT_MS = 10_000;
+/** Pause avant le 2e essai (serveurs publics : débit limité) */
+const RETRY_MS = 1500;
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function twice<T>(label: string, run: () => Promise<T>): Promise<T | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await run();
+    } catch (e) {
+      console.warn(`${label} : calcul impossible (essai ${attempt + 1})`, e);
+      if (attempt === 0) await wait(RETRY_MS);
+    }
+  }
+  return null;
+}
+
+function toComputed(r: NavRoute, options?: RouteOptions): ComputedRoute {
+  return {
+    ...(options ? { options: r.options ?? options } : {}),
+    ...(r.urban ? { urban: r.urban } : {}),
+    points: downsample(
+      r.points.map((p) => [p.latitude, p.longitude] as [number, number]),
+      MAX_POINTS,
+    ),
+    distanceM: Math.round(r.distanceM),
+    durationS: Math.round(r.durationS),
+  };
+}
 
 /**
- * Tracé passant par les étapes. Avec des options (ex. balade ouverte aux 50 cm³),
- * le calcul passe par Valhalla ; pour les 50 cm³, jamais de repli sur OSRM
- * (il emprunterait l'autoroute) mais sur le tracé de secours.
+ * Tracé passant par toutes les étapes, dans l'ordre. Lève ROUTE_FAILED si aucun calcul n'a abouti.
+ * Sans options Valhalla, le tracé de secours Valhalla n'a pas `options` (rien d'imposé à la balade).
  */
 export async function computeRoute(stops: LatLng[], options?: RouteOptions): Promise<ComputedRoute> {
   if (stops.length < 2) throw new Error('Il faut au moins un départ et une arrivée');
-  if (options && needsValhalla(options)) {
-    try {
-      const r = await fetchValhallaRoute(stops, options);
-      return {
-        options: r.options ?? options,
-        urban: r.urban,
-        points: downsample(
-          r.points.map((p) => [p.latitude, p.longitude] as [number, number]),
-          MAX_POINTS,
-        ),
-        distanceM: Math.round(r.distanceM),
-        durationS: Math.round(r.durationS),
-        onRoads: true,
-      };
-    } catch {
-      if (options.scooter50) return straightRoute(stops);
+  const valhalla = options && needsValhalla(options) ? options : null;
+  const viaValhalla = () => twice('Valhalla', () => fetchValhallaRoute(stops, valhalla ?? defaultRouteOptions(null)));
+  const viaOsrm = () => twice('OSRM', () => fetchOsrm(stops));
+  if (valhalla) {
+    const r = await viaValhalla();
+    if (r) return toComputed(r, valhalla);
+    // Options impossibles pour le moment : itinéraire standard (signalé à l'écran), jamais pour un 50 cm³
+    if (!valhalla.scooter50) {
+      const std = await viaOsrm();
+      if (std) return toComputed(std);
     }
+  } else {
+    const r = (await viaOsrm()) ?? (await viaValhalla());
+    if (r) return toComputed(r);
   }
-  const coords = stops.map((s) => `${s.longitude},${s.latitude}`).join(';');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(
-      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`,
-      { signal: controller.signal },
-    );
-    if (res.ok) {
-      const json = await res.json();
-      const route = json.routes?.[0];
-      if (route) {
-        const line: [number, number][] = route.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng]);
-        return {
-          points: downsample(line, MAX_POINTS),
-          distanceM: Math.round(route.distance),
-          durationS: Math.round(route.duration),
-          onRoads: true,
-        };
-      }
-    }
-  } catch {
-    // on passe au tracé de secours
-  } finally {
-    clearTimeout(timer);
-  }
-  return straightRoute(stops);
-}
-
-/** Tracé de secours : lignes droites, distance majorée de 30 %, 50 km/h de moyenne. */
-function straightRoute(stops: LatLng[]): ComputedRoute {
-  let direct = 0;
-  for (let i = 1; i < stops.length; i++) direct += distanceM(stops[i - 1], stops[i]);
-  const dist = Math.round(direct * 1.3);
-  return {
-    points: stops.map((s) => [s.latitude, s.longitude]),
-    distanceM: dist,
-    durationS: Math.round(dist / (50 / 3.6)),
-    onRoads: false,
-  };
+  throw new Error(ROUTE_FAILED);
 }
 
 function downsample<T>(points: T[], max: number): T[] {

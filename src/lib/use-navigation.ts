@@ -510,6 +510,10 @@ export function useNavigation(
     /** Distance parcourue depuis le départ (m), mise à jour toutes les 15 s */
     tripM: phase === 'navigating' ? tripM : 0,
     choose,
+    /** Aperçu : relance le calcul des itinéraires (après une erreur) */
+    retryChoices: () => {
+      if (destination && phase === 'preview') computeChoices(destination, stops, options, variant);
+    },
     updateOptions,
     selectVariant,
     start,

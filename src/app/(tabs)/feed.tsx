@@ -49,10 +49,27 @@ export default function FeedScreen() {
   // Actus moto (Paramètres › Afficher les actus moto) : chargées à part, une erreur ne bloque pas le fil
   const showNews = useShowNews();
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [newsError, setNewsError] = useState(false);
+
+  // Actus : chargées tout de suite, sans attendre (ni dépendre) les publications des amis ; 2e essai si ça rate
+  const loadNews = useCallback(async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        setNews(await fetchNews(30));
+        setNewsError(false);
+        return;
+      } catch (e) {
+        console.warn('Actus indisponibles', e);
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+    setNewsError(true);
+  }, []);
 
   const load = useCallback(async () => {
     if (!userId) return;
     setRefreshing(true);
+    if (showNews) loadNews();
     try {
       const friendsState = await fetchFriends(userId);
       const friends: FeedPerson[] = friendsState.friends.map((f) => ({
@@ -64,9 +81,6 @@ export default function FeedScreen() {
       setReal({ userId, friends, photos, rides });
       setError(false);
       // Suggestions : à part, une erreur ne bloque pas le fil
-      fetchNews(30)
-        .then(setNews)
-        .catch((e) => console.warn('Actus indisponibles', e));
       fetchFriendSuggestions(18)
         .then(setSuggestions)
         .catch((e) => console.warn('Suggestions indisponibles', e));
@@ -76,7 +90,7 @@ export default function FeedScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [userId]);
+  }, [userId, showNews, loadNews]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,9 +100,12 @@ export default function FeedScreen() {
 
   const current = real && real.userId === userId ? real : null;
   const friends = current?.friends ?? [];
+  // Publications des amis ; si elles n'ont pas chargé mais que les actus sont là, le Mur montre au moins les actus
   const memberItems = current
     ? sortFeed([...photoItems(current.photos, current.friends), ...rideItems(current.rides, current.friends)])
-    : null;
+    : error && showNews && news.length
+      ? []
+      : null;
   // Mur vide : les actus du jour en premier ; sinon au plus 1 actu pour 3 publications
   const newsRows: NewsRow[] = (memberItems?.length ? news : sortNewsForEmptyWall(news))
     .slice(0, 30)
@@ -253,11 +270,18 @@ export default function FeedScreen() {
           ListHeaderComponent={
             <>
               <StoryRow />
+              {error && <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé. Tire vers le bas pour réessayer.</Text>}
               {/* Mur sans publication mais avec des actus : l'invitation reste en haut */}
-              {wallEmpty && !!items?.length && emptyWall}
+              {wallEmpty && !error && !!items?.length && emptyWall}
+              {showNews && newsError && !news.length && (
+                <Pressable style={styles.newsRetry} onPress={loadNews} accessibilityRole="button">
+                  <Ionicons name="refresh" size={18} color={Colors.accent} />
+                  <Text style={styles.newsRetryText}>Oups, les actus moto n’ont pas chargé. Réessayer</Text>
+                </Pressable>
+              )}
             </>
           }
-          ListEmptyComponent={emptyWall}
+          ListEmptyComponent={error ? null : emptyWall}
         />
       )}
 
@@ -354,6 +378,9 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   emptyWrap: { gap: 16 },
+  inlineError: { color: Colors.danger, textAlign: 'center', marginBottom: 12 },
+  newsRetry: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, marginBottom: 12 },
+  newsRetryText: { color: Colors.accent, fontWeight: '700' },
   empty: { alignItems: 'stretch', gap: 12, padding: 32 },
   emptyTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   card: { backgroundColor: Colors.surface, paddingVertical: 12, gap: 12 },

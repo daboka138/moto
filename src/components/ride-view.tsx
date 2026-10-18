@@ -50,12 +50,14 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
   const level = levelInfo(ride.level);
   const visibility = visibilityInfo(ride.visibility);
   const pins = ridePins(ride);
-  const routePoints = ride.route ?? pins.filter((p) => p.kind !== 'meeting').map((p) => [p.latitude, p.longitude] as [number, number]);
-  const fit = [...routePoints.map(([latitude, longitude]) => ({ latitude, longitude })), ride.meeting];
+  // Tracé sur les routes seulement (jamais de lignes droites entre les étapes) ; sans tracé, juste les repères
+  const stopPoints = pins.filter((p) => p.kind !== 'meeting').map((p) => [p.latitude, p.longitude] as [number, number]);
+  const routePoints = ride.route ?? [];
+  const fit = [...(routePoints.length ? routePoints : stopPoints).map(([latitude, longitude]) => ({ latitude, longitude })), ride.meeting];
   const joined = ride.participants.filter((p) => p.status === 'joined');
   const invited = ride.participants.filter((p) => p.status === 'invited');
   // Météo le long du parcours, à l'heure de passage (départ = heure du RDV, ou maintenant si en cours)
-  const weatherPoints = ride.status === 'ended' ? null : routePoints.map(([latitude, longitude]) => ({ latitude, longitude }));
+  const weatherPoints = ride.status === 'ended' ? null : (routePoints.length ? routePoints : stopPoints).map(([latitude, longitude]) => ({ latitude, longitude }));
   const departAt = ride.status === 'live' ? null : new Date(ride.meetingAt);
   const weather = useRouteWeather(weatherPoints, ride.durationS ?? (ride.distanceM ?? 0) / (60 / 3.6), departAt ?? roundedNow());
 
@@ -65,7 +67,7 @@ export function RideView({ ride, actions, onPersonPress, myCategory = null, foot
         style={styles.map}
         position={null}
         pins={pins}
-        routes={[{ id: 'route', points: routePoints }]}
+        routes={routePoints.length > 1 ? [{ id: 'route', points: routePoints }] : []}
         fitPoints={fit}
         title={ride.title}
         subtitle={

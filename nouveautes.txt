@@ -1,3 +1,4 @@
+Corrections : les tracés des balades suivent toujours les routes, même avec des étapes (plus jamais de lignes droites ; si le calcul rate, Réessayer), les actus moto du Mur s’affichent même sans publications de tes potes, et les vocaux sur la version web disent clairement ce qui bloque.
 Nouveau look : nouvelles polices, icônes à la place des émojis, textes plus directs. Et les actus moto arrivent dans le Mur (à liker et commenter), plus une page « Qui est derrière l’appli » dans Profil.
 Nouveau : « Histoire de la moto » (bannière du Mur, onglet Histoire sur le web) : des premiers deux-roues aux 20 grandes marques, avec frises, modèles mythiques et anecdotes.
 Balades et GPS : jusqu'à 10 étapes dans l'ordre que tu veux (↑↓), options Éviter l'autoroute / les péages / les villes gardées pour la prochaine fois, et « Naviguer sur le tracé » depuis la fiche.

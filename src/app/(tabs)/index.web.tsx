@@ -220,12 +220,8 @@ export default function MapScreen() {
       fetchRide(ride.id, userId)
         .then((details) => {
           if (!details) return;
-          const points =
-            details.route ??
-            [details.start, ...details.waypoints, details.end].map(
-              (p) => [p.latitude, p.longitude] as [number, number],
-            );
-          setRideRoute({ id: ride.id, points });
+          // Tracé sur les routes seulement : sans tracé enregistré, pas de lignes droites entre les étapes
+          if (details.route?.length) setRideRoute({ id: ride.id, points: details.route });
         })
         .catch((e) => console.warn('Tracé de la balade indisponible', e));
     }
