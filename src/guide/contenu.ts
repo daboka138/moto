@@ -40,6 +40,17 @@ export type Astuce = { titre: string; texte: string; fiche: string };
 
 export const SUPPORT_EMAIL = 'passeryder@gmail.com';
 
+/** « Qui est derrière l'appli » : Profil › À propos dans l'app et passeryder.fr/createur (build-guide.mjs) */
+export const A_PROPOS = {
+  nom: 'Dimitri',
+  role: 'Électricien à Marseille · créateur de PasseRyder',
+  texte: [
+    'Moi c’est Dimitri, électricien à Marseille.',
+    'J’ai créé PasseRyder parce qu’il manquait une appli simple pour trouver du monde avec qui rouler, partager les bons coins et se prévenir des dangers.',
+    'Je la développe seul, sur mon temps libre, et je lis tous vos messages. Une idée, un bug ? Écris-moi directement dans l’appli.',
+  ],
+};
+
 export const THEMES: Theme[] = [
   { id: 'demarrer', emoji: '🚀', titre: 'Démarrer', intro: 'Ton compte, ton profil, tes amis et le tour des onglets.' },
   { id: 'carte', emoji: '🗺️', titre: 'Carte', intro: 'Tes amis en direct, l’itinéraire, la navigation et les dangers.' },

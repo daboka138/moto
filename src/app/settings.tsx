@@ -196,6 +196,8 @@ export default function SettingsScreen() {
 
       <Text style={styles.section}>Informations</Text>
       <LinkGroup>
+        <LinkRow icon="person-circle-outline" label="Qui est derrière l’appli" onPress={() => router.push('/about')} />
+        <LinkSeparator />
         <LinkRow icon="document-text-outline" label="Conditions d'utilisation" onPress={() => Linking.openURL(TERMS_URL)} />
         <LinkSeparator />
         <LinkRow

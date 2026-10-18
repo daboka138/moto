@@ -110,6 +110,8 @@ export default function ProfileScreen() {
             <LinkRow icon="speedometer" label="Mes trajets" value={`${trips.length}`} onPress={() => router.push('/trips')} />
             <LinkSeparator />
             {garageOn && <LinkRow icon="construct" label="Garage et entretien" onPress={() => router.push('/garage')} />}
+            {garageOn && <LinkSeparator />}
+            <LinkRow icon="person-circle-outline" label="À propos · Qui est derrière l’appli" onPress={() => router.push('/about')} />
           </LinkGroup>
         </>
       }

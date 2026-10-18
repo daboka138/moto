@@ -1,10 +1,11 @@
-// Génère site/guide/index.html depuis src/guide/contenu.ts (même contenu que l'Aide de l'app).
+// Génère site/guide/index.html depuis src/guide/contenu.ts (même contenu que l'Aide de l'app),
+// et site/createur/index.html (« Qui est derrière l'appli », même texte que Profil › À propos).
 // Usage : npm run guide:build, puis republier le site (commande tar de PLAY_STORE.md).
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { FAQ, FICHES, SUPPORT_EMAIL, THEMES, fichesOfTheme } from '../src/guide/contenu.ts';
+import { A_PROPOS, FAQ, FICHES, SUPPORT_EMAIL, THEMES, fichesOfTheme } from '../src/guide/contenu.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'site', 'guide', 'index.html');
@@ -160,3 +161,77 @@ ${faq}
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, html);
 console.log(`site/guide/index.html : ${FICHES.length} fiches, ${FAQ.length} questions`);
+
+// ---------- « Qui est derrière l'appli » : passeryder.fr/createur ----------
+// Photo choisie dans la console (app_settings.creator_photo_path, lisible par tous) : lue par la page
+// avec la clé publishable (publique, la même que dans l'app web) ; sinon le logo.
+const env = Object.fromEntries(
+  readFileSync(join(ROOT, '.env'), 'utf8')
+    .split(/\r?\n/)
+    .filter((l) => /^EXPO_PUBLIC_SUPABASE_(URL|PUBLISHABLE_KEY)=/.test(l))
+    .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]),
+);
+const SUPABASE_URL = env.EXPO_PUBLIC_SUPABASE_URL;
+const KEY = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+if (!SUPABASE_URL || !KEY?.startsWith('sb_publishable_')) throw new Error('.env : URL ou clé publishable manquante');
+
+const creator = `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qui est derrière PasseRyder</title>
+  <meta name="description" content="${esc(A_PROPOS.texte[0] + ' ' + A_PROPOS.texte[1])}">
+  <meta property="og:title" content="Qui est derrière PasseRyder">
+  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Page générée par scripts/build-guide.mjs (texte : A_PROPOS dans src/guide/contenu.ts) : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="/telecharger">Télécharger</a>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap creator">
+    <img class="photo" id="photo" src="/icon.png" alt="${esc(A_PROPOS.nom)}">
+    <h1>${esc(A_PROPOS.nom)}</h1>
+    <p class="note">${esc(A_PROPOS.role)}</p>
+    <div class="text">
+      ${A_PROPOS.texte.map((p) => `<p>${esc(p)}</p>`).join('\n      ')}
+    </div>
+    <div class="cta">
+      <a class="button" href="https://app.passeryder.fr/about">M’écrire dans l’appli</a>
+      <a class="button secondary" href="/telecharger">Télécharger l’app</a>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>
+    </div>
+  </footer>
+  <script>
+    fetch('${SUPABASE_URL}/rest/v1/app_settings?key=eq.creator_photo_path&select=value', { headers: { apikey: '${KEY}' } })
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        var path = rows && rows[0] && rows[0].value;
+        if (path) document.getElementById('photo').src = '${SUPABASE_URL}/storage/v1/object/public/photos/' + path;
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>
+`;
+mkdirSync(join(ROOT, 'site', 'createur'), { recursive: true });
+writeFileSync(join(ROOT, 'site', 'createur', 'index.html'), creator);
+console.log('site/createur/index.html');

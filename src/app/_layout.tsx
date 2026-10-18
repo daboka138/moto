@@ -202,6 +202,7 @@ function RootNavigator() {
           <Stack.Screen name="place/new" options={{ headerShown: true, title: 'Ajouter un lieu motard' }} />
           <Stack.Screen name="place/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="news/[id]" options={{ headerShown: true, title: 'Actu moto' }} />
+          <Stack.Screen name="about" options={{ headerShown: true, title: 'Qui est derrière l’appli' }} />
           <Stack.Screen name="event/new" options={{ headerShown: true, title: 'Nouvel événement' }} />
           <Stack.Screen name="event/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="badges" options={{ headerShown: true, title: 'Badges et défis' }} />

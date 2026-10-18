@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qui est derrière PasseRyder</title>
+  <meta name="description" content="Moi c’est Dimitri, électricien à Marseille. J’ai créé PasseRyder parce qu’il manquait une appli simple pour trouver du monde avec qui rouler, partager les bons coins et se prévenir des dangers.">
+  <meta property="og:title" content="Qui est derrière PasseRyder">
+  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Page générée par scripts/build-guide.mjs (texte : A_PROPOS dans src/guide/contenu.ts) : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="/telecharger">Télécharger</a>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap creator">
+    <img class="photo" id="photo" src="/icon.png" alt="Dimitri">
+    <h1>Dimitri</h1>
+    <p class="note">Électricien à Marseille · créateur de PasseRyder</p>
+    <div class="text">
+      <p>Moi c’est Dimitri, électricien à Marseille.</p>
+      <p>J’ai créé PasseRyder parce qu’il manquait une appli simple pour trouver du monde avec qui rouler, partager les bons coins et se prévenir des dangers.</p>
+      <p>Je la développe seul, sur mon temps libre, et je lis tous vos messages. Une idée, un bug ? Écris-moi directement dans l’appli.</p>
+    </div>
+    <div class="cta">
+      <a class="button" href="https://app.passeryder.fr/about">M’écrire dans l’appli</a>
+      <a class="button secondary" href="/telecharger">Télécharger l’app</a>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
+    </div>
+  </footer>
+  <script>
+    fetch('https://yfewldnhnnrzzscmfjsd.supabase.co/rest/v1/app_settings?key=eq.creator_photo_path&select=value', { headers: { apikey: 'sb_publishable_ndqUZWRvQOd2so6Zla0gtw_r4TP4kQS' } })
+      .then(function (r) { return r.json(); })
+      .then(function (rows) {
+        var path = rows && rows[0] && rows[0].value;
+        if (path) document.getElementById('photo').src = 'https://yfewldnhnnrzzscmfjsd.supabase.co/storage/v1/object/public/photos/' + path;
+      })
+      .catch(function () {});
+  </script>
+</body>
+</html>

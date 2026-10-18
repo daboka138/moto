@@ -411,12 +411,12 @@ const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.passeryder.a
 
 const downloadCss = `
     .dl .hero { padding-bottom: 8px; }
-    .dl .hero img.logo { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 12px 32px rgb(14 165 233 / 30%); }
+    .dl .hero img.logo { width: 96px; height: 96px; border-radius: 22px; }
     .dl .hero h1 { font-size: clamp(30px, 8vw, 42px); }
     .dl section.part { margin: 24px 0; }
     .dl h2 { font-size: 21px; margin: 0 0 12px; text-align: center; }
     .steps-dl { display: grid; gap: 12px; margin: 0 auto; max-width: 30em; }
-    a.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: var(--accent); color: #fff; text-decoration: none; box-shadow: 0 6px 18px rgb(14 165 233 / 25%); }
+    a.step { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; background: var(--accent); color: #fff; text-decoration: none; }
     a.step .num { flex: 0 0 44px; height: 44px; border-radius: 50%; background: #fff; color: #0369a1; display: grid; place-items: center; font-weight: 900; font-size: 22px; }
     a.step strong { display: block; font-size: 19px; line-height: 1.25; }
     a.step small { display: block; font-size: 14px; opacity: .9; }

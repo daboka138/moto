@@ -1,3 +1,9 @@
+/* Polices Barlow / Barlow Condensed (licence OFL, hébergées ici : pas de Google Fonts) */
+@font-face { font-family: Barlow; src: url(/fonts/Barlow-Regular.ttf) format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Barlow; src: url(/fonts/Barlow-SemiBold.ttf) format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: Barlow; src: url(/fonts/Barlow-Bold.ttf) format('truetype'); font-weight: 700 900; font-display: swap; }
+@font-face { font-family: 'Barlow Condensed'; src: url(/fonts/BarlowCondensed-Bold.ttf) format('truetype'); font-weight: 700 900; font-display: swap; }
+
 :root {
   --accent: #0ea5e9;
   --accent-dark: #0369a1;
@@ -28,7 +34,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 17px/1.6 Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 a { color: var(--accent-dark); }
@@ -37,7 +43,7 @@ a { color: var(--accent-dark); }
 
 header.top { border-bottom: 1px solid var(--border); background: var(--surface); }
 header.top .wrap { display: flex; align-items: center; gap: 12px; min-height: 64px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 900; font-size: 20px; color: var(--text); text-decoration: none; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: "Barlow Condensed", Barlow, sans-serif; font-weight: 700; font-size: 24px; color: var(--text); text-decoration: none; }
 .brand img { width: 36px; height: 36px; border-radius: 9px; }
 header.top nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 15px; }
 header.top nav a { text-decoration: none; color: var(--muted); }
@@ -46,13 +52,13 @@ header.top nav a:hover { color: var(--accent-dark); }
 main { padding: 32px 0 48px; }
 
 .hero { text-align: center; padding: 32px 0 16px; }
-.hero img { width: 112px; height: 112px; border-radius: 26px; box-shadow: 0 12px 32px rgb(14 165 233 / 30%); }
+.hero img { width: 112px; height: 112px; border-radius: 26px; }
 .hero h1 { font-size: clamp(34px, 8vw, 48px); margin: 20px 0 4px; line-height: 1.1; }
 .hero p.lead { font-size: 20px; color: var(--muted); margin: 0 auto 24px; max-width: 34ch; }
 .badge { display: inline-block; padding: 10px 18px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; }
 
 .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 32px; }
-.feature { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+.feature { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
 .feature h2 { font-size: 17px; margin: 0 0 6px; }
 .feature p { margin: 0; color: var(--muted); font-size: 15px; }
 
@@ -68,7 +74,7 @@ table { width: 100%; border-collapse: collapse; font-size: 15px; background: var
 th, td { text-align: left; vertical-align: top; padding: 10px; border: 1px solid var(--border); }
 th { background: var(--bg); }
 
-.box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px 20px; margin: 20px 0; }
+.box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin: 20px 0; }
 .box.danger { border-color: var(--danger); }
 ol.steps li { margin: 8px 0; }
 
@@ -81,18 +87,18 @@ footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 14
 footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 
 /* Guide (page générée par scripts/build-guide.mjs) */
-.guide-search { width: 100%; font: inherit; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin: 16px 0 4px; }
+.guide-search { width: 100%; font: inherit; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); margin: 16px 0 4px; }
 .toc ul { list-style: none; padding: 0; margin: 0; }
 .toc li { margin: 8px 0; font-size: 15px; color: var(--muted); }
 .toc li > a:first-child { font-weight: 700; }
 .theme { margin-top: 8px; }
-.fiche { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 4px 20px 12px; margin: 14px 0; scroll-margin-top: 16px; }
+.fiche { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px 20px 12px; margin: 14px 0; scroll-margin-top: 16px; }
 .fiche h3 { font-size: 19px; margin: 14px 0 4px; }
 .fiche h4 { font-size: 15px; margin: 14px 0 2px; }
 .fiche .but { color: var(--muted); margin: 0; }
 .fiche .web-note { font-size: 15px; color: var(--muted); }
 .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; vertical-align: middle; }
-details.faq { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 18px; margin: 10px 0; }
+details.faq { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; margin: 10px 0; }
 details.faq summary { font-weight: 700; cursor: pointer; }
 .box.support h2 { margin-top: 4px; }
 [hidden] { display: none !important; }
@@ -103,3 +109,17 @@ details.faq summary { font-weight: 700; cursor: pointer; }
 .auth-page .box { text-align: left; }
 .auth-page form { display: flex; flex-direction: column; gap: 10px; }
 .auth-page form .button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+
+/* Titres : condensée, style plaque / panneau */
+h1, h2, h3, .hero h1 { font-family: "Barlow Condensed", Barlow, sans-serif; font-weight: 700; letter-spacing: .2px; }
+
+/* Qui est derrière l'appli (accueil + /createur) */
+.maker { display: flex; gap: 20px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 32px; }
+.maker img { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; flex: none; background: var(--border); }
+.maker h2 { margin: 0 0 4px; font-size: 24px; }
+.maker p { margin: 0 0 8px; color: var(--muted); }
+@media (max-width: 520px) { .maker { flex-direction: column; text-align: center; } }
+.creator { text-align: center; }
+.creator img.photo { width: 160px; height: 160px; border-radius: 50%; object-fit: cover; background: var(--border); }
+.creator .text { text-align: left; max-width: 34em; margin: 24px auto; }
+.creator .text p { font-size: 19px; }
