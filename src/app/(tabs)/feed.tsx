@@ -249,7 +249,14 @@ export default function FeedScreen() {
 
       {!rows ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Oups, le Mur n’a pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error ? (
+            <>
+              <Text style={styles.muted}>Oups, le Mur n’a pas chargé. Vérifie ton réseau.</Text>
+              <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
+            </>
+          ) : (
+            <ActivityIndicator color={Colors.accent} />
+          )}
         </View>
       ) : (
         <FlatList
@@ -270,7 +277,12 @@ export default function FeedScreen() {
           ListHeaderComponent={
             <>
               <StoryRow />
-              {error && <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé. Tire vers le bas pour réessayer.</Text>}
+              {error && (
+                <View style={styles.inlineErrorBox}>
+                  <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé.</Text>
+                  <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
+                </View>
+              )}
               {/* Mur sans publication mais avec des actus : l'invitation reste en haut */}
               {wallEmpty && !error && !!items?.length && emptyWall}
               {showNews && newsError && !news.length && (
@@ -378,7 +390,8 @@ const useStyles = makeStyles((Colors) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   emptyWrap: { gap: 16 },
-  inlineError: { color: Colors.danger, textAlign: 'center', marginBottom: 12 },
+  inlineErrorBox: { gap: 8, marginBottom: 12 },
+  inlineError: { color: Colors.danger, textAlign: 'center' },
   newsRetry: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, marginBottom: 12 },
   newsRetryText: { color: Colors.accent, fontWeight: '700' },
   empty: { alignItems: 'stretch', gap: 12, padding: 32 },

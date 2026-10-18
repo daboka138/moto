@@ -50,7 +50,7 @@ export async function fetchPhotosOf(ownerIds: string[], limit = 60): Promise<Wal
   if (!ownerIds.length) return [];
   const { data, error } = await supabase
     .from('wall_photos')
-    .select('id, owner_id, path, caption, created_at, owner:profiles(username, avatar_path)')
+    .select('id, owner_id, path, caption, created_at, owner:profiles!wall_photos_owner_id_fkey(username, avatar_path)')
     .in('owner_id', ownerIds)
     .order('created_at', { ascending: false })
     .limit(limit);
