@@ -120,7 +120,7 @@ function TripRow({ trip }: { trip: TripSummary }) {
     showActionSheet({
       title: trip.destination,
       options: [
-        ...(trip.hasTrack !== false ? [{ label: '🏁 Ta sortie (récap à partager)', onPress: openOuting }] : []),
+        ...(trip.hasTrack !== false ? [{ label: 'Ta sortie (récap à partager)', icon: 'flag-outline' as const, onPress: openOuting }] : []),
         ...(trip.hasTrack && canUse('gpx') ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
         { label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) },
       ],

@@ -48,7 +48,7 @@ export default function HelpFicheScreen() {
 
       {!!fiche.astuces?.length && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>💡 Astuces</Text>
+          <Text style={styles.cardTitle}>Astuces</Text>
           {fiche.astuces.map((line, i) => (
             <Text key={i} style={styles.line}>
               • {line}
@@ -59,7 +59,7 @@ export default function HelpFicheScreen() {
 
       {!!fiche.limites?.length && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>⚠️ À savoir</Text>
+          <Text style={styles.cardTitle}>À savoir</Text>
           {fiche.limites.map((line, i) => (
             <Text key={i} style={styles.line}>
               • {line}

@@ -124,8 +124,8 @@ export default function NewStoryScreen() {
 
         <Text style={styles.label}>Qui peut la voir ?</Text>
         <View style={styles.chips}>
-          <Chip label="👥 Mes amis" selected={visibility === 'friends'} onPress={() => setVisibility('friends')} />
-          <Chip label="🌍 Tout le monde" selected={visibility === 'everyone'} onPress={() => setVisibility('everyone')} />
+          <Chip label="Mes amis" icon="people-outline" selected={visibility === 'friends'} onPress={() => setVisibility('friends')} />
+          <Chip label="Tout le monde" icon="globe-outline" selected={visibility === 'everyone'} onPress={() => setVisibility('everyone')} />
         </View>
         <Text style={styles.hint}>Ta story disparaît automatiquement au bout de 24 h.</Text>
 

@@ -174,8 +174,8 @@ export default function ClubScreen() {
                       title: `Au nom de « ${club.name} »`,
                       message: 'Tous les membres seront invités.',
                       options: [
-                        { label: '🏍️ Une balade', onPress: () => router.push({ pathname: '/ride/new', params: { club: club.id } }) },
-                        { label: '📅 Un événement', onPress: () => router.push({ pathname: '/event/new', params: { club: club.id } }) },
+                        { label: 'Une balade', icon: 'bicycle-outline', onPress: () => router.push({ pathname: '/ride/new', params: { club: club.id } }) },
+                        { label: 'Un événement', icon: 'calendar-outline', onPress: () => router.push({ pathname: '/event/new', params: { club: club.id } }) },
                       ],
                     })
                   }

@@ -102,7 +102,7 @@ function RideCheckInScreenContent() {
       options.push(
         p.checkedInAt
           ? { label: 'Annuler le pointage', onPress: () => run(() => checkInRide(ride.id, p.id, false)) }
-          : { label: '✅ Pointer présent', onPress: () => run(() => checkInRide(ride.id, p.id)) },
+          : { label: 'Pointer présent', icon: 'checkmark-circle-outline' as const, onPress: () => run(() => checkInRide(ride.id, p.id)) },
       );
     }
     (Object.keys(RIDE_ROLES) as RideRole[]).forEach((role) => {

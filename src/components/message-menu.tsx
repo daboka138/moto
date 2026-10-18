@@ -1,9 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, Text, View } from 'react-native';
 
-import { makeStyles, Type } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { REACTIONS } from '@/lib/messages';
 
-export type MessageAction = { label: string; destructive?: boolean; onPress: () => void };
+export type MessageAction = {
+  label: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  destructive?: boolean;
+  onPress: () => void;
+};
 
 /**
  * Appui long sur un message : barre de réactions (❤️ 😂 😮 😢 👍 🔥 🏍️, la mienne entourée,
@@ -24,6 +30,7 @@ export function MessageMenu({
   onClose: () => void;
 }) {
   const styles = useStyles();
+  const Colors = useColors();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -53,6 +60,7 @@ export function MessageMenu({
                 a.onPress();
               }}
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
+              {a.icon && <Ionicons name={a.icon} size={20} color={a.destructive ? Colors.danger : Colors.textMuted} />}
               <Text style={[styles.actionText, a.destructive && styles.destructive]}>{a.label}</Text>
             </Pressable>
           ))}
@@ -67,7 +75,7 @@ export function MessageMenu({
 
 const useStyles = makeStyles((Colors) => ({
   backdrop: { flex: 1, backgroundColor: Colors.overlayLight, justifyContent: 'center', padding: 24 },
-  card: { backgroundColor: Colors.surface, borderRadius: 18, paddingVertical: 8, maxWidth: 420, width: '100%', alignSelf: 'center' },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, paddingVertical: 8, maxWidth: 420, width: '100%', alignSelf: 'center' },
   emojis: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -79,7 +87,7 @@ const useStyles = makeStyles((Colors) => ({
   emoji: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   emojiMine: { backgroundColor: Colors.accentSoft, borderWidth: 2, borderColor: Colors.accent },
   emojiText: { fontSize: Type.title },
-  action: { paddingVertical: 16, paddingHorizontal: 16 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 16 },
   actionText: { fontSize: Type.body, color: Colors.text, fontWeight: '600' },
   destructive: { color: Colors.danger },
   cancel: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },

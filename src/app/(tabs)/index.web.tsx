@@ -466,7 +466,7 @@ export default function MapScreen() {
           )}
           {askLocation && !dropped && !selectedRide && !selectedReport && !selectedRider && (
             <View style={styles.locationCard}>
-              <Text style={styles.appCardTitle}>📍 Centrer la carte sur toi ?</Text>
+              <Text style={styles.appCardTitle}>Centrer la carte sur toi ?</Text>
               <Text style={styles.appCardHint}>
                 Ta position sert seulement à centrer la carte sur la version web : elle n’est jamais publiée ni envoyée à tes amis.
               </Text>

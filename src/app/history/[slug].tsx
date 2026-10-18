@@ -78,7 +78,7 @@ export default function HistoryBrandScreen() {
       ))}
 
       {!!brand.anecdotes.length && (
-        <HistoryCard title="💡 Le saviez-vous ?">
+        <HistoryCard title="Le saviez-vous ?">
           {brand.anecdotes.map((a, i) => (
             <Text key={i} style={styles.line}>
               • {a}

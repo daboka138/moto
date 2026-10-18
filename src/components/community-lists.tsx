@@ -98,7 +98,7 @@ export function EventsList({ me }: { me: LatLng | null }) {
               <Text style={styles.muted}>
                 {radius !== null ? `Aucun événement à moins de ${radius} km. Élargis le rayon ou crée le premier rasso !` : 'Aucun événement à venir. Crée le premier rasso !'}
               </Text>
-              <Chip label="➕ Créer un événement" selected onPress={() => router.push('/event/new')} />
+              <Chip label="Créer un événement" icon="add" selected onPress={() => router.push('/event/new')} />
             </View>
           }
         />
@@ -159,7 +159,7 @@ export function PlacesList({ me }: { me: LatLng | null }) {
             <View style={styles.empty}>
               <Ionicons name="cafe-outline" size={40} color={Colors.textMuted} />
               <Text style={styles.muted}>Aucun lieu par ici. Ajoute ton café biker, ton garage ou ta route préférée !</Text>
-              <Chip label="📍 Ajouter un spot" selected onPress={() => router.push('/place/new')} />
+              <Chip label="Ajouter un spot" icon="add" selected onPress={() => router.push('/place/new')} />
             </View>
           }
         />

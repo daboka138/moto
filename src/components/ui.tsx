@@ -1,18 +1,23 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useDrivingLock } from '@/lib/driving-lock';
 
+export type IconName = keyof typeof Ionicons.glyphMap;
+
 type ButtonProps = {
   title: string;
+  /** Icône Ionicons avant le libellé (jamais d'émoji dans un bouton) */
+  icon?: IconName;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
   disabled?: boolean;
 };
 
-export function Button({ title, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
+export function Button({ title, icon, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
   const Colors = useColors();
   const styles = useStyles();
   const inactive = disabled || loading;
@@ -29,7 +34,10 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
       {loading ? (
         <ActivityIndicator color={filled ? Colors.white : Colors.accent} />
       ) : (
-        <Text style={[styles.buttonText, !filled && { color: Colors.text }]}>{title}</Text>
+        <View style={styles.buttonRow}>
+          {icon && <Ionicons name={icon} size={20} color={filled ? Colors.white : Colors.accent} />}
+          <Text style={[styles.buttonText, !filled && { color: Colors.text }]}>{title}</Text>
+        </View>
       )}
     </Pressable>
   );
@@ -38,11 +46,13 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled 
 /** Petit bouton pour les lignes de liste (Ajouter, Accepter...) */
 export function SmallButton({
   title,
+  icon,
   onPress,
   variant = 'primary',
   disabled,
 }: {
   title: string;
+  icon?: IconName;
   onPress?: () => void;
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
@@ -58,6 +68,7 @@ export function SmallButton({
         variant === 'primary' ? styles.primary : styles.secondary,
         (pressed || disabled) && { opacity: 0.6 },
       ]}>
+      {icon && <Ionicons name={icon} size={16} color={variant === 'secondary' ? Colors.accent : Colors.white} />}
       <Text style={[styles.smallText, variant === 'secondary' && { color: Colors.text }]}>{title}</Text>
     </Pressable>
   );
@@ -87,10 +98,22 @@ export function Field({ label, required, style, editable, placeholder, ...props 
   );
 }
 
-export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
+export function Chip({
+  label,
+  icon,
+  selected,
+  onPress,
+}: {
+  label: string;
+  icon?: IconName;
+  selected?: boolean;
+  onPress?: () => void;
+}) {
   const styles = useStyles();
+  const Colors = useColors();
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={[styles.chip, selected && styles.chipSelected]}>
+      {icon && <Ionicons name={icon} size={16} color={selected ? Colors.white : Colors.textMuted} />}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );
@@ -118,8 +141,9 @@ const useStyles = makeStyles((Colors) => ({
   secondary: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   ghost: { backgroundColor: 'transparent' },
   danger: { backgroundColor: Colors.danger },
+  buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonText: { color: Colors.white, fontSize: Type.body, fontWeight: '700' },
-  small: { borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
+  small: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Radius.md, paddingHorizontal: 12, paddingVertical: 8 },
   smallText: { color: Colors.white, fontSize: Type.small, fontWeight: '700' },
   field: { gap: 8 },
   label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
@@ -134,6 +158,9 @@ const useStyles = makeStyles((Colors) => ({
     color: Colors.text,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 999,

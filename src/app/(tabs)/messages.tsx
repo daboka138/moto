@@ -111,7 +111,7 @@ export default function MessagesScreen() {
             <View style={styles.community}>
               <View style={styles.communityTop}>
                 <View style={[styles.communityIcon]}>
-                  <Text style={styles.communityEmoji}>🛠️</Text>
+                  <Ionicons name="construct-outline" size={24} color={Colors.accent} />
                 </View>
                 <View style={styles.text}>
                   <Text style={styles.communityTitle}>Rejoins le groupe de la commu</Text>
@@ -138,8 +138,8 @@ export default function MessagesScreen() {
             <Text style={styles.muted}>
               Aucune conversation. Écris à un ami, ou rejoins une balade pour discuter avec le groupe.
             </Text>
-            <Chip label="✍️ Écrire à un ami" selected onPress={() => router.push('/messages/new')} />
-            <Chip label="👥 Trouver des motards" onPress={() => router.push('/riders')} />
+            <Chip label="Écrire à un ami" icon="create-outline" selected onPress={() => router.push('/messages/new')} />
+            <Chip label="Trouver des motards" icon="people-outline" onPress={() => router.push('/riders')} />
           </View>
         }
       />

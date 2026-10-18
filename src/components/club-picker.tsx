@@ -30,7 +30,8 @@ export function ClubPicker({ userId, value, onChange }: { userId: string | undef
       <View style={styles.chips}>
         <Chip label="Moi" selected={value === null} onPress={() => onChange(null)} />
         {clubs.map((c) => (
-          <Chip key={c.id} label={`🏁 ${c.name}`} selected={value === c.id} onPress={() => onChange(c.id)} />
+          <Chip key={c.id} label={c.name}
+          icon="shield-outline" selected={value === c.id} onPress={() => onChange(c.id)} />
         ))}
       </View>
       {value && <Text style={styles.hint}>Tous les membres du club seront invités automatiquement.</Text>}

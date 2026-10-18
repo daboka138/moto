@@ -57,7 +57,7 @@ export function UpdateBanner() {
     const whatsNew = manifest?.extra?.expoClient?.extra?.whatsNew;
     return (
       <UpdateBannerView
-        title="✅ Mise à jour prête"
+        title="Mise à jour prête"
         details={typeof whatsNew === 'string' && whatsNew ? `Nouveautés : ${whatsNew}` : null}
         actionLabel="Redémarrer"
         onAction={() => Updates.reloadAsync().catch((e) => console.warn('Redémarrage impossible', e))}
@@ -65,6 +65,6 @@ export function UpdateBanner() {
       />
     );
   }
-  if (fetching || isDownloading) return <UpdateBannerView title="⬇️ Nouvelle mise à jour en cours de téléchargement…" />;
+  if (fetching || isDownloading) return <UpdateBannerView title="Mise à jour en cours de téléchargement…" />;
   return null;
 }

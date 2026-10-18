@@ -92,7 +92,7 @@ export function ClubsList({ me }: { me: LatLng | null }) {
             <Ionicons name="flag-outline" size={40} color={Colors.textMuted} />
             <Text style={styles.emptyTitle}>{query.trim() ? 'Aucun club trouvé' : 'Pas encore de club près de toi'}</Text>
             <Text style={styles.muted}>Crée le tien : balades et événements au nom du club, mur, membres.</Text>
-            <Chip label="➕ Créer un club" selected onPress={() => router.push('/club/new')} />
+            <Chip label="Créer un club" icon="add" selected onPress={() => router.push('/club/new')} />
           </View>
         )
       }

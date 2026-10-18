@@ -81,7 +81,7 @@ export default function HelpScreen() {
             </View>
           ))}
 
-          <Text style={styles.section}>❓ Questions fréquentes</Text>
+          <Text style={styles.section}>Questions fréquentes</Text>
           {FAQ.map((q) => (
             <FaqItem key={q.id} question={q} />
           ))}

@@ -477,7 +477,7 @@ function Moderation() {
         Spots, avis, événements, photos, commentaires, stories et comptes signalés (les messages privés ne sont jamais affichés).
         Un spot ou un avis signalé 3 fois est déjà masqué automatiquement.
       </Text>
-      {reports.length === 0 && <Text style={styles.muted}>Aucun signalement en attente. 👌</Text>}
+      {reports.length === 0 && <Text style={styles.muted}>Aucun signalement en attente.</Text>}
       {reports.map((r) => {
         const href = targetHref(r);
         const canHide = r.targetType === 'place' || r.targetType === 'place_review' || r.targetType === 'club';
@@ -642,7 +642,7 @@ function Distribution() {
       </View>
       <Text style={styles.small}>Validation Google en cours (bandeau « utilise la version web » sur /telecharger, /i et /c)</Text>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-        <Chip label="⏳ Oui" selected={values.google_review === 'on'} onPress={() => setReview('on')} />
+        <Chip label="Oui" selected={values.google_review === 'on'} onPress={() => setReview('on')} />
         <Chip label="Non (app validée)" selected={values.google_review !== 'on'} onPress={() => setReview('off')} />
       </View>
       {DISTRIBUTION_LINKS.map((l) => (

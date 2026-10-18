@@ -24,7 +24,7 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
           </View>
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Text style={styles.label}>🗓️ Toutes les dates</Text>
+              <Text style={styles.label}>Toutes les dates</Text>
               <Text style={styles.sub}>
                 Balades et événements à venir. Sinon : les 7 prochains jours (et ceux où tu es inscrit)
               </Text>
@@ -38,7 +38,7 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
           </View>
           <View style={styles.row}>
             <View style={styles.flex}>
-              <Text style={styles.label}>🅿️ Parkings moto</Text>
+              <Text style={styles.label}>Parkings moto</Text>
               <Text style={styles.sub}>Parkings OpenStreetMap, visibles en zoomant</Text>
             </View>
             <Switch

@@ -93,7 +93,7 @@ export function UpdateBanner() {
   if (!next || later === next.build) return null;
   return (
     <UpdateBannerView
-      title="✨ Nouvelle version disponible"
+      title="Nouvelle version dispo"
       details={next.message ? `Nouveautés : ${next.message}` : null}
       actionLabel="Recharger"
       onAction={() => hardReload(next.build)}

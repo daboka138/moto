@@ -182,7 +182,7 @@ export default function FeedScreen() {
       {/* Histoire de la moto (sur le web : onglet « Histoire ») */}
       {Platform.OS !== 'web' && (
         <Pressable style={styles.historyBanner} onPress={() => router.push('/history')} accessibilityRole="button">
-          <Text style={styles.historyEmoji}>📜</Text>
+          <Ionicons name="book-outline" size={24} color={Colors.accent} />
           <View style={styles.historyBody}>
             <Text style={styles.historyTitle}>Histoire de la moto</Text>
             <Text style={styles.historyText}>Des premiers deux-roues aux grandes marques : Honda, Ducati, Harley…</Text>

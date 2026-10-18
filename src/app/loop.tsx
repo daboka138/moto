@@ -200,8 +200,8 @@ function LoopScreenContent() {
 
       <Text style={styles.section}>Durée ou distance</Text>
       <View style={styles.row}>
-        <Chip label="⏱️ Durée" selected={mode === 'duration'} onPress={() => setMode('duration')} />
-        <Chip label="📏 Distance" selected={mode === 'distance'} onPress={() => setMode('distance')} />
+        <Chip label="Durée" icon="time-outline" selected={mode === 'duration'} onPress={() => setMode('duration')} />
+        <Chip label="Distance" icon="resize-outline" selected={mode === 'distance'} onPress={() => setMode('distance')} />
       </View>
       <View style={styles.row}>
         {mode === 'duration'

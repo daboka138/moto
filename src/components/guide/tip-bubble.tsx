@@ -30,7 +30,7 @@ export function TipBubble({ id, enabled = true }: { id: AstuceId; enabled?: bool
     <Modal transparent animationType="fade" onRequestClose={() => markTipSeen(id)}>
       <Pressable style={styles.backdrop} onPress={() => markTipSeen(id)}>
         <Pressable style={[styles.bubble, { marginBottom: insets.bottom + 24 }]} onPress={() => {}}>
-          <Text style={styles.title}>💡 {tip.titre}</Text>
+          <Text style={styles.title}>{tip.titre}</Text>
           <Text style={styles.text}>{tip.texte}</Text>
           <View style={styles.actions}>
             <Pressable

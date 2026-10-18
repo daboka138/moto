@@ -194,23 +194,25 @@ export default function RideScreen() {
   const actions = (
     <View style={styles.actions}>
       {ride.status === 'ended' && (isOrganizer || ride.joined) && (
-        <Button title="🏁 Ta sortie : récap à partager" onPress={() => router.push({ pathname: '/outing', params: { ride: ride.id } })} />
+        <Button title="Ta sortie : récap à partager" icon="flag-outline" onPress={() => router.push({ pathname: '/outing', params: { ride: ride.id } })} />
       )}
-      {(isOrganizer || ride.joined) && <Button title="💬 Discussion de la balade" onPress={openChat} loading={busy} />}
+      {(isOrganizer || ride.joined) && <Button title="Discussion de la balade" icon="chatbubbles-outline" onPress={openChat} loading={busy} />}
       {ride.status === 'live' && ride.joined && (
         <Button title="Voir les participants sur la carte" onPress={() => router.navigate('/')} />
       )}
       {/* Même tracé que l'organisateur : départ, étapes dans l'ordre, arrivée, mêmes options */}
       {(isOrganizer || ride.joined) && ride.status !== 'ended' && (
         <Button
-          title="🧭 Naviguer sur le tracé"
+          title="Naviguer sur le tracé"
+            icon="navigate-outline"
           variant="secondary"
           onPress={() => (IS_WEB ? openInApp(`/?ride=${ride.id}`) : router.navigate({ pathname: '/', params: { ride: ride.id } }))}
         />
       )}
       {(isOrganizer || ride.joined) && ride.status !== 'ended' && canStartNow(ride.meetingAt) && canUse('convoy_tools') && (
         <Button
-          title={`✅ Qui est au RDV ? (${ride.participants.filter((p) => p.status === 'joined' && p.checkedInAt).length}/${ride.participantsCount})`}
+          icon="checkmark-done-outline"
+            title={`Qui est au RDV ? (${ride.participants.filter((p) => p.status === 'joined' && p.checkedInAt).length}/${ride.participantsCount})`}
           variant="secondary"
           onPress={() => router.push({ pathname: '/ride/checkin', params: { id: ride.id } })}
         />

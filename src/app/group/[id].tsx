@@ -111,11 +111,11 @@ export default function GroupScreen() {
     const inH = (h: number) => new Date(Date.now() + h * 3600_000);
     showActionSheet({
       options: isMuted(conv)
-        ? [{ label: '🔔 Réactiver les notifications', onPress: () => set(null) }]
+        ? [{ label: 'Réactiver les notifications', icon: 'notifications-outline' as const, onPress: () => set(null) }]
         : [
-            { label: '🔕 1 heure', onPress: () => set(inH(1)) },
-            { label: '🔕 8 heures', onPress: () => set(inH(8)) },
-            { label: '🔕 Toujours', onPress: () => set('infinity') },
+            { label: '1 heure', icon: 'notifications-off-outline' as const, onPress: () => set(inH(1)) },
+            { label: '8 heures', icon: 'notifications-off-outline' as const, onPress: () => set(inH(8)) },
+            { label: 'Toujours', icon: 'notifications-off-outline' as const, onPress: () => set('infinity') },
           ],
     });
   };
@@ -168,7 +168,7 @@ export default function GroupScreen() {
           <Text style={styles.title}>{conv?.title ?? 'Groupe'}</Text>
           <Text style={styles.muted}>
             {members.length} membre{members.length > 1 ? 's' : ''} · {GROUP_MAX_MEMBERS} au plus
-            {conv && isMuted(conv) ? ' · 🔕 en sourdine' : ''}
+            {conv && isMuted(conv) ? ' · en sourdine' : ''}
           </Text>
           {admin && <Button title="Modifier le nom ou la photo" variant="secondary" onPress={startEdit} />}
         </View>
@@ -190,7 +190,10 @@ export default function GroupScreen() {
         ))}
       </View>
 
-      <Button title={conv && isMuted(conv) ? '🔔 Réactiver les notifications' : '🔕 Mettre en sourdine'} variant="secondary" onPress={mute} />
+      <Button
+          title={conv && isMuted(conv) ? 'Réactiver les notifications' : 'Mettre en sourdine'}
+          icon={conv && isMuted(conv) ? 'notifications-outline' : 'notifications-off-outline'}
+          variant="secondary" onPress={mute} />
       <Button title="Quitter le groupe" variant="ghost" onPress={leave} />
     </ScrollView>
   );

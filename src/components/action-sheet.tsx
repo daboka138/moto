@@ -1,13 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { makeStyles, Radius, Type } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 
 // Menu d'actions en bas de l'écran. Remplace Alert.alert quand il y a plus de
 // 3 choix (Android n'affiche que 3 boutons dans une alerte).
 
-export type SheetOption = { label: string; destructive?: boolean; onPress: () => void };
+export type SheetOption = {
+  label: string;
+  /** Icône Ionicons à gauche du libellé (pas d'émoji dans les menus) */
+  icon?: keyof typeof Ionicons.glyphMap;
+  destructive?: boolean;
+  onPress: () => void;
+};
 type Sheet = { title?: string; message?: string; options: SheetOption[]; /** Appelé à la fermeture, quel que soit le choix */ onClose?: () => void };
 
 let listener: ((sheet: Sheet | null) => void) | null = null;
@@ -19,6 +26,7 @@ export function showActionSheet(sheet: Sheet) {
 
 export function ActionSheetHost() {
   const styles = useStyles();
+  const Colors = useColors();
   const insets = useSafeAreaInsets();
   const [sheet, setSheet] = useState<Sheet | null>(null);
 
@@ -48,6 +56,7 @@ export function ActionSheetHost() {
                 close();
                 o.onPress();
               }}>
+              {o.icon && <Ionicons name={o.icon} size={20} color={o.destructive ? Colors.danger : Colors.textMuted} />}
               <Text style={[styles.optionText, o.destructive && styles.destructive]}>{o.label}</Text>
             </Pressable>
           ))}
@@ -72,7 +81,7 @@ const useStyles = makeStyles((Colors) => ({
   },
   title: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center' },
   message: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center', marginBottom: 8 },
-  option: { paddingVertical: 16, borderRadius: Radius.md, alignItems: 'center' },
+  option: { flexDirection: 'row', gap: 12, paddingVertical: 16, paddingHorizontal: 16, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   pressed: { backgroundColor: Colors.background },
   optionText: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
   destructive: { color: Colors.danger },

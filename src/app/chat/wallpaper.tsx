@@ -132,7 +132,7 @@ function Editor({
 
       <Text style={styles.section}>Ma photo</Text>
       <Button
-        title={draft?.kind === 'photo' ? 'Choisir une autre photo' : '🖼️ Choisir dans la galerie'}
+        title={draft?.kind === 'photo' ? 'Choisir une autre photo' : 'Choisir dans la galerie'}
         variant="secondary"
         loading={busy === 'photo'}
         disabled={!!busy}

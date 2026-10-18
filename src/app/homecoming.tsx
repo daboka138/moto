@@ -191,7 +191,7 @@ function NewHomecoming() {
         </View>
       ) : (
         <>
-          {home && <Chip label="🏠 Maison" onPress={() => setDest(home)} />}
+          {home && <Chip label="Maison" icon="home-outline" onPress={() => setDest(home)} />}
           <SearchBar near={me} onSelect={setDest} placeholder="Adresse d’arrivée" categories={false} />
         </>
       )}

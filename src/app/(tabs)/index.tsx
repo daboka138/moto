@@ -630,10 +630,10 @@ export default function MapScreen() {
     showActionSheet({
       title: 'Ajouter ici',
       options: [
-        { label: '⚠️ Signaler un danger', onPress: () => setQuickSheet(true) },
-        { label: '📍 Ajouter un spot motard', onPress: () => router.push({ pathname: '/place/new', params: here }) },
-        { label: '📅 Créer un événement', onPress: () => router.push({ pathname: '/event/new', params: here }) },
-        ...(canUse('loop') ? [{ label: '🌀 Fais-moi une boucle', onPress: () => router.push('/loop') }] : []),
+        { label: 'Signaler un danger', icon: 'warning-outline', onPress: () => setQuickSheet(true) },
+        { label: 'Ajouter un spot motard', icon: 'location-outline', onPress: () => router.push({ pathname: '/place/new', params: here }) },
+        { label: 'Créer un événement', icon: 'calendar-outline', onPress: () => router.push({ pathname: '/event/new', params: here }) },
+        ...(canUse('loop') ? [{ label: 'Fais-moi une boucle', icon: 'sync-outline' as const, onPress: () => router.push('/loop') }] : []),
       ],
     });
   };
@@ -861,9 +861,9 @@ export default function MapScreen() {
       options: fav
         ? [{ label: 'Retirer des favoris', destructive: true, onPress: () => removeFavorite(fav.id) }]
         : [
-            { label: '🏠 Définir comme Maison', onPress: () => setFavorite(dest, 'home') },
-            { label: '💼 Définir comme Travail', onPress: () => setFavorite(dest, 'work') },
-            { label: '⭐ Ajouter aux favoris', onPress: () => setFavorite(dest, 'custom') },
+            { label: 'Définir comme Maison', icon: 'home-outline', onPress: () => setFavorite(dest, 'home') },
+            { label: 'Définir comme Travail', icon: 'briefcase-outline', onPress: () => setFavorite(dest, 'work') },
+            { label: 'Ajouter aux favoris', icon: 'star-outline', onPress: () => setFavorite(dest, 'custom') },
           ],
     });
   };
@@ -973,7 +973,7 @@ export default function MapScreen() {
       <TipBubble id="carte" enabled={!navigating && status === 'ready'} />
       {(status === 'ask' || status === 'denied') && (
         <View style={styles.locationCard}>
-          <Text style={styles.locationTitle}>📍 {status === 'ask' ? 'Centrer la carte sur toi ?' : 'Localisation désactivée'}</Text>
+          <Text style={styles.locationTitle}>{status === 'ask' ? 'Centrer la carte sur toi ?' : 'Localisation désactivée'}</Text>
           <Text style={styles.locationText}>
             {status === 'ask'
               ? 'PasseRyder utilise ta position pour te montrer sur la carte, te guider et signaler les dangers. Elle n’est partagée qu’avec qui tu choisis (mode fantôme possible).'

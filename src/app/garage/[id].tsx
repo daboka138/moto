@@ -160,7 +160,7 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
           </View>
         </View>
       )}
-      {range && <Button title="⛽ J’ai fait le plein" onPress={filled} />}
+      {range && <Button title="J’ai fait le plein" icon="water-outline" onPress={filled} />}
       <Text style={styles.hint}>
         Au départ d’une navigation avec ta moto principale, l’app te demande ton niveau (plein, 3/4, 1/2, 1/4) ; elle te
         prévient si l’autonomie ne suffit pas ou passe sous 50 km et te propose une station sur le trajet.

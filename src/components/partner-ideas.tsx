@@ -22,7 +22,7 @@ export function PartnerIdeas({ near }: { near: LatLng | null }) {
   if (!shown.length) return null;
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>💡 Besoin d’idées ?</Text>
+      <Text style={styles.title}>Besoin d’idées ?</Text>
       {shown.map((l) => (
         <Pressable key={l.id} style={({ pressed }) => [styles.link, pressed && { opacity: 0.6 }]} onPress={() => openPartnerLink(l)}>
           {l.imageUrl ? <Image source={{ uri: l.imageUrl }} style={styles.image} /> : null}

@@ -349,7 +349,8 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
     const actions: MessageAction[] = [];
     if (canEditMessage(m, userId))
       actions.push({
-        label: '✏️ Modifier',
+        label: 'Modifier',
+        icon: 'create-outline',
         onPress: () => {
           setReplying(null);
           setEditing(m);
@@ -357,7 +358,8 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
       });
     if (m.body && !m.tripShareId && !m.audioPath)
       actions.push({
-        label: '📋 Copier',
+        label: 'Copier',
+        icon: 'copy-outline',
         onPress: () =>
           copyText(m.body ?? '')
             .then(() => {
@@ -368,14 +370,16 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
       });
     if (!conv?.blocked)
       actions.push({
-        label: '↩️ Répondre',
+        label: 'Répondre',
+        icon: 'arrow-undo-outline',
         onPress: () => {
           setEditing(null);
           setReplying(m);
         },
       });
     actions.push({
-      label: '🗑️ Supprimer',
+      label: 'Supprimer',
+      icon: 'trash-outline',
       destructive: true,
       onPress: () =>
         canDeleteForAll(m, userId)
@@ -390,10 +394,10 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
             ]),
     });
     if (isGroupAdmin && m.kind === 'user' && !m.deletedAt) {
-      actions.push({ label: pinnedId === m.id ? '📌 Désépingler' : '📌 Épingler', onPress: () => togglePin(m) });
-      if (!mine) actions.push({ label: '🛡️ Supprimer (modération)', destructive: true, onPress: () => moderate(m) });
+      actions.push({ label: pinnedId === m.id ? 'Désépingler' : 'Épingler', icon: 'pin-outline', onPress: () => togglePin(m) });
+      if (!mine) actions.push({ label: 'Supprimer (modération)', icon: 'shield-outline', destructive: true, onPress: () => moderate(m) });
     }
-    if (!mine) actions.push({ label: '🚩 Signaler ce message', destructive: true, onPress: () => askReport('message', m.id) });
+    if (!mine) actions.push({ label: 'Signaler ce message', icon: 'flag-outline', destructive: true, onPress: () => askReport('message', m.id) });
     return actions;
   };
 
@@ -410,17 +414,17 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
       setConversationMute(conv.id, until)
         .then(refresh)
         .catch((e) => Alert.alert('Sourdine impossible', errorMessage(e)));
-    if (isMuted(conv)) return [{ label: '🔔 Réactiver les notifications', onPress: () => set(null) }];
+    if (isMuted(conv)) return [{ label: 'Réactiver les notifications', icon: 'notifications-outline', onPress: () => set(null) }];
     const inH = (h: number) => new Date(Date.now() + h * 3600_000);
     return [
-      { label: '🔕 Sourdine 1 heure', onPress: () => set(inH(1)) },
-      { label: '🔕 Sourdine 8 heures', onPress: () => set(inH(8)) },
-      { label: '🔕 Sourdine toujours', onPress: () => set('infinity') },
+      { label: 'Sourdine 1 heure', icon: 'notifications-off-outline', onPress: () => set(inH(1)) },
+      { label: 'Sourdine 8 heures', icon: 'notifications-off-outline', onPress: () => set(inH(8)) },
+      { label: 'Sourdine toujours', icon: 'notifications-off-outline', onPress: () => set('infinity') },
     ];
   };
 
   const chooseWallpaper = () => router.push({ pathname: '/chat/wallpaper', params: { id } });
-  const wallpaperOption: SheetOption = { label: '🖼️ Fond d’écran', onPress: chooseWallpaper };
+  const wallpaperOption: SheetOption = { label: 'Fond d’écran', icon: 'image-outline', onPress: chooseWallpaper };
   // Icône 👁 de la barre du haut : le fond en grand, ou directement le choix s'il n'y en a pas
   const showWallpaper = () => (wallpaper ? setViewingWallpaper(true) : chooseWallpaper());
 
@@ -455,9 +459,9 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
 
   const subtitle = conv
     ? [
-        info?.isPublic ? '🌍 Groupe public' : null,
+        info?.isPublic ? 'Groupe public' : null,
         conv.kind === 'group' ? `${conv.membersCount} membres` : null,
-        isMuted(conv) ? '🔕 en sourdine' : null,
+        isMuted(conv) ? 'en sourdine' : null,
       ]
         .filter(Boolean)
         .join(' · ')

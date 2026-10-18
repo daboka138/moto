@@ -143,7 +143,7 @@ export default function NotificationsScreen() {
               <Text style={styles.muted}>
                 Rien de neuf pour le moment. Tu verras ici les demandes d’ami, les invitations aux balades et aux événements, les J’aime et les commentaires.
               </Text>
-              <Chip label="👥 Ajouter des amis" selected onPress={() => router.push('/friends')} />
+              <Chip label="Ajouter des amis" icon="person-add-outline" selected onPress={() => router.push('/friends')} />
             </View>
           }
           ListFooterComponent={

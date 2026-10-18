@@ -156,7 +156,7 @@ export default function RidesScreen() {
                 />
               ))}
               <View style={styles.separator} />
-              <Chip label="🏍️ Places passager" selected={withSeats} onPress={() => setWithSeats(!withSeats)} />
+              <Chip label="Places passager" icon="people-outline" selected={withSeats} onPress={() => setWithSeats(!withSeats)} />
               <View style={styles.separator} />
               {RIDE_LEVELS.map((l) => (
                 <Chip key={l.value} label={l.label} selected={levels.includes(l.value)} onPress={() => toggleLevel(l.value)} />
@@ -206,7 +206,7 @@ export default function RidesScreen() {
                     <>
                       <Text style={styles.emptyTitle}>Aucune balade près de toi</Text>
                       <Text style={styles.muted}>Crée la première et invite tes potes, ou laisse l’app te tracer une boucle.</Text>
-                      <Chip label="➕ Créer une balade" selected onPress={() => router.push('/ride/new')} />
+                      <Chip label="Créer une balade" icon="add" selected onPress={() => router.push('/ride/new')} />
                     </>
                   )}
                 </View>

@@ -25,7 +25,7 @@ export function FicheRow({ fiche, first }: { fiche: Fiche; first?: boolean }) {
         <Text style={styles.rowBut} numberOfLines={2}>
           {fiche.but}
         </Text>
-        {IS_WEB && fiche.android && <Text style={styles.androidTag}>📱 App Android</Text>}
+        {IS_WEB && fiche.android && <Text style={styles.androidTag}>App Android</Text>}
       </View>
       <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
     </Pressable>
@@ -38,7 +38,7 @@ export function AndroidOnlyNote({ fiche }: { fiche: Fiche }) {
   if (!IS_WEB || !fiche.android) return null;
   return (
     <View style={styles.androidBox}>
-      <Text style={styles.androidTitle}>📱 Réservé à l’app Android</Text>
+      <Text style={styles.androidTitle}>Réservé à l’app Android</Text>
       {!!fiche.web && <Text style={styles.androidText}>{fiche.web}</Text>}
       <OpenInApp path="/" compact />
     </View>
