@@ -223,8 +223,8 @@ export const Type = { small: 12, body: 15, large: 17, title: 24 };
 /** Échelle d'espacement : 4 / 8 / 12 / 16 / 24 / 32 */
 export const Space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
-/** Coins arrondis */
-export const Radius = { sm: 8, md: 12, lg: 16, pill: 999 };
+/** Coins arrondis : discrets (note 26 : cartes à 8 px, sans ombre) */
+export const Radius = { sm: 6, md: 8, lg: 12, pill: 999 };
 
 type TextLike = { fontFamily?: string; fontWeight?: unknown; fontSize?: number };
 

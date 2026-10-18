@@ -3,6 +3,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { Platform, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SideRail } from '@/components/side-rail';
 import { Type, useColors } from '@/constants/theme';
 import { useGuideState } from '@/guide/state';
 import { useNotificationsBadge } from '@/lib/notifications';
@@ -34,6 +35,8 @@ export default function TabsLayout() {
   if (!welcomeDone) return <Redirect href="/welcome" />;
   return (
     <Tabs
+      // Grand écran : colonne d'onglets maison (logo, rangées alignées, onglet actif discret)
+      tabBar={wide ? (props) => <SideRail {...props} /> : undefined}
       screenOptions={{
         headerShown: false,
         sceneStyle: pageStyle,
@@ -66,7 +69,11 @@ export default function TabsLayout() {
         name="index"
         options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), sceneStyle: { flex: 1, backgroundColor: Colors.background } }}
       />
-      <Tabs.Screen name="feed" options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline') }} />
+      {/* Mur : sur grand écran il place lui-même son fil (680 px) et sa colonne de droite */}
+      <Tabs.Screen
+        name="feed"
+        options={{ title: 'Mur', tabBarIcon: icon('newspaper', 'newspaper-outline'), sceneStyle: { flex: 1, backgroundColor: Colors.background } }}
+      />
       <Tabs.Screen name="rides" options={{ title: 'Sorties', tabBarIcon: icon('flag', 'flag-outline') }} />
       <Tabs.Screen
         name="notifications"

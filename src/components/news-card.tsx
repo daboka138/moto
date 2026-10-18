@@ -8,6 +8,7 @@ import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { timeAgo } from '@/lib/feed';
 import { newsImageMode, newsImageRatio, setNewsLike, type NewsItem } from '@/lib/news';
+import { useWideLayout } from '@/lib/use-wide-layout';
 
 /** Ouvre l'article sur le site d'origine (on n'affiche jamais son contenu dans l'app) */
 export function openArticle(url: string) {
@@ -56,6 +57,7 @@ export function NewsHeader({ item }: { item: NewsItem }) {
 export function NewsCard({ item, userId }: { item: NewsItem; userId: string }) {
   const Colors = useColors();
   const styles = useStyles();
+  const wide = useWideLayout();
   const [likes, setLikes] = useState({ likes: item.likes, likedByMe: item.likedByMe });
   const open = () => router.push({ pathname: '/news/[id]', params: { id: item.id } });
 
@@ -72,7 +74,7 @@ export function NewsCard({ item, userId }: { item: NewsItem; userId: string }) {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, wide && styles.cardWide]}>
       <NewsHeader item={item} />
       <Pressable onPress={open} accessibilityRole="button" style={styles.body}>
         <NewsImage item={item} />
@@ -113,14 +115,16 @@ export function NewsCard({ item, userId }: { item: NewsItem; userId: string }) {
 }
 
 const useStyles = makeStyles((Colors) => ({
+  // Comme les publications : bord à bord sur téléphone, carte à coins de 8 px sans ombre sur grand écran
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: Colors.border,
     padding: 12,
     gap: 10,
   },
+  cardWide: { borderWidth: 1, borderRadius: Radius.sm },
   body: { gap: 10 },
   textRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   text: { flex: 1, gap: 4 },

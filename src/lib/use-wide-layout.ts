@@ -3,9 +3,19 @@ import { Platform, useWindowDimensions } from 'react-native';
 /** Largeur à partir de laquelle la version web passe en mise en page « ordinateur ». */
 export const WIDE_MIN_WIDTH = 900;
 /** Largeur max du contenu (profil, messages, balades…) sur grand écran : au-delà, marges du même fond */
-export const CONTENT_MAX_WIDTH = 960;
-/** Largeur de la colonne d'onglets à gauche sur grand écran */
-export const TAB_RAIL_WIDTH = 100;
+export const CONTENT_MAX_WIDTH = 840;
+/** Largeur de la colonne d'onglets à gauche sur grand écran (logo + libellés à côté des icônes) */
+export const TAB_RAIL_WIDTH = 220;
+/** Mur sur grand écran : fil de 680 px + colonne utile à droite (suggestions, balades, actus) */
+export const FEED_WIDTH = 680;
+export const ASIDE_WIDTH = 320;
+export const ASIDE_GAP = 32;
+
+/** Assez de place pour la colonne de droite du Mur ? */
+export function useFeedAside() {
+  const { width } = useWindowDimensions();
+  return Platform.OS === 'web' && width - TAB_RAIL_WIDTH >= FEED_WIDTH + ASIDE_GAP + ASIDE_WIDTH + 2 * 24;
+}
 
 /** Version web sur grand écran : onglets sur le côté, contenu en colonne centrée. */
 export function useWideLayout() {

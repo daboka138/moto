@@ -195,7 +195,7 @@ function NotificationRow({
         )}
       </View>
       <View style={styles.body}>
-        <Text style={[styles.text, !n.readAt && styles.textUnread]} numberOfLines={3}>
+        <Text style={[styles.text, !n.readAt && styles.textUnread]} numberOfLines={2} ellipsizeMode="tail">
           {n.body}
         </Text>
         <Text style={styles.time}>{relativeTime(n.createdAt, now)}</Text>
@@ -269,15 +269,16 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
 const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  list: { padding: 12, gap: 8, paddingBottom: 40 },
-  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 4 },
+  list: { paddingBottom: 40 },
+  section: { fontSize: Type.small, fontWeight: '800', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 12 },
   screenTitle: { fontSize: Type.title, fontWeight: '900', color: Colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   markAll: { color: Colors.accent, fontWeight: '800', fontSize: Type.body, paddingHorizontal: 8 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
   empty: { alignItems: 'center', gap: 12, paddingTop: 64, paddingHorizontal: 24 },
-  footer: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center', marginTop: 16 },
-  swipeWrap: { borderRadius: Radius.md, overflow: 'hidden', marginBottom: 8 },
+  footer: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center', marginTop: 16, paddingHorizontal: 16 },
+  // Liste à plat : séparateurs fins, pas de cartes
+  swipeWrap: { overflow: 'hidden', borderBottomWidth: 1, borderBottomColor: Colors.border },
   swipeBehind: {
     ...{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
     backgroundColor: Colors.danger,
@@ -288,9 +289,20 @@ const useStyles = makeStyles((Colors) => ({
     paddingRight: 16,
   },
   swipeText: { color: Colors.white, fontWeight: '800' },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, backgroundColor: Colors.surface },
-  unread: { backgroundColor: Colors.accentSoft },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
+    paddingRight: 16,
+    paddingLeft: 13,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.background,
+    backgroundColor: Colors.background,
+  },
+  // Non lue : fond normal, fine barre bleue à gauche, texte en gras, petit point
+  unread: { borderLeftColor: Colors.accent },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: Colors.border },
   iconAvatar: { alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   iconBig: { fontSize: Type.title },
   typeBadge: {
@@ -305,7 +317,7 @@ const useStyles = makeStyles((Colors) => ({
     justifyContent: 'center',
   },
   typeIcon: { fontSize: Type.small },
-  body: { flex: 1, gap: 4 },
+  body: { flex: 1, minWidth: 0, flexShrink: 1, gap: 2 },
   text: { fontSize: Type.body, color: Colors.text, lineHeight: 20 },
   textUnread: { fontWeight: '700' },
   time: { fontSize: Type.small, color: Colors.textMuted },
@@ -314,5 +326,5 @@ const useStyles = makeStyles((Colors) => ({
   acceptText: { color: Colors.white, fontWeight: '800' },
   refuse: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.sm, backgroundColor: Colors.background },
   refuseText: { color: Colors.text, fontWeight: '800' },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent, marginTop: 8 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accent, marginTop: 7 },
 }));

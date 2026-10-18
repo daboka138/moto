@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { FeedAside } from '@/components/feed-aside';
 import { FriendSuggestions } from '@/components/friend-suggestions';
 import { NewsCard } from '@/components/news-card';
 import { PhotoViewer } from '@/components/photo-viewer';
@@ -23,6 +24,7 @@ import { useStories } from '@/lib/stories-context';
 import { confirmJoinRide } from '@/lib/join-ride';
 import { fetchFriendSuggestions, type FriendSuggestion } from '@/lib/suggestions';
 import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
+import { FEED_WIDTH, useFeedAside, useWideLayout } from '@/lib/use-wide-layout';
 
 type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; rides: RideSummary[] };
 
@@ -45,6 +47,9 @@ export default function FeedScreen() {
   const [viewing, setViewing] = useState<WallPhoto | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const { refresh: refreshStories } = useStories();
+  // Web grand écran : fil centré de 680 px, et colonne utile à droite s'il y a la place
+  const wide = useWideLayout();
+  const aside = useFeedAside();
   const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([]);
   // Actus moto (Paramètres › Afficher les actus moto) : chargées à part, une erreur ne bloque pas le fil
   const showNews = useShowNews();
@@ -180,12 +185,23 @@ export default function FeedScreen() {
     if (item.kind === 'news') return userId ? <NewsCard item={item.news} userId={userId} /> : null;
     if (item.kind === 'photo') {
       return (
-        <View style={styles.card}>
+        <View style={[styles.card, wide && styles.cardWide]}>
           <Header people={[item.author]} text="a publié une photo" at={item.at} onPersonPress={openPerson} />
           <Pressable onPress={() => setViewing(item.photo)}>
             <Image source={{ uri: item.photo.url }} style={styles.photo} contentFit="cover" transition={150} />
           </Pressable>
           {!!item.photo.caption && <Text style={styles.caption}>{item.photo.caption}</Text>}
+          {/* J'aime et commentaires : dans la visionneuse */}
+          <View style={styles.actions}>
+            <Pressable style={styles.action} onPress={() => setViewing(item.photo)} hitSlop={8} accessibilityLabel="J’aime">
+              <Ionicons name="heart-outline" size={20} color={Colors.textMuted} />
+              <Text style={styles.actionText}>J’aime</Text>
+            </Pressable>
+            <Pressable style={styles.action} onPress={() => setViewing(item.photo)} hitSlop={8} accessibilityLabel="Commenter">
+              <Ionicons name="chatbubble-outline" size={19} color={Colors.textMuted} />
+              <Text style={styles.actionText}>Commenter</Text>
+            </Pressable>
+          </View>
         </View>
       );
     }
@@ -197,7 +213,7 @@ export default function FeedScreen() {
     const verb =
       item.role === 'organise' ? 'organise une balade' : names.length > 1 ? 'participent à une balade' : 'participe à une balade';
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, wide && styles.cardWide]}>
         <Header people={item.people} text={verb} at={item.at} whoLabel={who} onPersonPress={openPerson} />
         <View style={styles.rideBox}>
           <View style={styles.rideFrame}>
@@ -223,79 +239,87 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Mur</Text>
-        <Pressable style={styles.findButton} onPress={() => router.push('/riders')} accessibilityLabel="Trouver des motards pour rouler">
-          <Ionicons name="people" size={18} color={Colors.white} />
-          <Text style={styles.findText}>Rouler ensemble</Text>
-        </Pressable>
-      </View>
-      {/* Recherche : motards par pseudo, balades, lieux, événements */}
-      <Pressable style={styles.searchBar} onPress={() => router.push('/search')} accessibilityRole="search" accessibilityLabel="Rechercher">
-        <Ionicons name="search" size={20} color={Colors.textMuted} />
-        <Text style={styles.searchPlaceholder}>Un motard, une balade, un spot…</Text>
-      </Pressable>
-      {/* Histoire de la moto (sur le web : onglet « Histoire ») */}
-      {Platform.OS !== 'web' && (
-        <Pressable style={styles.historyBanner} onPress={() => router.push('/history')} accessibilityRole="button">
-          <Ionicons name="book-outline" size={24} color={Colors.accent} />
-          <View style={styles.historyBody}>
-            <Text style={styles.historyTitle}>Histoire de la moto</Text>
-            <Text style={styles.historyText}>Des premiers deux-roues aux grandes marques : Honda, Ducati, Harley…</Text>
+      <View style={wide ? styles.wideRow : styles.fill}>
+        <View style={wide ? styles.mainCol : styles.fill}>
+          <View style={[styles.titleRow, wide && styles.flushRight]}>
+            <Text style={[styles.title, wide && styles.flush]}>Mur</Text>
+            {/* Grand écran : « Rouler ensemble » est en haut de la colonne de droite */}
+            {!aside && (
+              <Pressable style={styles.findButton} onPress={() => router.push('/riders')} accessibilityLabel="Trouver des motards pour rouler">
+                <Ionicons name="people" size={18} color={Colors.white} />
+                <Text style={styles.findText}>Rouler ensemble</Text>
+              </Pressable>
+            )}
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.accent} />
-        </Pressable>
-      )}
+          {/* Recherche : motards par pseudo, balades, lieux, événements */}
+          <Pressable style={[styles.searchBar, wide && styles.flush]} onPress={() => router.push('/search')} accessibilityRole="search" accessibilityLabel="Rechercher">
+            <Ionicons name="search" size={20} color={Colors.textMuted} />
+            <Text style={styles.searchPlaceholder}>Un motard, une balade, un spot…</Text>
+          </Pressable>
+          {/* Histoire de la moto (sur le web : onglet « Histoire ») */}
+          {Platform.OS !== 'web' && (
+            <Pressable style={styles.historyBanner} onPress={() => router.push('/history')} accessibilityRole="button">
+              <Ionicons name="book-outline" size={24} color={Colors.accent} />
+              <View style={styles.historyBody}>
+                <Text style={styles.historyTitle}>Histoire de la moto</Text>
+                <Text style={styles.historyText}>Des premiers deux-roues aux grandes marques : Honda, Ducati, Harley…</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.accent} />
+            </Pressable>
+          )}
 
-      {!rows ? (
-        <View style={styles.center}>
-          {error ? (
-            <>
-              <Text style={styles.muted}>Oups, le Mur n’a pas chargé. Vérifie ton réseau.</Text>
-              <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
-            </>
+          {!rows ? (
+            <View style={styles.center}>
+              {error ? (
+                <>
+                  <Text style={styles.muted}>Oups, le Mur n’a pas chargé. Vérifie ton réseau.</Text>
+                  <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
+                </>
+              ) : (
+                <ActivityIndicator color={Colors.accent} />
+              )}
+            </View>
           ) : (
-            <ActivityIndicator color={Colors.accent} />
+            <FlatList
+              data={rows}
+              keyExtractor={(i) => i.key}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    load();
+                    refreshStories();
+                  }}
+                  colors={[Colors.accent]}
+                />
+              }
+              ListHeaderComponent={
+                <>
+                  <StoryRow />
+                  {error && (
+                    <View style={styles.inlineErrorBox}>
+                      <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé.</Text>
+                      <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
+                    </View>
+                  )}
+                  {/* Mur sans publication mais avec des actus : l'invitation reste en haut */}
+                  {wallEmpty && !error && !!items?.length && emptyWall}
+                  {showNews && newsError && !news.length && (
+                    <Pressable style={styles.newsRetry} onPress={loadNews} accessibilityRole="button">
+                      <Ionicons name="refresh" size={18} color={Colors.accent} />
+                      <Text style={styles.newsRetryText}>Oups, les actus moto n’ont pas chargé. Réessayer</Text>
+                    </Pressable>
+                  )}
+                </>
+              }
+              ListEmptyComponent={error ? null : emptyWall}
+            />
           )}
         </View>
-      ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(i) => i.key}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                load();
-                refreshStories();
-              }}
-              colors={[Colors.accent]}
-            />
-          }
-          ListHeaderComponent={
-            <>
-              <StoryRow />
-              {error && (
-                <View style={styles.inlineErrorBox}>
-                  <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé.</Text>
-                  <Button title="Réessayer" icon="refresh" variant="secondary" loading={refreshing} onPress={load} />
-                </View>
-              )}
-              {/* Mur sans publication mais avec des actus : l'invitation reste en haut */}
-              {wallEmpty && !error && !!items?.length && emptyWall}
-              {showNews && newsError && !news.length && (
-                <Pressable style={styles.newsRetry} onPress={loadNews} accessibilityRole="button">
-                  <Ionicons name="refresh" size={18} color={Colors.accent} />
-                  <Text style={styles.newsRetryText}>Oups, les actus moto n’ont pas chargé. Réessayer</Text>
-                </Pressable>
-              )}
-            </>
-          }
-          ListEmptyComponent={error ? null : emptyWall}
-        />
-      )}
+        {aside && <FeedAside suggestions={suggestions} rides={current?.rides ?? []} news={news} showNews={showNews} />}
+      </View>
 
       <PhotoViewer
         photo={viewing}
@@ -396,17 +420,36 @@ const useStyles = makeStyles((Colors) => ({
   newsRetryText: { color: Colors.accent, fontWeight: '700' },
   empty: { alignItems: 'stretch', gap: 12, padding: 32 },
   emptyTitle: { fontSize: Type.large, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  card: { backgroundColor: Colors.surface, paddingVertical: 12, gap: 12 },
+  fill: { flex: 1 },
+  wideRow: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 32, paddingHorizontal: 24 },
+  mainCol: { flex: 1, maxWidth: FEED_WIDTH },
+  // Grand écran : titre et recherche alignés sur les bords des cartes
+  flush: { marginHorizontal: 0, paddingHorizontal: 0 },
+  flushRight: { paddingRight: 0 },
+  // Publications : à plat sur téléphone (bord à bord), carte à coins de 8 px sans ombre sur grand écran
+  card: { backgroundColor: Colors.surface, paddingTop: 12, gap: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: Colors.border },
+  cardWide: { borderWidth: 1, borderRadius: Radius.sm, overflow: 'hidden' },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+    marginHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionText: { fontSize: Type.body, fontWeight: '600', color: Colors.textMuted },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12 },
   avatars: { flexDirection: 'row' },
-  avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: Colors.surface, backgroundColor: Colors.border },
+  avatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: Colors.surface, backgroundColor: Colors.border },
   headerText: { flex: 1 },
   headerLine: { fontSize: Type.body, color: Colors.text },
   username: { fontWeight: '800' },
   time: { fontSize: Type.small, color: Colors.textMuted },
   photo: { width: '100%', aspectRatio: 1, backgroundColor: Colors.border },
   caption: { fontSize: Type.body, color: Colors.text, paddingHorizontal: 12, lineHeight: 21 },
-  rideBox: { paddingHorizontal: 12, gap: 12 },
-  rideFrame: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, overflow: 'hidden' },
+  rideBox: { paddingHorizontal: 12, paddingBottom: 12, gap: 12 },
+  rideFrame: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm, overflow: 'hidden' },
   joined: { color: Colors.accent, fontWeight: '700', textAlign: 'center' },
 }));
