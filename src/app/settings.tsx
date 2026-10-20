@@ -344,6 +344,9 @@ function VoiceSection() {
   const voice = useVoiceSettings();
   const { session } = useSession();
   const isAdmin = useIsAdmin(session?.user.id);
+  // Liste des types de danger repliée par défaut (longue)
+  const [dangersOpen, setDangersOpen] = useState(false);
+  const announced = REPORT_TYPES.filter((t) => !voice.mutedDangerTypes.includes(t.value)).length;
   const toggleType = (type: (typeof REPORT_TYPES)[number]['value']) =>
     updateVoiceSettings({
       mutedDangerTypes: voice.mutedDangerTypes.includes(type)
@@ -376,17 +379,29 @@ function VoiceSection() {
         />
         {voice.dangers && (
           <View style={styles.voiceBlock}>
-            <Text style={styles.optionLabel}>Dangers annoncés</Text>
-            <View style={styles.chips}>
-              {REPORT_TYPES.map((t) => (
-                <Chip
-                  key={t.value}
-                  label={`${t.emoji} ${t.label}`}
-                  selected={!voice.mutedDangerTypes.includes(t.value)}
-                  onPress={() => toggleType(t.value)}
-                />
-              ))}
-            </View>
+            <Pressable
+              style={styles.foldRow}
+              onPress={() => setDangersOpen((o) => !o)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: dangersOpen }}>
+              <Text style={[styles.optionLabel, styles.foldLabel]}>
+                Dangers annoncés : {announced === REPORT_TYPES.length ? 'tous' : `${announced} sur ${REPORT_TYPES.length}`}
+              </Text>
+              <Text style={styles.foldAction}>{dangersOpen ? 'Fermer' : 'Changer'}</Text>
+              <Ionicons name={dangersOpen ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.accent} />
+            </Pressable>
+            {dangersOpen && (
+              <View style={styles.chips}>
+                {REPORT_TYPES.map((t) => (
+                  <Chip
+                    key={t.value}
+                    label={`${t.emoji} ${t.label}`}
+                    selected={!voice.mutedDangerTypes.includes(t.value)}
+                    onPress={() => toggleType(t.value)}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         )}
         <SwitchRow
@@ -752,6 +767,9 @@ const useStyles = makeStyles((Colors) => ({
   optionDescription: { fontSize: Type.small, color: Colors.textMuted },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   voiceBlock: { paddingHorizontal: 12, paddingBottom: 8, gap: 12 },
+  foldRow: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
+  foldLabel: { flex: 1 },
+  foldAction: { fontSize: Type.small, fontWeight: '700', color: Colors.accent },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   testVoice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 },
   testVoiceText: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
