@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, PanResponder, Pressable, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/nav/bottom-sheet';
@@ -10,11 +10,29 @@ import { needsValhalla, shortDistance, variantInfo, variantOptions, type Maneuve
 import { poiInfo } from '@/lib/pois';
 import { reportInfo } from '@/lib/reports';
 import { formatDuration } from '@/lib/routing';
+import { countSignalsOnRoute } from '@/lib/traffic-signals';
+import type { LatLng } from '@/lib/geo';
 import type { SearchResult } from '@/lib/search';
 import type { FuelSuggestion } from '@/lib/fuel';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
 import type { RouteWeather } from '@/lib/weather';
+
+/** « 🚦 3 feux » sur l'itinéraire (trajets de moins de 60 km ; rien si inconnu ou aucun) */
+function SignalCount({ route }: { route: { points: LatLng[]; distanceM: number } }) {
+  const styles = useStyles();
+  const [count, setCount] = useState<{ route: object; n: number | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    countSignalsOnRoute(route).then((n) => alive && setCount({ route, n }));
+    return () => {
+      alive = false;
+    };
+  }, [route]);
+  const n = count && count.route === route ? count.n : null;
+  if (!n) return null;
+  return <Text style={styles.small}>🚦 {n} feu{n > 1 ? 'x' : ''}</Text>;
+}
 
 /** Panneau de navigation réduit en fine barre (mémorisé sur le téléphone) */
 const MINIMIZED_KEY = 'moto.navSheet.minimized';
@@ -150,6 +168,7 @@ export function RoutePreviewSheet({
                 {shortDistance(route.distanceM)} · arrivée {clock(etaFrom(route.durationS))} · {variantInfo(variant).label}
               </Text>
               {route.urban && <Text style={styles.small}>{urbanText(route.urban)}</Text>}
+              <SignalCount route={route} />
             </View>
           ) : null}
           {/* Alertes avant de partir : météo, carburant */}

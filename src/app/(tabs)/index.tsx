@@ -48,6 +48,7 @@ import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garag
 import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
+import { useTrafficSignals } from '@/lib/traffic-signals';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -461,6 +462,13 @@ export default function MapScreen() {
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(mapView, layers.showParkings && !navigating);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
+  // Feux tricolores (zoom ≥ 15) : en navigation, ceux de l'itinéraire autour de ma position ; sinon la zone affichée
+  const signalsView = navigating ? (position ? { center: position, zoom: 17 } : null) : mapView;
+  const signals = useTrafficSignals(
+    signalsView,
+    navigating ? layers.navSignals : layers.showSignals,
+    navigating ? (nav.route?.points ?? null) : null,
+  );
 
   // ---------- Repères : RDV de balades, signalements, destination ----------
   const mapRides = navigating
@@ -512,6 +520,13 @@ export default function MapScreen() {
       sign: ReportSigns[r.type],
       latitude: r.latitude,
       longitude: r.longitude,
+    })),
+    ...signals.map((p, i) => ({
+      id: `signal:${i}`,
+      kind: 'signal' as const,
+      label: '',
+      latitude: p.latitude,
+      longitude: p.longitude,
     })),
     ...(nav.destination
       ? [{ id: 'destination', kind: 'end' as const, label: '🏁', latitude: nav.destination.latitude, longitude: nav.destination.longitude }]

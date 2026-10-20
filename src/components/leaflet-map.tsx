@@ -436,6 +436,9 @@ function buildHtml(Colors: Palette, dark: boolean) {
   ${CLUSTER_JS}
   var pins = {};
   var pinList = [];
+  var SIGNAL_SVG = '<svg viewBox="0 0 12 22"><rect x="0.5" y="0.5" width="11" height="21" rx="3" fill="${Colors.signalBody}" stroke="${Colors.white}"/>' +
+    '<circle cx="6" cy="5" r="2.4" fill="${Colors.signalRed}"/><circle cx="6" cy="11" r="2.4" fill="${Colors.signalAmber}"/>' +
+    '<circle cx="6" cy="17" r="2.4" fill="${Colors.signalGreen}"/></svg>';
   window.setPins = function (list) {
     pinList = list;
     renderPins();
@@ -476,6 +479,17 @@ function buildHtml(Colors: Palette, dark: boolean) {
     loose.forEach(function (p) {
       var el = document.createElement('div');
       var icon;
+      if (p.kind === 'signal') {
+        // Feu tricolore : petite icône non cliquable, sous les autres repères
+        el.className = 'signal';
+        el.innerHTML = SIGNAL_SVG;
+        var sm = L.marker([p.latitude, p.longitude], {
+          icon: L.divIcon({ className: 'signal-wrap', html: el, iconSize: [12, 22], iconAnchor: [6, 11] }),
+          interactive: false, keyboard: false, zIndexOffset: 100
+        }).addTo(map);
+        pins[p.id] = sm;
+        return;
+      }
       if (p.sign) {
         // Panneau façon signalisation routière : triangle (danger) ou losange (circulation)
         el.className = 'sign';

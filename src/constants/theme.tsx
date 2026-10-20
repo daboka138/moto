@@ -69,6 +69,11 @@ export const LightColors = {
   eventPin: '#DB2777',
   /** Parkings moto OpenStreetMap (bleu des panneaux de parking) */
   parkingPin: '#1D4ED8',
+  /** Feux tricolores OpenStreetMap (petite icône, zoom rapproché) */
+  signalBody: '#27272A',
+  signalRed: '#EF4444',
+  signalAmber: '#F59E0B',
+  signalGreen: '#22C55E',
 
   // Navigation
   /** Bandeau d'instruction pendant le guidage */
