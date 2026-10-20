@@ -249,6 +249,7 @@ export const FICHES: Fiche[] = [
     but: 'Être guidé à la voix, garder les yeux sur la route.',
     etapes: [
       'Une fois démarrée, la carte tourne dans ton sens de route et la prochaine direction s’affiche en haut.',
+      'Chaque direction est annoncée une seule fois, environ 12 secondes avant (150 à 300 m selon ta vitesse) : « Dans 200 mètres, tourne à droite. »',
       'Le bouton haut-parleur coupe ou réactive la voix.',
       'Fais glisser le panneau du bas pour voir les étapes, ajouter un arrêt ou partager ton trajet.',
       'Appuie sur « Arrêter » pour finir. Un résumé s’affiche (distance, durée, vitesse moyenne et max).',
@@ -258,6 +259,7 @@ export const FICHES: Fiche[] = [
       'Hors itinéraire ? Le trajet est recalculé tout seul.',
       'Si l’app se ferme, ta navigation reprend à la réouverture (moins de 6 h).',
       'Pluie annoncée plus loin ? La voix te prévient (« Pluie prévue dans ~40 km »).',
+      'Les feux tricolores de ton itinéraire s’affichent en zoomant (Filtres de la carte › Feux tricolores en navigation). L’aperçu de l’itinéraire indique combien il y en a (« 🚦 3 feux », trajets de moins de 60 km).',
     ],
     limites: [
       'Saisie de texte bloquée au-dessus de 10 km/h : c’est pour ta sécurité.',
@@ -325,13 +327,18 @@ export const FICHES: Fiche[] = [
       'Va dans Profil › ⚙️ Paramètres › Voix et alertes.',
       'Active ou coupe le guidage vocal GPS et les alertes vocales des dangers.',
       'Choisis les types de dangers annoncés, le débit et le volume.',
+      'Voix du guidage : choisis parmi les voix françaises de ton téléphone (« Écouter » pour chacune). En automatique, une voix d’homme calme si ton téléphone en a une.',
       'Alertes moto, désactivables une par une : virages serrés, coucher du soleil et nuit, météo sur le trajet.',
       'Rappel de pause : désactivé, 1 h, 1 h 30 ou 2 h de route.',
       'Appuie sur « Tester la voix ».',
     ],
-    astuces: ['Le volume dépend aussi du volume média du téléphone (et de ton intercom).'],
+    astuces: [
+      'Le volume dépend aussi du volume média du téléphone (et de ton intercom).',
+      'Pas de voix d’homme dans la liste ? Installe-en une : « Installer d’autres voix » ouvre la synthèse vocale d’Android (moteur Google, langue Français, voix II ou IV).',
+    ],
+    limites: ['Les voix viennent de ton téléphone : une voix d’homme n’existe pas sur tous les Android. Sans elle, la meilleure voix française disponible est utilisée.'],
     android: true,
-    motsCles: ['son', 'volume', 'intercom', 'débit', 'muet'],
+    motsCles: ['son', 'volume', 'intercom', 'débit', 'muet', 'voix d’homme', 'voix masculine'],
   },
   {
     id: 'alertes-moto',
@@ -373,7 +380,7 @@ export const FICHES: Fiche[] = [
     astuces: [
       'Passager ? Active « 🎒 Passager » au-dessus du bouton ⚠️ : tu as toute la grille, même en roulant.',
       '« Autre danger » sous la grille : bouchon, zone de danger.',
-      'Sur ta route, la voix t’annonce un danger vers 600 m, puis te le rappelle à 200 m.',
+      'Sur ta route, la voix t’annonce un danger une seule fois, environ 20 secondes avant (250 à 600 m).',
       'Pour signaler ailleurs qu’à ta position : appui long sur la carte › « Signaler à cet endroit ».',
       'Un signalement expire tout seul (sa durée dépend du type).',
     ],
@@ -391,7 +398,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'À droite de la Carte : ⚠️ affiche ou masque les signalements.',
       '🚩 affiche ou masque les balades et les événements.',
-      '☕ ouvre les filtres de la carte : 🗓️ Toutes les dates, 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant) et spots (café, point de vue, belle route, station, garage, parking), avec « Tous les spots ».',
+      '☕ ouvre les filtres de la carte : 🗓️ Toutes les dates, 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant), 🚦 Feux tricolores (désactivés par défaut, visibles de près) et spots (café, point de vue, belle route, station, garage, parking), avec « Tous les spots ».',
       'Par défaut, la carte montre les balades et événements des 7 prochains jours (plus ceux où tu es inscrit) et les spots notés ★ 4 et plus (plus les tiens).',
       'Beaucoup de repères au même endroit ? Ils sont regroupés en une pastille avec le nombre (« 12 ») : touche-la ou zoome pour les voir. Les amis en direct et les dangers ne sont jamais regroupés.',
       'Style de carte (Classique, Sombre, Automatique) : Profil › ⚙️ Paramètres › Style de carte.',
@@ -1251,6 +1258,7 @@ export const FAQ: Question[] = [
       'Vérifie le bouton haut-parleur en navigation (voix coupée ?).',
       'Profil › ⚙️ Paramètres › Voix et alertes : guidage vocal activé, puis « Tester la voix ».',
       'Monte le volume média du téléphone (pas seulement la sonnerie).',
+      'Voix bizarre ou en anglais ? Paramètres › Voix et alertes › Voix du guidage : choisis une voix française et touche « Écouter ».',
     ],
     fiches: ['voix'],
   },
