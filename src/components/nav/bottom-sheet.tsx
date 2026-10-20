@@ -14,6 +14,8 @@ type Props = {
   initiallyExpanded?: boolean;
   /** Hauteur max de la partie dépliable, en part de la hauteur d'écran */
   maxBodyRatio?: number;
+  /** Glissé vers le bas alors que le panneau est déjà replié (navigation : réduit en fine barre) */
+  onCollapse?: () => void;
 };
 
 /**
@@ -21,7 +23,7 @@ type Props = {
  * l'en-tête (ou un appui sur la poignée). La carte reste utilisable au-dessus. L'en-tête et le
  * pied restent toujours affichés ; le milieu se replie et défile.
  */
-export function BottomSheet({ header, children, footer, initiallyExpanded = true, maxBodyRatio = 0.42 }: Props) {
+export function BottomSheet({ header, children, footer, initiallyExpanded = true, maxBodyRatio = 0.42, onCollapse }: Props) {
   const styles = useStyles();
   const { height: windowH } = useWindowDimensions();
   const [contentH, setContentH] = useState(0);
@@ -47,6 +49,11 @@ export function BottomSheet({ header, children, footer, initiallyExpanded = true
       },
       onPanResponderMove: (_, g) => height.setValue(clamp(startH - g.dy)),
       onPanResponderRelease: (_, g) => {
+        // Déjà replié et glissé franchement vers le bas : réduit encore (fine barre)
+        if (onCollapse && startH < 4 && (g.dy > 40 || g.vy > 0.5)) {
+          onCollapse();
+          return;
+        }
         const h = clamp(startH - g.dy);
         // Lancé franc : suit le sens du geste ; sinon, le plus proche
         const open = g.vy < -0.4 ? true : g.vy > 0.4 ? false : h > openH / 2;
@@ -55,7 +62,8 @@ export function BottomSheet({ header, children, footer, initiallyExpanded = true
       },
       onPanResponderTerminationRequest: () => false,
     });
-  }, [height, openH]);
+    // onCollapse doit rester le même d'un rendu à l'autre (sinon le geste en cours serait recréé)
+  }, [height, openH, onCollapse]);
 
   return (
     <View style={styles.sheet}>

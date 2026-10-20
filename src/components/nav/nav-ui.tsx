@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, PanResponder, Pressable, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/nav/bottom-sheet';
 import { WeatherAlerts, WeatherStrip } from '@/components/weather-strip';
@@ -14,6 +15,16 @@ import type { FuelSuggestion } from '@/lib/fuel';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
 import type { RouteWeather } from '@/lib/weather';
+
+/** Panneau de navigation réduit en fine barre (mémorisé sur le téléphone) */
+const MINIMIZED_KEY = 'moto.navSheet.minimized';
+function readMinimized() {
+  try {
+    return localStorage.getItem(MINIMIZED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 const ICONS: Record<ManeuverIcon, keyof typeof MaterialCommunityIcons.glyphMap> = {
   straight: 'arrow-up',
@@ -446,9 +457,61 @@ export function NavSheet({
 }) {
   const Colors = useColors();
   const styles = useStyles();
+  // Réduit en fine barre (glisser vers le bas) ou panneau habituel (glisser vers le haut / toucher), mémorisé
+  const [minimized, setMinimizedState] = useState(readMinimized);
+  const setMinimized = useCallback((v: boolean) => {
+    setMinimizedState(v);
+    try {
+      localStorage.setItem(MINIMIZED_KEY, v ? '1' : '0');
+    } catch {
+      // stockage indisponible : vaut pour cette navigation
+    }
+  }, []);
+  const minimize = useCallback(() => setMinimized(true), [setMinimized]);
+  const barPan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderRelease: (_, g) => {
+          if (g.dy < -20 || g.vy < -0.4) setMinimized(false);
+        },
+      }),
+    [setMinimized],
+  );
+  // Arrêter : toujours confirmé (un appui par erreur ne coupe pas le guidage)
+  const confirmStop = () =>
+    Alert.alert('Arrêter la navigation ?', undefined, [
+      { text: 'Continuer', style: 'cancel' },
+      { text: 'Arrêter', style: 'destructive', onPress: onStop },
+    ]);
+
+  if (minimized) {
+    const next = progress?.next;
+    return (
+      <View {...barPan.panHandlers}>
+        <Pressable
+          style={({ pressed }) => [styles.miniBar, pressed && styles.pressed]}
+          onPress={() => setMinimized(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Déplier le panneau de navigation">
+          <View style={styles.miniHandle} />
+          <View style={styles.miniRow}>
+            {next && <MaterialCommunityIcons name={ICONS[next.step.icon]} size={24} color={Colors.accent} />}
+            <Text style={styles.miniNext} numberOfLines={1}>
+              {next ? `${shortDistance(next.distanceM)} · ${next.step.action}` : 'Navigation'}
+            </Text>
+            <Text style={styles.miniTime}>{progress ? formatDuration(progress.remainingS) : '–'}</Text>
+            <Text style={styles.miniDist}>{progress ? shortDistance(progress.remainingM) : ''}</Text>
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <BottomSheet
       initiallyExpanded={false}
+      onCollapse={minimize}
       header={
         <View style={styles.navHeader}>
           <View style={styles.variantText}>
@@ -459,7 +522,7 @@ export function NavSheet({
           </View>
           <Pressable
             style={({ pressed }) => [styles.stop, pressed && styles.pressed]}
-            onPress={onStop}
+            onPress={confirmStop}
             hitSlop={8}
             accessibilityLabel="Arrêter la navigation">
             <Ionicons name="close" size={30} color={Colors.white} />
@@ -709,6 +772,25 @@ const useStyles = makeStyles((Colors) => ({
   chip: { alignSelf: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, elevation: 4 },
   chipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
   navHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // Panneau réduit : une ligne (prochaine instruction, temps restant, distance)
+  miniBar: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 10,
+    gap: 6,
+    elevation: 4,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
+  },
+  miniHandle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: Colors.textFaint },
+  miniRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  miniNext: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
+  miniTime: { fontSize: Type.large, fontWeight: '900', color: Colors.text },
+  miniDist: { fontSize: Type.body, color: Colors.textMuted },
   stop: {
     flexDirection: 'row',
     alignItems: 'center',
