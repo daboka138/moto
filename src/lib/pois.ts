@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { cheapestStation, fetchRouteStations, formatPrice, fuelLabel, priceOf, stationTitle, type FuelType } from '@/lib/fuel-prices';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { projectOnRoute, type NavRoute } from '@/lib/navigation';
 import type { SearchResult } from '@/lib/search';
@@ -138,8 +139,38 @@ export async function overpass(
   }
 }
 
-/** Lieux de ce type devant moi sur le trajet, du plus proche au plus loin. */
-export async function poisAlongRoute(route: NavRoute, kind: PoiKind, fromM: number): Promise<RoutePoi[]> {
+/**
+ * Stations devant moi d'après les prix officiels (France) : prix de mon carburant dans le détail,
+ * la moins chère signalée. Vide hors France ou si la base ne répond pas (repli OpenStreetMap).
+ */
+async function officialFuelAlong(route: NavRoute, fromM: number, fuel: FuelType): Promise<RoutePoi[]> {
+  const ahead = (await fetchRouteStations(route)).filter(
+    (s) => s.alongM >= fromM - 100 && s.alongM <= fromM + LOOKAHEAD_M && s.offRouteM <= CORRIDOR_M,
+  );
+  const cheap = cheapestStation(ahead, fuel);
+  return ahead.slice(0, MAX_RESULTS).map((s) => {
+    const price = priceOf(s, fuel);
+    return {
+      latitude: s.latitude,
+      longitude: s.longitude,
+      label: stationTitle(s),
+      detail:
+        [price !== null ? `${fuelLabel(fuel)} ${formatPrice(price)}` : null, cheap?.id === s.id ? 'la moins chère' : null, s.address]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+      source: 'lieu' as const,
+      aheadM: Math.max(0, s.alongM - fromM),
+      offRouteM: s.offRouteM,
+    };
+  });
+}
+
+/** Lieux de ce type devant moi sur le trajet, du plus proche au plus loin. Stations : prix officiels d'abord. */
+export async function poisAlongRoute(route: NavRoute, kind: PoiKind, fromM: number, fuel: FuelType = 'e10'): Promise<RoutePoi[]> {
+  if (kind === 'fuel') {
+    const official = await officialFuelAlong(route, fromM, fuel).catch(() => [] as RoutePoi[]);
+    if (official.length) return official;
+  }
   const path = corridor(route, fromM);
   if (path.length === 0) return [];
   const coords = path.map((p) => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`).join(',');

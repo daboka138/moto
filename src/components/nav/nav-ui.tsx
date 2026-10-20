@@ -17,6 +17,7 @@ import type { FuelSuggestion } from '@/lib/fuel';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
 import type { RouteWeather } from '@/lib/weather';
+import { FUEL_CREDIT, formatPrice, type FuelType, type RouteStation } from '@/lib/fuel-prices';
 import { ReportIcon } from '@/components/map-icon';
 
 /** « 🚦 3 feux » sur l'itinéraire (trajets de moins de 60 km ; rien si inconnu ou aucun) */
@@ -93,6 +94,8 @@ export function RoutePreviewSheet({
   weather,
   fuel,
   onAddFuel,
+  stations,
+  onAddStation,
 }: {
   destination: SearchResult;
   choices: RouteChoice[];
@@ -118,6 +121,9 @@ export function RoutePreviewSheet({
   /** Autonomie (Garage) : null si inconnue ; needed = plein nécessaire avant d'arriver */
   fuel: { leftKm: number; needed: boolean } | null;
   onAddFuel: () => void;
+  /** Stations à moins de 2 km du trajet (prix officiels) : résumé et la moins chère pour mon carburant */
+  stations?: { text: string | null; cheapest: (RouteStation & { price: number }) | null; fuel: FuelType } | null;
+  onAddStation?: (s: RouteStation) => void;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -219,6 +225,22 @@ export function RoutePreviewSheet({
         <>
           <Text style={styles.section}>Météo sur le trajet</Text>
           <WeatherStrip weather={weather.weather} loading={weather.loading} error={weather.error} />
+        </>
+      )}
+
+      {route && stations?.text && (
+        <>
+          <Text style={styles.section}>Carburant sur le trajet</Text>
+          <Text style={styles.muted}>⛽ {stations.text}</Text>
+          {stations.cheapest && onAddStation && (
+            <Pressable style={({ pressed }) => [styles.addStop, pressed && styles.pressed]} onPress={() => onAddStation(stations.cheapest!)}>
+              <MaterialCommunityIcons name="gas-station" size={22} color={Colors.accent} />
+              <Text style={styles.addStopText}>
+                Ajouter la moins chère en étape ({formatPrice(stations.cheapest.price)}, {stations.cheapest.city ?? 'station'})
+              </Text>
+            </Pressable>
+          )}
+          <Text style={styles.small}>{FUEL_CREDIT}</Text>
         </>
       )}
 
@@ -461,6 +483,7 @@ export function NavSheet({
   onRemoveStop,
   fuelLeftKm,
   onFilled,
+  nextStation,
 }: {
   progress: NavProgress | null;
   stops: SearchResult[];
@@ -475,6 +498,8 @@ export function NavSheet({
   fuelLeftKm: number | null;
   /** Plein fait (la jauge repart du plein) ; absent : réservoir non renseigné */
   onFilled?: () => void;
+  /** « ⛽ Prochaine station dans 35 km · SP98 1,899 € » (prix officiels) */
+  nextStation?: string | null;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -540,6 +565,11 @@ export function NavSheet({
             <Text style={styles.muted}>
               {progress ? `${shortDistance(progress.remainingM)} · arrivée ${clock(etaFrom(progress.remainingS))}` : ''}
             </Text>
+            {!!nextStation && (
+              <Text style={styles.small} numberOfLines={1}>
+                ⛽ {nextStation}
+              </Text>
+            )}
           </View>
           <Pressable
             style={({ pressed }) => [styles.stop, pressed && styles.pressed]}

@@ -50,6 +50,18 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
             />
           </View>
           <View style={styles.row}>
+            <View style={styles.flex}>
+              <Text style={styles.label}>Stations-service</Text>
+              <Text style={styles.sub}>Prix officiels des carburants (France), visibles en zoomant</Text>
+            </View>
+            <Switch
+              value={layers.showFuel}
+              onValueChange={layers.setShowFuel}
+              trackColor={{ true: Colors.accent, false: Colors.border }}
+              thumbColor={Colors.white}
+            />
+          </View>
+          <View style={styles.row}>
             <Text style={styles.label}>Afficher les spots</Text>
             <Switch
               value={layers.showPlaces}

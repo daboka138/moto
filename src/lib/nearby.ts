@@ -1,3 +1,4 @@
+import { formatPrice, nearestFuelStations, priceOf, stationOpenState, stationTitle, type FuelStation } from '@/lib/fuel-prices';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { cachedParkings, nearestParkings, parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { fetchPlacesAround, type PlaceKind } from '@/lib/places';
@@ -7,7 +8,8 @@ import { photonAround, type SearchResult } from '@/lib/search';
 // Recherche « autour de moi » en 1 tap (sous la barre de recherche) : stations, cafés / restos,
 // parkings moto, garages moto, du plus proche au plus loin. Objectif : une liste en moins de 2 s.
 // - Spots PasseRyder de la catégorie (Supabase, filtrés par type côté serveur)
-// - Stations / restos / garages : Photon (komoot, < 1 s) ; Overpass seulement si Photon échoue
+// - Stations : prix officiels (fuel_stations, France) ; ailleurs comme les restos / garages
+// - Restos / garages : Photon (komoot, < 1 s) ; Overpass seulement si Photon échoue
 // - Parkings moto : UNIQUEMENT de vrais parkings moto (amenity=motorcycle_parking) + spots « parking » :
 //   fichiers préparés (France, lib/moto-parkings), sinon Photon + Overpass
 // Les résultats arrivent au fur et à mesure (onUpdate) et sont gardés 24 h par zone de ~1 km.
@@ -51,6 +53,8 @@ const FALLBACK: Record<NearbyCategory, string> = {
 const MAX = 10;
 const CACHE_KEY = 'moto.nearby.v1';
 const CACHE_TTL_MS = 24 * 3600_000;
+/** Stations : les prix changent, cache court */
+const FUEL_TTL_MS = 30 * 60_000;
 const CACHE_MAX = 40;
 
 /** Recherche « parking moto », « garage moto »… tapée dans la barre → catégorie */
@@ -79,7 +83,7 @@ function readCache(): Record<string, CacheEntry> {
 
 function cached(cat: NearbyCategory, near: LatLng): SearchResult[] | null {
   const e = readCache()[cacheId(cat, near)];
-  if (!e || Date.now() - e.t > CACHE_TTL_MS) return null;
+  if (!e || Date.now() - e.t > (cat === 'fuel' ? FUEL_TTL_MS : CACHE_TTL_MS)) return null;
   // Distances recalculées depuis ma position actuelle
   return e.results.map((r) => ({ ...r, distanceM: distanceM(near, r) })).sort((a, b) => a.distanceM! - b.distanceM!);
 }
@@ -124,6 +128,26 @@ const fromParking = (p: MotoParking & { distanceM: number }): SearchResult => ({
   emoji: '🅿️',
   distanceM: p.distanceM,
 });
+
+/** Station aux prix officiels → résultat : SP95-E10 et SP98 (essence moto), ouverte ou non */
+const fromStation = (s: FuelStation & { distanceM: number }): SearchResult => {
+  const prices = (['e10', 'sp98'] as const)
+    .map((f) => {
+      const p = priceOf(s, f);
+      return p === null ? null : `${f === 'e10' ? 'E10' : 'SP98'} ${formatPrice(p)}`;
+    })
+    .filter(Boolean);
+  const open = stationOpenState(s);
+  return {
+    latitude: s.latitude,
+    longitude: s.longitude,
+    label: stationTitle(s),
+    detail: [...prices, open.state === 'unknown' ? null : open.text, s.address].filter(Boolean).join(' · ') || undefined,
+    source: 'lieu',
+    emoji: '⛽',
+    distanceM: s.distanceM,
+  };
+};
 
 async function photonCat(cat: NearbyCategory, near: LatLng, radius: number): Promise<SearchResult[]> {
   const list = await photonAround(PHOTON_TAGS[cat], near, radius / 1000);
@@ -182,7 +206,10 @@ export async function searchNearby(
   let spots: SearchResult[] = [];
   let osm: SearchResult[] = [];
   let extra: SearchResult[] = [];
-  const push = () => onUpdate?.(merge(spots, osm, extra));
+  // Stations aux prix officiels : remplacent celles d'OpenStreetMap (même station, positions différentes)
+  let official: SearchResult[] = [];
+  const others = () => (official.length ? official : osm);
+  const push = () => onUpdate?.(merge(spots, others(), extra));
 
   if (cat === 'parking') {
     extra = cachedParkings(near, 5000).map(fromParking);
@@ -226,11 +253,21 @@ export async function searchNearby(
           })
       : Promise.resolve();
 
+  const officialP =
+    cat === 'fuel'
+      ? nearestFuelStations(near, 20)
+          .then((list) => {
+            official = list.map(fromStation);
+            push();
+          })
+          .catch((e) => console.warn('Prix des carburants indisponibles', e))
+      : Promise.resolve();
+
   // Une seule requête : Photon rend les plus proches d'abord (20 km ; parkings : 5 km, inutile plus loin)
-  await Promise.all([quick(cat === 'parking' ? 5000 : 20000), spotsP]);
+  await Promise.all([quick(cat === 'parking' ? 5000 : 20000), spotsP, officialP]);
   await fullP;
 
-  const final = merge(spots, osm, extra);
+  const final = merge(spots, others(), extra);
   if (!final.length && failures >= (cat === 'parking' ? 2 : 1)) throw new Error('Recherche indisponible pour le moment.');
   store(cat, near, final);
   return final;

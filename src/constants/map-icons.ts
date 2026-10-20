@@ -21,6 +21,8 @@ export type IconPalette = {
   place: string;
   /** Parkings moto OpenStreetMap */
   parking: string;
+  /** Stations-service (prix officiels des carburants) */
+  fuel: string;
   /** Feu tricolore */
   signalBody: string;
   signalRed: string;
@@ -175,6 +177,16 @@ export function placeIconSvg(kind: PlaceIconKind, P: IconPalette): string {
 }
 
 /** Parking moto OpenStreetMap : carré bleu arrondi, P blanc + petite moto */
+/** Station-service (prix officiels des carburants) : carré arrondi vert, pompe dessinée */
+export function fuelStationIconSvg(P: IconPalette): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +
+    `<rect x="3" y="3" width="26" height="26" rx="6" fill="${P.fuel}" stroke="${P.white}" stroke-width="2.2"/>` +
+    placeGlyph('fuel', P.white) +
+    `</svg>`
+  );
+}
+
 export function parkingIconSvg(P: IconPalette): string {
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">` +

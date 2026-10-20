@@ -477,3 +477,7 @@ verify_jwt = false
 # « Préviens-moi » : sortie sur l'App Store / Google Play. Jeton vérifié dans la fonction, admin seulement
 [functions.store-launch]
 verify_jwt = false
+
+# Prix des carburants (flux public data.economie.gouv.fr) : appelée par pg_cron sans jeton, 10 min minimum entre deux passages
+[functions.fuel-prices]
+verify_jwt = false

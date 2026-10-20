@@ -1,5 +1,5 @@
 import type { MapPinIcon } from '@/components/map-types';
-import { parkingIconSvg, placeIconSvg, reportIconSvg, signalIconSvg, zoneIconSvg } from '@/constants/map-icons';
+import { fuelStationIconSvg, parkingIconSvg, placeIconSvg, reportIconSvg, signalIconSvg, zoneIconSvg } from '@/constants/map-icons';
 import { MapIconColors } from '@/constants/theme';
 import type { PlaceKind } from '@/lib/places';
 import type { ReportType } from '@/lib/reports';
@@ -22,6 +22,10 @@ export const placePinIcon = (kind: PlaceKind) =>
   memo(`place:${kind}`, () => ({ svg: placeIconSvg(kind, MapIconColors), width: 32, height: 32 }));
 
 export const parkingPinIcon = () => memo('parking', () => ({ svg: parkingIconSvg(MapIconColors), width: 28, height: 28 }));
+
+/** Station-service (prix officiels) ; big = la moins chère du trajet */
+export const fuelPinIcon = (big = false) =>
+  memo(`fuel:${big}`, () => ({ svg: fuelStationIconSvg(MapIconColors), width: big ? 38 : 28, height: big ? 38 : 28 }));
 
 export const signalPinIcon = () => memo('signal', () => ({ svg: signalIconSvg(MapIconColors), width: 14, height: 26 }));
 

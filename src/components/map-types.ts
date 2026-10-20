@@ -27,7 +27,7 @@ export type MapPin = {
   id: string;
   latitude: number;
   longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event' | 'parking' | 'signal' | 'zone';
+  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event' | 'parking' | 'fuel' | 'signal' | 'zone';
   label: string;
   /** Icône SVG (constants/map-icons.ts) dessinée à la place de la pastille ; bottom = pointe du triangle sur le lieu */
   icon?: MapPinIcon;

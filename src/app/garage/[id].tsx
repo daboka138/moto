@@ -27,6 +27,7 @@ import {
   type PlanKind,
 } from '@/lib/garage';
 import { useSession } from '@/lib/session';
+import { FUEL_TYPES, type FuelType } from '@/lib/fuel-prices';
 import { FeatureGate } from '@/components/feature-gate';
 
 /** Nombre saisi (virgule acceptée) ; null si vide, NaN si invalide */
@@ -83,6 +84,7 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
   const [tank, setTank] = useState(garage?.tankL ? String(garage.tankL).replace('.', ',') : '');
   const [conso, setConso] = useState(garage?.consumptionL100 ? String(garage.consumptionL100).replace('.', ',') : '');
   const [rangeKm, setRangeKm] = useState(garage?.rangeKm ? String(garage.rangeKm) : '');
+  const [fuelType, setFuelType] = useState<FuelType | null>(garage?.fuelType ?? null);
   const [saving, setSaving] = useState(false);
   const range = fuelRange(garage);
 
@@ -107,6 +109,7 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
         tankL: t === null ? null : Math.round(t * 10) / 10,
         consumptionL100: c === null ? null : Math.round(c * 10) / 10,
         rangeKm: r === null ? null : Math.round(r),
+        fuelType,
         // Premier enregistrement : on considère le plein fait maintenant
         ...(garage?.fillOdometerKm == null && (t !== null || r !== null) ? { fillOdometerKm: Math.round(o!), fillLevel: 1 } : {}),
       });
@@ -115,6 +118,12 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
     } finally {
       setSaving(false);
     }
+  };
+
+  // Carburant : enregistré tout de suite (facultatif, sans compteur ni réservoir)
+  const chooseFuel = (f: FuelType | null) => {
+    setFuelType(f);
+    saveGarage(motoId, { fuelType: f }).catch((e) => Alert.alert('Oups', e instanceof Error ? e.message : String(e)));
   };
 
   const filled = async () => {
@@ -145,6 +154,12 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
         maxLength={4}
         placeholder="ex. 250"
       />
+      <Text style={styles.hint}>Carburant (prix mis en avant sur la carte et sur ton trajet)</Text>
+      <View style={styles.chips}>
+        {FUEL_TYPES.map((f) => (
+          <Chip key={f.value} label={f.label} selected={fuelType === f.value} onPress={() => chooseFuel(fuelType === f.value ? null : f.value)} />
+        ))}
+      </View>
       <Button title="Enregistrer" variant="secondary" loading={saving} onPress={save} />
       {range && (
         <View style={styles.fuel}>

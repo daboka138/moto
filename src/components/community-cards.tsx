@@ -7,7 +7,8 @@ import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { eventKindInfo, formatEventDates, type MotoEvent } from '@/lib/events';
 import { parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { placeKindInfo, type CommunityPlace } from '@/lib/places';
-import { PlaceIcon } from '@/components/map-icon';
+import { FuelIcon, PlaceIcon } from '@/components/map-icon';
+import { FUEL_CREDIT, fuelLabel, formatPrice, priceAge, stationOpenState, stationPrices, stationTitle, type FuelStation, type FuelType } from '@/lib/fuel-prices';
 
 /** Étoiles : affichage, ou saisie si onChange est fourni */
 export function Stars({ value, size = 16, onChange }: { value: number; size?: number; onChange?: (v: number) => void }) {
@@ -180,6 +181,73 @@ export function ParkingCard({
   );
 }
 
+/** Station-service : prix officiels (le carburant de ma moto en gras), ouverte ou non, Y aller */
+export function FuelStationCard({
+  station,
+  myFuel,
+  distanceM,
+  onGo,
+  onClose,
+}: {
+  station: FuelStation;
+  myFuel: FuelType | null;
+  distanceM?: number | null;
+  onGo: () => void;
+  onClose: () => void;
+}) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const open = stationOpenState(station);
+  const prices = stationPrices(station);
+  const newest = prices.reduce<string | null>((m, p) => (p.at && (!m || p.at > m) ? p.at : m), null);
+  return (
+    <View style={styles.card}>
+      <View style={[styles.thumb, styles.thumbEmpty]}>
+        <FuelIcon size={40} />
+      </View>
+      <View style={styles.body}>
+        <Text style={styles.title} numberOfLines={1}>
+          {stationTitle(station)}
+        </Text>
+        <Text style={styles.meta} numberOfLines={1}>
+          {[station.address, distanceM != null ? `à ${formatDistance(distanceM)}` : null].filter(Boolean).join(' · ')}
+        </Text>
+        <Text
+          style={[styles.meta, { color: open.state === 'open' ? Colors.success : open.state === 'closed' ? Colors.danger : Colors.textMuted }]}
+          numberOfLines={1}>
+          {open.text}
+        </Text>
+        <View style={styles.prices}>
+          {prices.length === 0 ? (
+            <Text style={styles.meta}>Pas de prix publié</Text>
+          ) : (
+            prices.map((p) => (
+              <View key={p.fuel} style={[styles.price, p.fuel === myFuel && styles.priceMine]}>
+                <Text style={[styles.priceLabel, p.fuel === myFuel && styles.priceMineText]}>{p.label}</Text>
+                <Text style={[styles.priceValue, p.fuel === myFuel && styles.priceMineText, p.shortage && styles.priceShortage]}>
+                  {p.shortage ? 'rupture' : formatPrice(p.price)}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+        <Text style={styles.meta} numberOfLines={2}>
+          {newest ? `Prix mis à jour ${priceAge(newest)} · ` : ''}
+          {FUEL_CREDIT}
+          {myFuel ? ` · ton carburant : ${fuelLabel(myFuel)}` : ' · choisis ton carburant dans Profil › Garage'}
+        </Text>
+        <Pressable style={styles.go} onPress={onGo} accessibilityLabel="Y aller">
+          <Ionicons name="navigate" size={16} color={Colors.white} />
+          <Text style={styles.goText}>Y aller</Text>
+        </Pressable>
+      </View>
+      <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Fermer" style={styles.closeTop}>
+        <Ionicons name="close" size={22} color={Colors.textMuted} />
+      </Pressable>
+    </View>
+  );
+}
+
 const useStyles = makeStyles((Colors) => ({
   card: {
     flexDirection: 'row',
@@ -216,5 +284,12 @@ const useStyles = makeStyles((Colors) => ({
     backgroundColor: Colors.accent,
   },
   goText: { color: Colors.white, fontWeight: '800' },
+  prices: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 },
+  price: { borderRadius: Radius.sm, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: 8, paddingVertical: 3 },
+  priceMine: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  priceLabel: { fontSize: Type.small, color: Colors.textMuted },
+  priceValue: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
+  priceMineText: { color: Colors.white },
+  priceShortage: { color: Colors.danger },
   closeTop: { alignSelf: 'flex-start' },
 }));

@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
+import type { FuelType } from '@/lib/fuel-prices';
 import { supabase } from '@/lib/supabase';
 
 // Garage : compteur kilométrique (mis à jour à la fin de chaque navigation), réservoir et
@@ -40,6 +41,8 @@ export type Garage = {
   rangeKm: number | null;
   /** Niveau au dernier « plein » noté : 1 = plein, 0,75, 0,5, 0,25 */
   fillLevel: number;
+  /** Carburant de la moto (prix mis en avant sur la carte et le trajet), null = non renseigné */
+  fuelType: FuelType | null;
 };
 
 /** Niveaux proposés au départ d'une navigation */
@@ -86,6 +89,7 @@ type GarageRow = {
   filled_at: string | null;
   range_km: number | null;
   fill_level: number | string | null;
+  fuel_type: FuelType | null;
 };
 
 const toGarage = (r: GarageRow): Garage => ({
@@ -97,6 +101,7 @@ const toGarage = (r: GarageRow): Garage => ({
   filledAt: r.filled_at,
   rangeKm: r.range_km,
   fillLevel: r.fill_level === null ? 1 : Number(r.fill_level),
+  fuelType: r.fuel_type ?? null,
 });
 
 // ---------- Lecture / écriture ----------
@@ -148,6 +153,7 @@ export async function saveGarage(
     fillOdometerKm?: number | null;
     rangeKm?: number | null;
     fillLevel?: number;
+    fuelType?: FuelType | null;
   },
 ) {
   const row: Record<string, unknown> = { motorcycle_id: motorcycleId };
@@ -156,6 +162,7 @@ export async function saveGarage(
   if (patch.consumptionL100 !== undefined) row.consumption_l100 = patch.consumptionL100;
   if (patch.rangeKm !== undefined) row.range_km = patch.rangeKm;
   if (patch.fillLevel !== undefined) row.fill_level = patch.fillLevel;
+  if (patch.fuelType !== undefined) row.fuel_type = patch.fuelType;
   if (patch.fillOdometerKm !== undefined) {
     row.fill_odometer_km = patch.fillOdometerKm;
     row.filled_at = patch.fillOdometerKm === null ? null : new Date().toISOString();

@@ -61,6 +61,7 @@ export function mapCss(Colors: Palette) {
     box-shadow: 0 0 0 4px ${Colors.accent}55, 0 2px 6px ${Colors.markerShadow};
   }
   .cluster.parking { background: ${Colors.parkingPin}; box-shadow: 0 0 0 4px ${Colors.parkingPin}55, 0 2px 6px ${Colors.markerShadow}; }
+  .cluster.fuel { background: ${Colors.fuelPin}; box-shadow: 0 0 0 4px ${Colors.fuelPin}55, 0 2px 6px ${Colors.markerShadow}; }
   .cluster.place { background: ${Colors.placePin}; box-shadow: 0 0 0 4px ${Colors.placePin}55, 0 2px 6px ${Colors.markerShadow}; }
   .cluster.event { background: ${Colors.eventPin}; box-shadow: 0 0 0 4px ${Colors.eventPin}55, 0 2px 6px ${Colors.markerShadow}; }
   .pin.report {

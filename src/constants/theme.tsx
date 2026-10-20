@@ -70,6 +70,8 @@ export const LightColors = {
   eventPin: '#DB2777',
   /** Parkings moto OpenStreetMap (bleu des panneaux de parking) */
   parkingPin: '#1D4ED8',
+  /** Stations-service (prix officiels des carburants) */
+  fuelPin: '#15803D',
   /** Feux tricolores OpenStreetMap (petite icône, zoom rapproché) */
   signalBody: '#27272A',
   signalRed: '#EF4444',
@@ -197,6 +199,7 @@ export const MapIconColors: IconPalette = {
   zone: '#DC2626',
   place: '#EA580C',
   parking: '#1D4ED8',
+  fuel: '#15803D',
   signalBody: '#27272A',
   signalRed: '#EF4444',
   signalAmber: '#F59E0B',

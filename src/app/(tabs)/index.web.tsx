@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 
-import { EventCard, ParkingCard, PlaceCard } from '@/components/community-cards';
+import { EventCard, FuelStationCard, ParkingCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { LeafletMap, type MapMarker, type MapPin, type MapRoute } from '@/components/leaflet-map';
 import { MapWeather } from '@/components/map-weather';
@@ -16,7 +16,8 @@ import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { parkingPinIcon, placePinIcon, reportPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
+import { fuelPinIcon, parkingPinIcon, placePinIcon, reportPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
+import { stationTitle, useFuelStations } from '@/lib/fuel-prices';
 import { useMapDangerZones } from '@/lib/danger-zones';
 import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -47,6 +48,7 @@ const REPORT_PREFIX = 'report:';
 const PLACE_PREFIX = 'place:';
 const EVENT_PREFIX = 'event:';
 const PARKING_PREFIX = 'parking:';
+const FUEL_PREFIX = 'fuel:';
 const RIDES_ON_MAP_DAYS = 30;
 const EVENTS_ON_MAP_DAYS = 60;
 
@@ -159,9 +161,13 @@ export default function MapScreen() {
   // Zones de danger (points noirs officiels), seulement de près
   const zones = useMapDangerZones(center ? { center, zoom } : null, layers.showReports);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
+  // Stations-service aux prix officiels (France), zoom 12+
+  const stations = useFuelStations(center ? { center, zoom } : null, layers.showFuel);
+  const selectedStation = stations.find((s) => FUEL_PREFIX + s.id === selectedId) ?? null;
 
   const pins: MapPin[] = [
     ...zones.map((z) => ({ id: `zone:${z.id}`, kind: 'zone' as const, label: 'Zone de danger', icon: zonePinIcon(), latitude: z.latitude, longitude: z.longitude })),
+    ...stations.map((s) => ({ id: FUEL_PREFIX + s.id, kind: 'fuel' as const, cluster: true, label: '⛽', icon: fuelPinIcon(), latitude: s.latitude, longitude: s.longitude })),
     ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, cluster: true, label: 'P', icon: parkingPinIcon(), latitude: p.latitude, longitude: p.longitude })),
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
@@ -214,7 +220,7 @@ export default function MapScreen() {
       : [];
 
   const onPinPress = (id: string) => {
-    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX) || id.startsWith(FUEL_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
       return;
@@ -410,6 +416,15 @@ export default function MapScreen() {
               onAddPlace={() => communityFromDropped('/place/new')}
               onAddEvent={() => communityFromDropped('/event/new')}
               onClose={() => setDropped(null)}
+            />
+          )}
+          {selectedStation && (
+            <FuelStationCard
+              station={selectedStation}
+              myFuel={null}
+              distanceM={me ? distanceM(me, selectedStation) : null}
+              onGo={() => goInApp({ ...selectedStation, label: `⛽ ${stationTitle(selectedStation)}` })}
+              onClose={() => setSelectedId(null)}
             />
           )}
           {selectedParking && (

@@ -9,6 +9,7 @@ import type { LatLng } from '@/lib/geo';
 import { shortDistance, type NavRoute } from '@/lib/navigation';
 import { POI_KINDS, poisAlongRoute, type PoiKind, type RoutePoi } from '@/lib/pois';
 import type { SearchResult } from '@/lib/search';
+import type { FuelType } from '@/lib/fuel-prices';
 
 type Props = {
   /** Catégorie choisie à l'ouverture (bouton « Station essence sur mon trajet ») */
@@ -17,6 +18,8 @@ type Props = {
   /** Distance déjà parcourue sur le trajet (m) : on ne propose que ce qui est devant */
   fromM: number;
   near: LatLng | null;
+  /** Carburant de ma moto (prix affiché pour les stations) */
+  fuel?: FuelType | null;
   onPick: (place: SearchResult) => void;
   onClose: () => void;
 };
@@ -25,7 +28,7 @@ type Props = {
  * Ajouter un arrêt : station essence, café ou resto sur le trajet, ou une adresse.
  * Monté seulement quand il est ouvert (chaque ouverture repart de zéro).
  */
-export function StopPicker({ initialKind, route, fromM, near, onPick, onClose }: Props) {
+export function StopPicker({ initialKind, route, fromM, near, fuel, onPick, onClose }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -35,7 +38,7 @@ export function StopPicker({ initialKind, route, fromM, near, onPick, onClose }:
   useEffect(() => {
     if (!kind || !route) return;
     let cancelled = false;
-    poisAlongRoute(route, kind, fromM)
+    poisAlongRoute(route, kind, fromM, fuel ?? undefined)
       .then((pois) => !cancelled && setResult({ kind, route, pois }))
       .catch((e) => !cancelled && setResult({ kind, route, error: e instanceof Error ? e.message : String(e) }));
     return () => {

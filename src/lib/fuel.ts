@@ -4,10 +4,12 @@ import type { NavRoute } from '@/lib/navigation';
 import type { LatLng } from '@/lib/geo';
 import { poisAlongRoute, spotsAlongRoute, type RoutePoi } from '@/lib/pois';
 import { speak } from '@/lib/voice';
+import { sparseStationsAhead, type FuelType, type RouteStation } from '@/lib/fuel-prices';
 
 // Autonomie en navigation : si le carburant restant (Garage : réservoir, conso, dernier plein)
 // ne suffit pas pour finir le trajet avec une marge (ou passe sous 50 km), alerte vocale et station
-// proposée sur le trajet : spots « station » de la communauté et stations OpenStreetMap.
+// proposée sur le trajet : spots « station » de la communauté et stations aux prix officiels
+// (France ; ailleurs, OpenStreetMap).
 
 /** Marge gardée à l'arrivée */
 export const FUEL_RESERVE_KM = 30;
@@ -35,6 +37,7 @@ export function useFuelAlert({
   route,
   alongM,
   spots = [],
+  fuel = 'e10',
 }: {
   navigating: boolean;
   leftKm: number | null;
@@ -43,12 +46,14 @@ export function useFuelAlert({
   alongM: number;
   /** Spots « station » de la communauté (carte) */
   spots?: (LatLng & { label: string })[];
+  /** Carburant de ma moto (prix des stations officielles) */
+  fuel?: FuelType;
 }) {
   const [suggestion, setSuggestion] = useState<FuelSuggestion | null>(null);
   const stage = useRef<'none' | 'low' | 'critical'>('none');
-  const inputs = useRef({ route, alongM, spots });
+  const inputs = useRef({ route, alongM, spots, fuel });
   useEffect(() => {
-    inputs.current = { route, alongM, spots };
+    inputs.current = { route, alongM, spots, fuel };
   });
 
   const low = navigating && remainingKm !== null && needsFuel(leftKm, remainingKm);
@@ -76,12 +81,12 @@ export function useFuelAlert({
       true,
       'info',
     );
-    const { route: r, alongM: from, spots: community } = inputs.current;
+    const { route: r, alongM: from, spots: community, fuel: myFuel } = inputs.current;
     if (!r) return;
     let cancelled = false;
     const timer = setTimeout(() => setSuggestion({ leftKm, station: null, searching: true }), 0);
     const fromCommunity = spotsAlongRoute(r, community, from);
-    poisAlongRoute(r, 'fuel', from)
+    poisAlongRoute(r, 'fuel', from, myFuel)
       .catch(() => [] as RoutePoi[])
       .then((osm) => {
         const stations = [...fromCommunity, ...osm].sort((a, b) => a.aheadM - b.aheadM);
@@ -99,4 +104,47 @@ export function useFuelAlert({
   }, [low, critical]);
 
   return { suggestion, dismiss: () => setSuggestion(null) };
+}
+
+/**
+ * Longue portion sans station (routes de montagne), autonomie renseignée : en approchant d'une
+ * station (< 5 km), si la suivante (ou l'arrivée) est trop loin pour ce qu'il me reste, rappel
+ * vocal une fois par station + bandeau. Calcul sur le téléphone (sparseStationsAhead, pur).
+ */
+export function useSparseStationReminder({
+  navigating,
+  stations,
+  alongM,
+  routeM,
+  leftKm,
+}: {
+  navigating: boolean;
+  stations: RouteStation[] | null;
+  alongM: number | null;
+  routeM: number;
+  leftKm: number | null;
+}) {
+  const said = useRef(new Set<number>());
+  const sparse = navigating && alongM !== null ? sparseStationsAhead(stations, alongM, routeM, leftKm) : null;
+  const stationId = sparse?.station.id ?? null;
+  useEffect(() => {
+    if (!navigating) said.current.clear();
+  }, [navigating]);
+  useEffect(() => {
+    if (!sparse || stationId === null || said.current.has(stationId)) return;
+    said.current.add(stationId);
+    const inKm = Math.max(1, Math.round((sparse.station.alongM - (alongM ?? 0)) / 1000));
+    const gap = Math.round(sparse.gapKm / 5) * 5;
+    speak(
+      sparse.afterIsArrival
+        ? `Pense à faire le plein : prochaine station dans ${inKm} kilomètres, puis plus rien avant l'arrivée`
+        : `Pense à faire le plein : prochaine station dans ${inKm} kilomètres, la suivante est à ${gap} kilomètres`,
+      true,
+      'info',
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stationId]);
+  if (!sparse || alongM === null) return null;
+  const inKm = Math.max(1, Math.round((sparse.station.alongM - alongM) / 1000));
+  return `Pense à faire le plein dans ${inKm} km : ${sparse.afterIsArrival ? 'plus de station ensuite' : `la station suivante est à ${Math.round(sparse.gapKm)} km`}`;
 }

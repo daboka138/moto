@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { EventCard, ParkingCard, PlaceCard } from '@/components/community-cards';
+import { EventCard, FuelStationCard, ParkingCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { ConvoyPanel } from '@/components/convoy-panel';
 import { LeafletMap, type MapMarker, type MapPin, type MapPosition, type MapRoute } from '@/components/leaflet-map';
@@ -44,13 +44,14 @@ import { canUse, useCanUse } from '@/lib/features';
 import { recordTripPoints, refreshBadgesAfterGain, useGoodDrivingTracker, useGoodPointsEnabled } from '@/lib/good-points';
 import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 import { DRIVING_LOCK_SPEED_KMH, useDrivingLock } from '@/lib/driving-lock';
-import { needsFuel, useFuelAlert } from '@/lib/fuel';
+import { needsFuel, useFuelAlert, useSparseStationReminder } from '@/lib/fuel';
+import { cheapestStation, formatPrice, fuelLabel, nextStation, priceOf, routeFuelSummary, stationTitle, useFuelStations, useRouteStations } from '@/lib/fuel-prices';
 import { addMotorcycleKm, fuelRange, markFilled, useMyGarage } from '@/lib/garage';
 import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useTrafficSignals } from '@/lib/traffic-signals';
-import { parkingPinIcon, placePinIcon, reportPinIcon, signalPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
+import { fuelPinIcon, parkingPinIcon, placePinIcon, reportPinIcon, signalPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
 import { segmentPoints, useDangerZoneAlerts, useMapDangerZones, useRouteDangerZones, zoneSegments } from '@/lib/danger-zones';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
@@ -92,6 +93,7 @@ const REPORT_PREFIX = 'report:';
 const PLACE_PREFIX = 'place:';
 const EVENT_PREFIX = 'event:';
 const PARKING_PREFIX = 'parking:';
+const FUEL_PREFIX = 'fuel:';
 /** Événements affichés sur la carte : dans les 60 jours */
 const EVENTS_ON_MAP_DAYS = 60;
 /** Balades affichées sur la carte : publiques, entre amis ou auxquelles je participe, dans les 30 jours */
@@ -241,7 +243,25 @@ export default function MapScreen() {
   // Stations ajoutées par la communauté (spots « station »), proposées avec celles d'OpenStreetMap
   const { places: communityPlaces } = useCommunityPlaces(position);
   const fuelSpots = (communityPlaces ?? []).filter((p) => p.kind === 'fuel').map((p) => ({ label: `⛽ ${p.name}`, latitude: p.latitude, longitude: p.longitude }));
+  // Carburant de ma moto (Garage) : SP95-E10 par défaut pour les prix mis en avant
+  const myFuel = myGarage?.fuelType ?? 'e10';
+  // Stations aux prix officiels à moins de 2 km de l'itinéraire (aperçu et navigation)
+  const routeStations = useRouteStations(nav.route, (nav.phase === 'preview' || navigating) && startupDone);
+  const cheapOnRoute = routeStations ? cheapestStation(routeStations, myFuel) : null;
+  const upcoming = navigating ? nextStation(routeStations, nav.progress?.alongM ?? 0) : null;
+  const upcomingPrice = upcoming ? priceOf(upcoming, myFuel) : null;
+  const nextStationText = upcoming
+    ? `Prochaine station dans ${Math.max(1, Math.round((upcoming.alongM - (nav.progress?.alongM ?? 0)) / 1000))} km${upcomingPrice !== null ? ` · ${fuelLabel(myFuel)} ${formatPrice(upcomingPrice)}` : ''}`
+    : null;
+  const sparseReminder = useSparseStationReminder({
+    navigating,
+    stations: routeStations,
+    alongM: nav.progress?.alongM ?? null,
+    routeM: nav.route?.distanceM ?? 0,
+    leftKm: fuelLeftKm,
+  });
   const fuelAlert = useFuelAlert({
+    fuel: myFuel,
     navigating,
     leftKm: fuelLeftKm,
     remainingKm: nav.progress ? nav.progress.remainingM / 1000 : null,
@@ -474,6 +494,10 @@ export default function MapScreen() {
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(mapView, layers.showParkings && !navigating);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
+  // Stations-service : zone affichée hors navigation ; en aperçu, celles du trajet (la moins chère en plus gros)
+  const areaStations = useFuelStations(mapView, layers.showFuel && !navigating && nav.phase !== 'preview');
+  const mapStations = nav.phase === 'preview' ? (routeStations ?? []) : navigating ? [] : areaStations;
+  const selectedStation = mapStations.find((s) => FUEL_PREFIX + s.id === selectedId) ?? null;
   // Feux tricolores (affichés de base, zoom ≥ 16) : en navigation, ceux de l'itinéraire autour de ma position ; sinon la zone affichée
   const signalsView = navigating ? (position ? { center: position, zoom: 17 } : null) : mapView;
   const signals = useTrafficSignals(signalsView, !layers.hideSignals, navigating ? (nav.route?.points ?? null) : null);
@@ -515,6 +539,15 @@ export default function MapScreen() {
       icon: placePinIcon(p.kind),
       latitude: p.latitude,
       longitude: p.longitude,
+    })),
+    ...mapStations.map((s) => ({
+      id: FUEL_PREFIX + s.id,
+      kind: 'fuel' as const,
+      cluster: !(nav.phase === 'preview' && cheapOnRoute?.id === s.id),
+      label: '⛽',
+      icon: fuelPinIcon(nav.phase === 'preview' && cheapOnRoute?.id === s.id),
+      latitude: s.latitude,
+      longitude: s.longitude,
     })),
     ...parkings.map((p) => ({
       id: PARKING_PREFIX + p.id,
@@ -694,7 +727,7 @@ export default function MapScreen() {
 
   const onPinPress = (id: string) => {
     if (id === REGROUP_PIN && convoy?.ride.regroup) return goToConvoyPoint(convoy.ride.regroup);
-    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX)) {
+    if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX) || id.startsWith(FUEL_PREFIX)) {
       setDropped(null);
       setSelectedId(id);
       return;
@@ -1136,6 +1169,7 @@ export default function MapScreen() {
               {zoneNow?.official && <MotoAlertChip icon={<ZoneIcon size={22} />} text="Zone de danger, prudence" tone="danger" />}
               {curveAlert && <MotoAlertChip icon={curveAlert.side === 'left' ? '↰' : '↱'} text={curveAlert.text} />}
               {sunAlert && <MotoAlertChip icon="🌇" text={sunAlert.text} tone="night" />}
+              {sparseReminder && <MotoAlertChip icon="⛽" text={sparseReminder} />}
               {simulating && <MotoAlertChip icon="🧪" text="Simulation de trajet : position non publiée" tone="night" />}
             </>
           ) : (
@@ -1352,6 +1386,23 @@ export default function MapScreen() {
               />
             </View>
           )}
+          {selectedStation && (
+            <View style={styles.card}>
+              <FuelStationCard
+                station={selectedStation}
+                myFuel={myGarage?.fuelType ?? null}
+                distanceM={position ? distanceM(position, selectedStation) : null}
+                onGo={() => {
+                  const place = { label: `⛽ ${stationTitle(selectedStation)}`, latitude: selectedStation.latitude, longitude: selectedStation.longitude, source: 'lieu' as const };
+                  setSelectedId(null);
+                  // Aperçu en cours : la station devient une étape ; sinon c'est la destination
+                  if (nav.phase === 'preview') nav.addStop(place);
+                  else chooseDestination(place);
+                }}
+                onClose={() => setSelectedId(null)}
+              />
+            </View>
+          )}
           {selectedParking && (
             <View style={styles.card}>
               <ParkingCard
@@ -1426,6 +1477,8 @@ export default function MapScreen() {
                 weather={previewWeather}
                 fuel={previewFuel}
                 onAddFuel={() => setStopPicker({ kind: 'fuel' })}
+                stations={{ text: routeFuelSummary(routeStations, myFuel), cheapest: cheapOnRoute, fuel: myFuel }}
+                onAddStation={(s) => nav.addStop({ label: `⛽ ${stationTitle(s)}`, latitude: s.latitude, longitude: s.longitude, source: 'lieu' })}
                 onStart={() => {
                   setSelectedId(null);
                   setDropped(null);
@@ -1491,6 +1544,7 @@ export default function MapScreen() {
                 onRemoveStop={nav.removeStop}
                 fuelLeftKm={fuelLeftKm}
                 onFilled={fuelRange(myGarage) ? fuelFilled : undefined}
+                nextStation={nextStationText}
               />
             </View>
           )}
@@ -1503,6 +1557,7 @@ export default function MapScreen() {
           route={nav.route}
           fromM={nav.progress?.alongM ?? 0}
           near={position}
+          fuel={myFuel}
           onPick={nav.addStop}
           onClose={() => setStopPicker(null)}
         />
