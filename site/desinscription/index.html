@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Désinscription – PasseRyder</title>
+  <meta name="description" content="Ne plus recevoir l’email « PasseRyder est dispo ».">
+  <meta property="og:title" content="Désinscription – PasseRyder">
+  <meta property="og:description" content="Ne plus recevoir l’email « PasseRyder est dispo ».">
+  <meta property="og:image" content="https://passeryder.fr/icon.png">
+  <meta property="og:site_name" content="PasseRyder">
+  <link rel="icon" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .share-page { text-align: center; }
+    .hero .avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; background: var(--border); }
+    .share-page .points { text-align: left; max-width: 34em; margin: 20px auto; }
+    .share-page .code { font-size: 28px; font-weight: 900; letter-spacing: 4px; color: var(--accent-dark); }
+    .share-page .muted { color: var(--muted); }
+    .formats { display: flex; justify-content: center; gap: 8px; margin: 16px 0; }
+    .formats button { font: inherit; font-weight: 700; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .formats button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .hero #preview { width: auto; height: auto; max-width: 100%; max-height: 70vh; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+    .share-page h1 { overflow-wrap: anywhere; }
+    .formats { flex-wrap: wrap; }
+    .cta button.button { border: 0; font: inherit; font-weight: 700; cursor: pointer; }
+    .review { max-width: 32em; margin: 16px auto; padding: 16px 18px; border-radius: 18px; background: #fef3c7; color: #78350f; border: 2px solid #f59e0b; text-align: center; }
+    .review p { margin: 0 0 12px; font-size: 17px; line-height: 1.4; }
+    .review .button { display: inline-block; font-size: 19px; padding: 14px 26px; }
+    @media (prefers-color-scheme: dark) { .review { background: #422006; color: #fde68a; } }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Page générée par scripts/build-share-pages.cjs : ne pas modifier à la main -->
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/icon.png" alt="">PasseRyder</a>
+      <nav>
+        <a href="https://app.passeryder.fr">App web</a>
+        <a href="/guide">Guide</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap share-page">
+    <section class="hero">
+      <h1 id="title">Désinscription…</h1>
+      <p class="lead" id="text"></p>
+      <p class="cta"><a class="button secondary" href="/">Retour à l’accueil</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 DK Tech Lab</span>
+      <a href="/guide">Guide</a>
+      <a href="/conditions">Conditions d'utilisation</a>
+      <a href="/confidentialite">Politique de confidentialité</a>
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="mailto:passeryder@gmail.com">passeryder@gmail.com</a>
+    </div>
+  </footer>
+
+  <script>
+
+    // Clé publishable Supabase (publique, la même que dans l'app web)
+    var SUPABASE_URL = 'https://yfewldnhnnrzzscmfjsd.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_ndqUZWRvQOd2so6Zla0gtw_r4TP4kQS';
+    // Tous les boutons « Télécharger » mènent à /telecharger (étapes du test fermé ou Google Play)
+    var DOWNLOAD = 'https://passeryder.fr/telecharger';
+    var android = /android/i.test(navigator.userAgent);
+    function rpc(name, body) {
+      return fetch(SUPABASE_URL + '/rest/v1/rpc/' + name, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    }
+    function photo(path) { return SUPABASE_URL + '/storage/v1/object/public/photos/' + path; }
+    function lastSegment() { return decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || ''); }
+    function el(id) { return document.getElementById(id); }
+    // Console › Fonctions › Distribution : « Validation Google en cours » (app_settings.google_review = 'on')
+    function settings(keys) {
+      return fetch(SUPABASE_URL + '/rest/v1/app_settings?select=key,value&key=in.(' + keys.join(',') + ')', { headers: { apikey: SUPABASE_KEY } })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { var s = {}; rows.forEach(function (row) { s[row.key] = row.value; }); return s; })
+        .catch(function () { return {}; });
+    }
+    function showReview(on, code) {
+      Array.prototype.forEach.call(document.querySelectorAll('.review, .review-only'), function (n) { n.hidden = !on; });
+      if (code) Array.prototype.forEach.call(document.querySelectorAll('.review a.button'), function (a) { a.href = 'https://app.passeryder.fr/sign-in?invite=' + code; });
+    }
+    function intentUrl(appPath, fallback) {
+      return 'intent://' + appPath + '#Intent;scheme=passeryder;package=com.passeryder.app;S.browser_fallback_url=' + encodeURIComponent(fallback) + ';end';
+    }
+
+    var t = new URLSearchParams(location.search).get('t') || '';
+    function show(title, text) { el('title').textContent = title; el('text').textContent = text; }
+    if (!/^[0-9a-f-]{36}$/i.test(t)) show('Lien incomplet', 'Ouvre le lien « Ne plus rien recevoir » directement depuis l’email.');
+    else rpc('unsubscribe_store_waitlist', { p_token: t })
+      .then(function (p) {
+        if (p) show('C’est fait', 'Tu ne recevras plus d’email « PasseRyder est dispo ». Tu peux te réinscrire sur passeryder.fr/telecharger.');
+        else show('Lien inconnu', 'Cette inscription n’existe plus (déjà effacée).');
+      })
+      .catch(function () { show('Oups', 'Connexion impossible. Réessaie dans un instant.'); });
+  </script>
+</body>
+</html>

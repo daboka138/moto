@@ -1,3 +1,4 @@
+Nouveau : « Préviens-moi » quand l’appli sort sur iPhone (ou sur Google Play) : bandeau en haut du Mur sur la version web, réglage dans Paramètres › Notifications. Tu reçois une notif, et un seul email si tu veux.
 Le Mur affiche de nouveau les photos de tes potes. Les actus ont des photos nettes (vignette quand le site ne donne qu’une petite image). Sur ordinateur : barre de gauche avec le logo, Mur plus large avec suggestions, balades et actus à droite, notifications plus lisibles.
 Corrections : les tracés des balades suivent toujours les routes, même avec des étapes (plus jamais de lignes droites ; si le calcul rate, Réessayer), les actus moto du Mur s’affichent même sans publications de tes potes, et les vocaux sur la version web disent clairement ce qui bloque.
 Nouveau look : nouvelles polices, icônes à la place des émojis, textes plus directs. Et les actus moto arrivent dans le Mur (à liker et commenter), plus une page « Qui est derrière l’appli » dans Profil.

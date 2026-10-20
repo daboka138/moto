@@ -10,6 +10,7 @@ import { FriendSuggestions } from '@/components/friend-suggestions';
 import { NewsCard } from '@/components/news-card';
 import { PhotoViewer } from '@/components/photo-viewer';
 import { RideCard } from '@/components/ride-card';
+import { StoreBanner } from '@/components/store-banner';
 import { StoryRow } from '@/components/story-row';
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
@@ -298,6 +299,8 @@ export default function FeedScreen() {
               ListHeaderComponent={
                 <>
                   <StoryRow />
+                  {/* Version web : « Préviens-moi » quand l'appli sort sur iPhone / Android */}
+                  {Platform.OS === 'web' && !!userId && <StoreBanner userId={userId} />}
                   {error && (
                     <View style={styles.inlineErrorBox}>
                       <Text style={styles.inlineError}>Oups, les publications de tes potes n’ont pas chargé.</Text>

@@ -185,9 +185,9 @@ export const FICHES: Fiche[] = [
     limites: [
       'Réservé à l’app Android : ta position en direct, la navigation et la voix, le SOS, la détection de chute, « Je rentre », les contacts d’urgence, Mes trajets et le démarrage d’une balade.',
       'Sur le web, ta position n’est jamais partagée.',
-      'iPhone : l’app arrive bientôt, la version web marche déjà.',
+      'iPhone : l’app arrive bientôt, la version web marche déjà. Pour être prévenu le jour de la sortie : « Préviens-moi » en haut du Mur (version web) ou Paramètres › Notifications.',
     ],
-    motsCles: ['ordinateur', 'iphone', 'navigateur', 'pwa'],
+    motsCles: ['ordinateur', 'iphone', 'navigateur', 'pwa', 'app store', 'préviens-moi'],
   },
 
   // ---------------------------------------------------------------- Carte
@@ -1166,6 +1166,17 @@ export const FICHES: Fiche[] = [
 ];
 
 export const FAQ: Question[] = [
+  {
+    id: 'iphone',
+    q: 'Quand sort l’appli iPhone ?',
+    r: [
+      'Elle arrive bientôt. En attendant, utilise la version web : app.passeryder.fr dans Safari, puis Partager › « Sur l’écran d’accueil ».',
+      'Pour être prévenu le jour J : touche « Préviens-moi » en haut du Mur (version web) ou active Paramètres › Notifications › « Me prévenir quand l’appli sort sur iPhone ».',
+      'Tu reçois une notification dans l’appli, et un seul email si tu l’as accepté. Sans compte : formulaire sur passeryder.fr/telecharger.',
+      'Ton compte reste le même : connecte-toi dans l’appli iPhone avec le même email.',
+    ],
+    fiches: ['app-web'],
+  },
   {
     id: 'mot-de-passe',
     q: 'J’ai oublié mon mot de passe',

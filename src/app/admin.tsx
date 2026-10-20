@@ -8,6 +8,7 @@ import { showActionSheet } from '@/components/action-sheet';
 import { HistoryAdmin } from '@/components/admin/history-admin';
 import { NewsAdmin } from '@/components/admin/news-admin';
 import { AboutAdmin } from '@/components/admin/about-admin';
+import { StoreLaunchAdmin } from '@/components/admin/store-launch-admin';
 import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
@@ -47,7 +48,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'history' | 'news' | 'about';
+type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -78,6 +79,7 @@ export default function AdminScreen() {
         <Chip label="Inscrits" selected={tab === 'users'} onPress={() => setTab('users')} />
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
         <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
+        <Chip label="Sorties stores" selected={tab === 'stores'} onPress={() => setTab('stores')} />
         <Chip label="Histoire" selected={tab === 'history'} onPress={() => setTab('history')} />
         <Chip label="Actus" selected={tab === 'news'} onPress={() => setTab('news')} />
         <Chip label="À propos" selected={tab === 'about'} onPress={() => setTab('about')} />
@@ -91,6 +93,10 @@ export default function AdminScreen() {
       ) : tab === 'about' ? (
         <ScrollView contentContainerStyle={styles.content}>
           <AboutAdmin userId={session?.user.id ?? ''} />
+        </ScrollView>
+      ) : tab === 'stores' ? (
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <StoreLaunchAdmin />
         </ScrollView>
       ) : tab === 'news' ? (
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

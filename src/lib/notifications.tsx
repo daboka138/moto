@@ -33,7 +33,8 @@ export type NotificationType =
   | 'club_accepted'
   | 'reaction'
   | 'group_added'
-  | 'passenger';
+  | 'passenger'
+  | 'store_launch';
 
 export type AppNotification = {
   id: string;
@@ -69,6 +70,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   reaction: '😊',
   group_added: '👥',
   passenger: '🏍️',
+  store_launch: '📱',
 };
 
 type Row = {

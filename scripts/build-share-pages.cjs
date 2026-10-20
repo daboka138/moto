@@ -436,6 +436,16 @@ const downloadCss = `
     .dl .shots img { flex: 0 0 auto; width: min(62vw, 220px); aspect-ratio: 9 / 16; height: auto; border-radius: 18px; border: 1px solid var(--border); scroll-snap-align: center; background: var(--border); }
     .dl .facts { text-align: center; font-weight: 700; margin: 20px 0 6px; }
     .dl .safety { text-align: center; color: var(--danger); font-weight: 700; margin: 0 0 8px; }
+    .dl .notify { margin-top: 16px; display: grid; gap: 10px; }
+    .dl .notify input[type=email] { font: inherit; font-size: 17px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg, #fff); color: var(--text); width: 100%; box-sizing: border-box; }
+    .dl .notify .consent { display: flex; gap: 10px; align-items: flex-start; text-align: left; font-size: 15px; line-height: 1.4; }
+    .dl .notify .consent input { width: 20px; height: 20px; margin: 1px 0 0; flex: 0 0 auto; }
+    .dl .notify button.button { border: 0; font: inherit; font-weight: 700; font-size: 17px; cursor: pointer; justify-self: center; }
+    .dl .notify-msg { margin: 0; font-weight: 700; min-height: 1em; }
+    .dl .notify-msg.ok { color: var(--success, #16a34a); }
+    .dl .notify-msg.err { color: var(--danger); }
+    .dl .small { font-size: 13px; margin: 0; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 `;
 
 const download = `${head('Télécharger PasseRyder', 'L’app des motards qui roulent ensemble : potes en direct, balades en convoi, boucles sinueuses, SOS. Gratuit, sans pub.', { index: true, image: 'https://passeryder.fr/telecharger/partage.png', css: downloadCss })}
@@ -472,7 +482,11 @@ const download = `${head('Télécharger PasseRyder', 'L’app des motards qui ro
 
     <section class="part" id="ios">
       <h2>Sur iPhone</h2>
-      <div class="card">
+      <div class="steps-dl" id="appstore-box" hidden>
+        <a class="step" id="appstore" href="https://apps.apple.com/" target="_blank" rel="noopener">
+          <span class="num">↓</span><span><strong>Télécharger sur l’App Store</strong><small>Ton compte de la version web reste le même</small></span></a>
+      </div>
+      <div class="card" id="ios-soon">
         <p style="margin-top: 0">Version iPhone bientôt disponible. En attendant, utilise PasseRyder sur le web.</p>
         <a class="button" id="web" href="https://app.passeryder.fr">Ouvrir app.passeryder.fr</a>
         <ol>
@@ -481,6 +495,15 @@ const download = `${head('Télécharger PasseRyder', 'L’app des motards qui ro
           <li>Choisis <strong>« Sur l’écran d’accueil »</strong>, puis <strong>Ajouter</strong>.</li>
         </ol>
       </div>
+      <form class="card notify" id="notify" novalidate>
+        <p style="margin-top: 0"><strong>Préviens-moi quand ça sort sur iPhone</strong></p>
+        <label class="sr" for="notify-email">Ton adresse email</label>
+        <input type="email" id="notify-email" autocomplete="email" placeholder="ton@email.fr" required maxlength="254">
+        <label class="consent"><input type="checkbox" id="notify-consent"> J’accepte de recevoir un seul email quand l’appli sort sur iPhone.</label>
+        <button class="button" type="submit" id="notify-send">Préviens-moi</button>
+        <p class="notify-msg" id="notify-msg" role="status"></p>
+        <p class="muted small">Un seul email, avec un lien pour te désinscrire. Adresse effacée 90 jours après l’envoi. Tu as un compte ? Active-le dans l’appli : Paramètres › Notifications.</p>
+      </form>
     </section>
 
     <section class="part">
@@ -534,8 +557,38 @@ ${common}
     });
 
     // Réglages de la console : mode de distribution et liens
-    settings(['distribution_mode', 'testers_group_url', 'testing_optin_url', 'play_store_url', 'google_review'])
+    // « Préviens-moi » (sans compte) : un seul email quand l'appli sort sur iPhone, consentement obligatoire
+    el('notify').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var msg = el('notify-msg');
+      var email = el('notify-email').value.trim();
+      msg.className = 'notify-msg err';
+      if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) { msg.textContent = 'Adresse email invalide.'; return; }
+      if (!el('notify-consent').checked) { msg.textContent = 'Coche la case pour accepter l’email.'; return; }
+      el('notify-send').disabled = true;
+      msg.className = 'notify-msg'; msg.textContent = 'Un instant…';
+      fetch(SUPABASE_URL + '/rest/v1/rpc/join_store_waitlist_email', {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_email: email, p_platform: 'ios', p_consent: true })
+      }).then(function (r) {
+        if (r.ok) { msg.className = 'notify-msg ok'; msg.textContent = '✅ C’est noté, on te prévient.'; el('notify-email').value = ''; return; }
+        return r.json().catch(function () { return {}; }).then(function (b) { throw new Error(b.message || 'Oups, ça n’a pas marché. Réessaie.'); });
+      }).catch(function (err) {
+        msg.className = 'notify-msg err';
+        msg.textContent = err && err.message && !/fetch/i.test(err.message) ? err.message : 'Oups, connexion impossible. Réessaie.';
+      }).then(function () { el('notify-send').disabled = false; });
+    });
+
+    settings(['distribution_mode', 'testers_group_url', 'testing_optin_url', 'play_store_url', 'google_review', 'app_store_url'])
       .then(function (s) {
+        // Appli iPhone sortie (lien App Store renseigné dans la console) : bouton App Store
+        if (s.app_store_url) {
+          el('appstore').href = s.app_store_url;
+          el('appstore-box').hidden = false;
+          el('ios-soon').hidden = true;
+          el('notify').hidden = true;
+        }
         var review = s.google_review === 'on';
         showReview(review, validCode);
         el('android').classList.toggle('pending', review);
@@ -552,7 +605,35 @@ ${common}
 </html>
 `;
 
+// ---------- /desinscription ----------
+// Lien de l'email « PasseRyder est dispo » : ?t=<jeton> → plus aucun email « Préviens-moi »
+const unsubscribe = `${head('Désinscription – PasseRyder', 'Ne plus recevoir l’email « PasseRyder est dispo ».')}
+  <main class="wrap share-page">
+    <section class="hero">
+      <h1 id="title">Désinscription…</h1>
+      <p class="lead" id="text"></p>
+      <p class="cta"><a class="button secondary" href="/">Retour à l’accueil</a></p>
+    </section>
+  </main>
+${foot}
+  <script>
+${common}
+    var t = new URLSearchParams(location.search).get('t') || '';
+    function show(title, text) { el('title').textContent = title; el('text').textContent = text; }
+    if (!/^[0-9a-f-]{36}$/i.test(t)) show('Lien incomplet', 'Ouvre le lien « Ne plus rien recevoir » directement depuis l’email.');
+    else rpc('unsubscribe_store_waitlist', { p_token: t })
+      .then(function (p) {
+        if (p) show('C’est fait', 'Tu ne recevras plus d’email « PasseRyder est dispo ». Tu peux te réinscrire sur passeryder.fr/telecharger.');
+        else show('Lien inconnu', 'Cette inscription n’existe plus (déjà effacée).');
+      })
+      .catch(function () { show('Oups', 'Connexion impossible. Réessaie dans un instant.'); });
+  </script>
+</body>
+</html>
+`;
+
 for (const [dir, html] of [
+  ['desinscription', unsubscribe],
   ['i', invite],
   ['c', club],
   ['s', outing],
@@ -561,4 +642,4 @@ for (const [dir, html] of [
   fs.mkdirSync(path.join(ROOT, 'site', dir), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'site', dir, 'index.html'), html);
 }
-console.log('site/i, site/c, site/s, site/telecharger générés');
+console.log('site/i, site/c, site/s, site/telecharger, site/desinscription générés');

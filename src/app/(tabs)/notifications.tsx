@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, PanResponder, Platform, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Linking, PanResponder, Platform, Pressable, RefreshControl, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chip } from '@/components/ui';
@@ -75,7 +75,9 @@ export default function NotificationsScreen() {
         .then(() => badge.refresh())
         .catch((e) => console.warn('Notification non marquée comme lue', e));
     }
-    router.push(n.url as Href);
+    // Sortie sur un store : lien externe (App Store / Google Play)
+    if (/^https?:\/\//.test(n.url)) Linking.openURL(n.url);
+    else router.push(n.url as Href);
   };
 
   const remove = (n: AppNotification) => {

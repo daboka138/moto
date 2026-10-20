@@ -39,6 +39,7 @@ import { fetchInSuggestions, setInSuggestions } from '@/lib/suggestions';
 import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
 import { errorMessage } from '@/lib/errors';
 import { fetchReadReceipts, setReadReceipts } from '@/lib/messages';
+import { fetchMyWaitlist, PLATFORM_LABELS, setWaitlist, type MyWaitlist, type StorePlatform } from '@/lib/store-waitlist';
 
 type Option<T> = { value: T; label: string; description: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -569,7 +570,60 @@ function NotificationsSection({ userId }: { userId: string | undefined }) {
             disabled={!prefs}
           />
         ))}
+        <StoreWaitlistRows userId={userId} />
       </View>
+    </>
+  );
+}
+
+/** « Me prévenir quand l'appli sort sur iPhone / Android » (+ un email si accepté). Android : pas dans l'app Android */
+function StoreWaitlistRows({ userId }: { userId: string | undefined }) {
+  const [mine, setMine] = useState<MyWaitlist | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    fetchMyWaitlist(userId)
+      .then(setMine)
+      .catch((e) => console.warn('Inscriptions « Préviens-moi » indisponibles', e));
+  }, [userId]);
+  const platforms: StorePlatform[] = IS_WEB ? ['ios', 'android'] : ['ios'];
+  const emailOk = !!mine && platforms.some((p) => mine[p].on && mine[p].emailOk);
+  const anyOn = !!mine && platforms.some((p) => mine[p].on);
+
+  const save = async (next: MyWaitlist, changed: StorePlatform[]) => {
+    const before = mine;
+    setMine(next);
+    try {
+      for (const p of changed) await setWaitlist(p, next[p].on, next[p].emailOk);
+    } catch (e) {
+      setMine(before);
+      Alert.alert('Réglage impossible', errorMessage(e));
+    }
+  };
+
+  return (
+    <>
+      {platforms.map((p) => (
+        <SwitchRow
+          key={p}
+          label={`Me prévenir quand l’appli sort sur ${PLATFORM_LABELS[p]}`}
+          description={p === 'ios' ? 'Une notification le jour où PasseRyder arrive sur l’App Store.' : 'Une notification le jour où PasseRyder est sur Google Play pour tout le monde.'}
+          value={!!mine?.[p].on}
+          disabled={!mine}
+          onChange={(v) => mine && save({ ...mine, [p]: { on: v, emailOk } }, [p])}
+        />
+      ))}
+      {anyOn && (
+        <SwitchRow
+          label="Aussi par email"
+          description="Un seul email, à l’adresse de ton compte, avec un lien pour te désinscrire."
+          value={emailOk}
+          onChange={(v) => {
+            if (!mine) return;
+            const on = platforms.filter((p) => mine[p].on);
+            save({ ...mine, ...Object.fromEntries(on.map((p) => [p, { on: true, emailOk: v }])) }, on);
+          }}
+        />
+      )}
     </>
   );
 }

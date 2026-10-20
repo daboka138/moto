@@ -465,3 +465,7 @@ verify_jwt = false
 # jeton admin vérifié dans la fonction pour un passage forcé depuis la console
 [functions.fetch-news]
 verify_jwt = false
+
+# « Préviens-moi » : sortie sur l'App Store / Google Play. Jeton vérifié dans la fonction, admin seulement
+[functions.store-launch]
+verify_jwt = false

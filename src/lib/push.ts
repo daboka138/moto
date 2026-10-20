@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 // Notifications push (Expo Push → FCM). Les envois partent du serveur (fonction SQL send_push,
 // migration 20261003000000_safety_push.sql) ; ici : canaux Android, permission, jeton.
 
-export type PushCategory = 'messages' | 'rides' | 'friends' | 'dangers' | 'garage' | 'sos';
+export type PushCategory = 'messages' | 'rides' | 'friends' | 'dangers' | 'garage' | 'sos' | 'app';
 
 /** Un canal Android par type : chacun réglable aussi dans les réglages du téléphone */
 const CHANNELS: { id: PushCategory; name: string; importance: Notifications.AndroidImportance }[] = [
@@ -18,6 +18,7 @@ const CHANNELS: { id: PushCategory; name: string; importance: Notifications.Andr
   { id: 'friends', name: 'Amis et commentaires', importance: Notifications.AndroidImportance.DEFAULT },
   { id: 'dangers', name: 'Dangers signalés près de moi', importance: Notifications.AndroidImportance.HIGH },
   { id: 'garage', name: 'Rappels d’entretien', importance: Notifications.AndroidImportance.DEFAULT },
+  { id: 'app', name: 'Annonces PasseRyder', importance: Notifications.AndroidImportance.DEFAULT },
 ];
 
 // Version web : pas de notifications push (elles arrivent sur l'app Android)
