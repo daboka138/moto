@@ -34,6 +34,8 @@ import { PartnerIdeas } from '@/components/partner-ideas';
 import { SpotSuggestions } from '@/components/spot-suggestions';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
+import { WeatherSummaryOnly } from '@/components/weather-strip';
+import { roundedNow, useRouteWeather } from '@/lib/weather';
 
 const ORIGIN_TITLE = 'Lieu de départ de la boucle';
 
@@ -153,6 +155,8 @@ function LoopScreenContent() {
   };
 
   const loop = loops?.[selected] ?? null;
+  // Météo de la boucle choisie si on part maintenant (résumé : pluie, rafales, gel, chaleur)
+  const loopWeather = useRouteWeather(loop?.route.points ?? null, loop ? loop.durationMin * 60 : null, loop ? roundedNow() : null);
   const title = (l: Loop) => `Boucle ${curvinessLabel(l.score).toLowerCase()} · ${formatDistance(l.route.distanceM)}`;
 
   // Navigation / création de balade : même chemin que l'import GPX (tracé + points de passage)
@@ -327,6 +331,7 @@ function LoopScreenContent() {
               </View>
             </Pressable>
           ))}
+          {loop && <WeatherSummaryOnly weather={loopWeather.weather} loading={loopWeather.loading} />}
           {loop && (
             <View style={styles.actions}>
               {IS_WEB ? <OpenInApp path="/loop" compact /> : <Button title="Partir" onPress={() => go(loop)} />}

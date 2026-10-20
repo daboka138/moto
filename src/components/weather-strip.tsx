@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { weatherInfo, type RouteWeather, type WeatherAhead } from '@/lib/weather';
+import { useCanUse } from '@/lib/features';
+import { useWeatherSummary, WEATHER_CREDIT, weatherInfo, type RouteWeather, type WeatherAhead, type WeatherSummary } from '@/lib/weather';
 
 function clock(d: Date) {
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -34,6 +35,40 @@ export function NavWeatherChip({ ahead }: { ahead: WeatherAhead | null }) {
   );
 }
 
+/** Résumé en une ligne : « ☀️ Sec, 18-22 °C » ou « 🌧️ Pluie possible vers Gémenos vers 15h… » */
+export function WeatherSummaryLine({ summary }: { summary: WeatherSummary | null }) {
+  const styles = useStyles();
+  if (!summary) return null;
+  return (
+    <View style={[styles.summary, summary.bad && styles.summaryBad]}>
+      <Text style={styles.summaryEmoji}>{summary.emoji}</Text>
+      <Text style={styles.summaryText}>{summary.text}</Text>
+    </View>
+  );
+}
+
+/** Résumé seul (boucles) : chargement discret, rien en cas d'erreur */
+export function WeatherSummaryOnly({ weather, loading }: { weather: RouteWeather | null; loading: boolean }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const summary = useWeatherSummary(weather);
+  if (loading) {
+    return (
+      <View style={styles.row}>
+        <ActivityIndicator color={Colors.accent} size="small" />
+        <Text style={styles.muted}>Météo du trajet…</Text>
+      </View>
+    );
+  }
+  if (!summary) return null;
+  return (
+    <View style={styles.wrap}>
+      <WeatherSummaryLine summary={summary} />
+      <Text style={styles.credit}>{WEATHER_CREDIT}</Text>
+    </View>
+  );
+}
+
 /** Balade : météo prévue au départ et à l'arrivée, aux heures prévues */
 function Endpoints({ weather }: { weather: RouteWeather }) {
   const styles = useStyles();
@@ -45,7 +80,7 @@ function Endpoints({ weather }: { weather: RouteWeather }) {
     return (
       <Text style={styles.endpoint}>
         <Text style={styles.endpointLabel}>{label} {clock(s.at)} : </Text>
-        {f ? `${weatherInfo(f.code).emoji} ${weatherInfo(f.code).label}, ${Math.round(f.tempC)}°, vent ${Math.round(f.windKmh)} km/h` : '–'}
+        {f ? `${weatherInfo(f.symbol).emoji} ${weatherInfo(f.symbol).label}, ${Math.round(f.tempC)}°, vent ${Math.round(f.windKmh)} km/h` : '–'}
       </Text>
     );
   };
@@ -57,7 +92,10 @@ function Endpoints({ weather }: { weather: RouteWeather }) {
   );
 }
 
-/** Météo le long du trajet : un point tous les 15 km environ, à l'heure de passage. */
+/**
+ * Météo le long du trajet : résumé + alertes (gratuits pour tous), puis le détail (fonction
+ * weather_detail) : un point tous les ~20 km à l'heure de passage.
+ */
 export function WeatherStrip({
   weather,
   loading,
@@ -72,6 +110,8 @@ export function WeatherStrip({
 }) {
   const Colors = useColors();
   const styles = useStyles();
+  const summary = useWeatherSummary(weather);
+  const detail = useCanUse('weather_detail');
   if (loading) {
     return (
       <View style={styles.row}>
@@ -82,43 +122,57 @@ export function WeatherStrip({
   }
   if (error) return <Text style={styles.muted}>Météo indisponible pour le moment.</Text>;
   if (!weather) return null;
-  if (weather.tooFar) return <Text style={styles.muted}>Prévisions météo disponibles 16 jours avant.</Text>;
+  if (weather.tooFar) return <Text style={styles.muted}>Prévisions météo disponibles 9 jours avant.</Text>;
   return (
     <View style={styles.wrap}>
-      {showEnds && <Endpoints weather={weather} />}
+      <WeatherSummaryLine summary={summary} />
+      {detail && showEnds && <Endpoints weather={weather} />}
       <WeatherAlerts alerts={weather.alerts} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-        {weather.samples.map((s, i) => {
-          const f = s.forecast;
-          return (
-            <View key={i} style={styles.cell}>
-              <Text style={styles.time}>{clock(s.at)}</Text>
-              <Text style={styles.km}>{Math.round(s.alongM / 1000)} km</Text>
-              {f ? (
-                <>
-                  <Text style={styles.emoji}>{weatherInfo(f.code).emoji}</Text>
-                  <Text style={styles.temp}>{Math.round(f.tempC)}°</Text>
-                  <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontFamily: Fonts.bold }]}>
-                    💧{f.precipProb !== null ? `${f.precipProb}%` : `${f.precipMm.toFixed(1)}`}
-                  </Text>
-                  <Text style={[styles.small, f.gustKmh >= 60 && { color: Colors.danger, fontFamily: Fonts.bold }]}>
-                    💨{Math.round(f.windKmh)}
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.small}>–</Text>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
-      <Text style={styles.credit}>Météo : Open-Meteo · vent en km/h</Text>
+      {detail && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+          {weather.samples.map((s, i) => {
+            const f = s.forecast;
+            return (
+              <View key={i} style={styles.cell}>
+                <Text style={styles.time}>{clock(s.at)}</Text>
+                <Text style={styles.km}>{Math.round(s.alongM / 1000)} km</Text>
+                {f ? (
+                  <>
+                    <Text style={styles.emoji}>{weatherInfo(f.symbol).emoji}</Text>
+                    <Text style={styles.temp}>{Math.round(f.tempC)}°</Text>
+                    <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontFamily: Fonts.bold }]}>💧{f.precipMm.toFixed(1)}</Text>
+                    <Text style={[styles.small, f.gustKmh >= 50 && { color: Colors.danger, fontFamily: Fonts.bold }]}>💨{Math.round(f.windKmh)}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.small}>–</Text>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
+      <Text style={styles.credit}>
+        {WEATHER_CREDIT}
+        {detail ? ' · pluie en mm/h, vent en km/h' : ''}
+      </Text>
     </View>
   );
 }
 
 const useStyles = makeStyles((Colors) => ({
   wrap: { gap: 8 },
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  summaryBad: { borderWidth: 1, borderColor: Colors.warning },
+  summaryEmoji: { fontSize: Type.large },
+  summaryText: { flex: 1, fontSize: Type.body, fontWeight: '700', color: Colors.text },
   endpoints: { gap: 4 },
   endpoint: { fontSize: Type.body, color: Colors.text },
   endpointLabel: { fontWeight: '800' },

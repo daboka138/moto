@@ -9,7 +9,16 @@ import { supabase } from '@/lib/supabase';
 // dans l'app : canUse('clé'). Bêta : tout est gratuit. Aucun paiement n'existe pour l'instant.
 // Le serveur applique la même règle quand c'est lui qui agit (feature_allowed, ex. points).
 
-export type FeatureKey = 'good_points' | 'itineraire_plaisir' | 'loop' | 'route_weather' | 'gpx' | 'garage' | 'convoy_tools' | 'premium_offer';
+export type FeatureKey =
+  | 'good_points'
+  | 'itineraire_plaisir'
+  | 'loop'
+  | 'route_weather'
+  | 'weather_detail'
+  | 'gpx'
+  | 'garage'
+  | 'convoy_tools'
+  | 'premium_offer';
 export type FeatureStatus = 'free' | 'premium' | 'disabled';
 export type Feature = { key: string; name: string; description: string | null; status: FeatureStatus; sort: number };
 export type Plan = { plan: 'free' | 'premium'; lifetime: boolean; until: string | null };
@@ -26,6 +35,7 @@ const DEFAULT_STATUS: Record<FeatureKey, FeatureStatus> = {
   itineraire_plaisir: 'free',
   loop: 'free',
   route_weather: 'free',
+  weather_detail: 'free',
   gpx: 'free',
   garage: 'free',
   convoy_tools: 'free',

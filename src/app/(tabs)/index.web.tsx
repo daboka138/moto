@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { EventCard, ParkingCard, PlaceCard } from '@/components/community-cards';
 import { openEvent, openPlace } from '@/components/community-lists';
 import { LeafletMap, type MapMarker, type MapPin, type MapRoute } from '@/components/leaflet-map';
+import { MapWeather } from '@/components/map-weather';
 import { DroppedPinCard, type RidePlaceRole } from '@/components/nav/dropped-pin-card';
 import { ReportCard } from '@/components/nav/report-ui';
 import { SearchBar } from '@/components/nav/search-bar';
@@ -385,6 +386,8 @@ export default function MapScreen() {
                 label="Filtres de la carte : spots"
                 onPress={() => setPlaceFilter(true)}
               />
+              {/* Météo actuelle de l'endroit (toucher = 12 h) */}
+              <MapWeather at={from} />
             </View>
           </View>
 

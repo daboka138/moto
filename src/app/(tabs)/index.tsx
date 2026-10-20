@@ -21,6 +21,7 @@ import { ShareTripSheet } from '@/components/nav/share-trip-sheet';
 import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
+import { MapWeather } from '@/components/map-weather';
 import { NavWeatherChip } from '@/components/weather-strip';
 import { BreakBanner, FuelCheckBanner, MotoAlertChip } from '@/components/nav/moto-alerts';
 import { useBreakReminder, useCurveAlerts, useSunAlerts } from '@/lib/moto-alerts';
@@ -1222,6 +1223,8 @@ export default function MapScreen() {
                   label="Filtres de la carte : spots"
                   onPress={() => setPlaceFilter(true)}
                 />
+                {/* Météo actuelle de l'endroit (toucher = 12 h), après le démarrage */}
+                {startupDone && nav.phase === 'idle' && <MapWeather at={position ?? mapView?.center ?? null} />}
               </View>
             )}
           </View>

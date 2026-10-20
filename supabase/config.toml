@@ -466,6 +466,14 @@ verify_jwt = false
 [functions.fetch-news]
 verify_jwt = false
 
+# Météo MET Norway pour l'app (cache serveur) : jeton de session vérifié dans la fonction
+[functions.weather]
+verify_jwt = false
+
+# Météo de la veille des balades : appelée par pg_cron sans jeton (prévisions publiques, une alerte par balade)
+[functions.ride-weather]
+verify_jwt = false
+
 # « Préviens-moi » : sortie sur l'App Store / Google Play. Jeton vérifié dans la fonction, admin seulement
 [functions.store-launch]
 verify_jwt = false

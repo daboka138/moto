@@ -90,14 +90,14 @@ export async function pushPermission(): Promise<PushStatus> {
 
 // ---------- Préférences par type (côté serveur : c'est lui qui envoie) ----------
 
-export type NotificationPrefs = { messages: boolean; rides: boolean; friends: boolean; dangers: boolean; garage: boolean };
+export type NotificationPrefs = { messages: boolean; rides: boolean; friends: boolean; dangers: boolean; garage: boolean; weather: boolean };
 
-export const DEFAULT_PREFS: NotificationPrefs = { messages: true, rides: true, friends: true, dangers: true, garage: true };
+export const DEFAULT_PREFS: NotificationPrefs = { messages: true, rides: true, friends: true, dangers: true, garage: true, weather: true };
 
 export async function fetchNotificationPrefs(userId: string): Promise<NotificationPrefs> {
   const { data, error } = await supabase
     .from('notification_prefs')
-    .select('messages, rides, friends, dangers, garage')
+    .select('messages, rides, friends, dangers, garage, weather')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw error;

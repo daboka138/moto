@@ -3,65 +3,118 @@ import { useEffect, useRef, useState } from 'react';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { speak } from '@/lib/voice';
 import { useCanUse } from '@/lib/features';
+import { supabase } from '@/lib/supabase';
 
-// Météo sur le trajet (API Open-Meteo, gratuite, sans clé) : quelques points répartis le long
-// de l'itinéraire, chacun à son heure de passage estimée (départ + part de la durée).
+// Météo sur le trajet : prévisions MET Norway (Locationforecast, licences NLOD 2.0 / CC BY 4.0,
+// usage commercial gratuit), demandées à NOTRE serveur (Edge Function `weather`, cache par case de
+// ~10 km) : l'app n'appelle jamais api.met.no. Un point tous les ~20 km, chacun à son heure de
+// passage estimée (départ + part de la durée). Résumé gratuit pour tous ; détail heure par heure =
+// fonction weather_detail (canUse).
+
+export const WEATHER_CREDIT = 'Météo : MET Norway (CC BY 4.0)';
+
+export type Forecast = {
+  tempC: number;
+  /** mm par heure (moyenne sur le pas de la prévision) */
+  precipMm: number;
+  windKmh: number;
+  /** Rafales : données par MET quand le modèle les a, sinon estimées (vent × 1,5) */
+  gustKmh: number;
+  gustEstimated: boolean;
+  /** Symbole MET (« rain », « partlycloudy_day »…) */
+  symbol: string;
+};
 
 export type WeatherSample = LatLng & {
   /** Distance depuis le départ (m) */
   alongM: number;
   /** Heure de passage estimée */
   at: Date;
-  /** null : trop loin dans le futur pour les prévisions (16 jours) */
-  forecast: {
-    tempC: number;
-    precipMm: number;
-    precipProb: number | null;
-    windKmh: number;
-    gustKmh: number;
-    code: number;
-  } | null;
+  /** null : trop loin dans le futur pour les prévisions (~9 jours) */
+  forecast: Forecast | null;
 };
 
 export type RouteWeather = {
   samples: WeatherSample[];
   /** Alertes à afficher avant de partir (pluie, vent fort, froid…) */
   alerts: string[];
-  /** Les prévisions ne couvrent pas encore la date (balade dans plus de 16 jours) */
+  /** Les prévisions ne couvrent pas encore la date (balade dans plus de ~9 jours) */
   tooFar: boolean;
 };
 
-const API = 'https://api.open-meteo.com/v1/forecast';
-const TIMEOUT_MS = 12_000;
-const MAX_SAMPLES = 8;
-const MIN_SPACING_M = 15_000;
+/** Ligne compacte renvoyée par le serveur : [heure unix, °C, mm/h, vent, rafales | null, symbole, pas (h)] */
+type Row = [number, number, number, number, number | null, string, number];
+
+const MAX_SAMPLES = 15;
+const SAMPLE_EVERY_M = 20_000;
 const CACHE_MS = 15 * 60_000;
+/** Seuils des alertes (mêmes valeurs dans supabase/functions/ride-weather) */
+const GUST_ALERT_KMH = 50;
+const FROST_C = 3;
+const HEAT_C = 33;
+const RAIN_MM = 0.5;
 
 /** Maintenant, arrondi aux 10 minutes (la météo n'est pas recalculée à chaque affichage) */
 export function roundedNow() {
   return new Date(Math.floor(Date.now() / 600_000) * 600_000);
 }
 
-/** Codes météo WMO → pictogramme et libellé */
-export function weatherInfo(code: number): { emoji: string; label: string } {
-  if (code === 0) return { emoji: '☀️', label: 'Ensoleillé' };
-  if (code <= 2) return { emoji: '🌤️', label: 'Éclaircies' };
-  if (code === 3) return { emoji: '☁️', label: 'Couvert' };
-  if (code === 45 || code === 48) return { emoji: '🌫️', label: 'Brouillard' };
-  if (code >= 51 && code <= 57) return { emoji: '🌦️', label: 'Bruine' };
-  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { emoji: '🌧️', label: 'Pluie' };
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return { emoji: '🌨️', label: 'Neige' };
-  if (code >= 95) return { emoji: '⛈️', label: 'Orage' };
+const base = (symbol: string) => symbol.replace(/_(day|night|polartwilight)$/, '');
+const isStorm = (f: Forecast) => f.symbol.includes('thunder');
+const isSnow = (f: Forecast) => /snow|sleet/.test(f.symbol) && f.precipMm >= 0.2;
+const isRain = (f: Forecast) => f.precipMm >= RAIN_MM || (/rain|sleet|snow|thunder/.test(f.symbol) && f.precipMm >= 0.2);
+const isFog = (f: Forecast) => base(f.symbol) === 'fog';
+
+/** Symboles MET → pictogramme et libellé */
+export function weatherInfo(symbol: string): { emoji: string; label: string } {
+  const s = base(symbol);
+  const night = symbol.endsWith('_night');
+  if (s === 'clearsky') return { emoji: night ? '🌙' : '☀️', label: 'Ciel dégagé' };
+  if (s === 'fair') return { emoji: night ? '🌙' : '🌤️', label: 'Beau temps' };
+  if (s === 'partlycloudy') return { emoji: '⛅', label: 'Éclaircies' };
+  if (s === 'cloudy') return { emoji: '☁️', label: 'Couvert' };
+  if (s === 'fog') return { emoji: '🌫️', label: 'Brouillard' };
+  if (s.includes('thunder')) return { emoji: '⛈️', label: 'Orage' };
+  if (s.includes('snow')) return { emoji: '🌨️', label: 'Neige' };
+  if (s.includes('sleet')) return { emoji: '🌨️', label: 'Pluie et neige' };
+  if (s.includes('showers')) return { emoji: '🌦️', label: 'Averses' };
+  if (s.includes('rain')) return { emoji: '🌧️', label: s.startsWith('light') ? 'Pluie faible' : s.startsWith('heavy') ? 'Forte pluie' : 'Pluie' };
   return { emoji: '🌥️', label: 'Nuageux' };
 }
 
-/** Points du tracé répartis régulièrement (départ et arrivée compris) */
+function toForecast(r: Row): Forecast {
+  return {
+    tempC: r[1],
+    precipMm: r[2],
+    windKmh: r[3],
+    gustKmh: r[4] ?? Math.round(r[3] * 1.5),
+    gustEstimated: r[4] === null,
+    symbol: r[5],
+  };
+}
+
+/** Prévision la plus proche de cette heure (dans le pas de la prévision), sinon null */
+function rowAt(rows: Row[] | undefined, t: number): Row | null {
+  if (!rows?.length) return null;
+  let best: Row | null = null;
+  let bestD = Infinity;
+  for (const r of rows) {
+    const d = Math.abs(r[0] + (r[6] * 3600) / 2 - t);
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best && bestD <= best[6] * 1800 + 3600 ? best : null;
+}
+
+/** Points du tracé tous les ~20 km (départ et arrivée compris) */
 function sampleRoute(points: LatLng[]): { point: LatLng; alongM: number }[] {
   if (points.length === 0) return [];
   const cumulative = [0];
   for (let i = 1; i < points.length; i++) cumulative.push(cumulative[i - 1] + distanceM(points[i - 1], points[i]));
   const total = cumulative[cumulative.length - 1];
-  const count = Math.max(2, Math.min(MAX_SAMPLES, Math.floor(total / MIN_SPACING_M) + 1));
+  const count = Math.max(2, Math.min(MAX_SAMPLES, Math.floor(total / SAMPLE_EVERY_M) + 1));
   const out: { point: LatLng; alongM: number }[] = [];
   let j = 0;
   for (let k = 0; k < count; k++) {
@@ -72,15 +125,14 @@ function sampleRoute(points: LatLng[]): { point: LatLng; alongM: number }[] {
   return out;
 }
 
-type ApiHourly = {
-  time: number[];
-  temperature_2m: number[];
-  precipitation: number[];
-  precipitation_probability: (number | null)[];
-  wind_speed_10m: number[];
-  wind_gusts_10m: number[];
-  weather_code: number[];
-};
+/** Prévisions brutes de ces points (une série par point), via notre serveur */
+async function fetchRows(points: LatLng[]): Promise<(Row[] | undefined)[]> {
+  const { data, error } = await supabase.functions.invoke<{ keys: string[]; cells: Record<string, Row[]>; error?: string }>('weather', {
+    body: { points: points.map((p) => [Math.round(p.latitude * 1e4) / 1e4, Math.round(p.longitude * 1e4) / 1e4]) },
+  });
+  if (error || !data?.keys) throw new Error(data?.error ?? error?.message ?? 'Météo indisponible');
+  return data.keys.map((k) => data.cells[k]);
+}
 
 const cache = new Map<string, { at: number; value: RouteWeather }>();
 
@@ -100,57 +152,11 @@ export async function fetchRouteWeather(points: LatLng[], durationS: number, dep
   const cached = cache.get(key);
   if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
 
-  const url =
-    `${API}?latitude=${samples.map((s) => s.point.latitude.toFixed(4)).join(',')}` +
-    `&longitude=${samples.map((s) => s.point.longitude.toFixed(4)).join(',')}` +
-    '&hourly=temperature_2m,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,weather_code' +
-    '&timeformat=unixtime&timezone=GMT&forecast_days=16&wind_speed_unit=kmh';
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  let json: unknown;
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
-    json = await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-  // Un seul point : objet ; plusieurs : tableau
-  const locations = (Array.isArray(json) ? json : [json]) as { hourly?: ApiHourly }[];
-
+  const rows = await fetchRows(samples.map((s) => s.point));
   const result: WeatherSample[] = samples.map((s, i) => {
     const at = new Date(departAt.getTime() + durationS * 1000 * (s.alongM / totalM));
-    const h = locations[i]?.hourly;
-    const t = at.getTime() / 1000;
-    let idx = -1;
-    if (h?.time.length) {
-      // Heure de prévision la plus proche (à moins d'1 h 30)
-      let best = Infinity;
-      h.time.forEach((x, k) => {
-        const d = Math.abs(x - t);
-        if (d < best) {
-          best = d;
-          idx = k;
-        }
-      });
-      if (best > 5400) idx = -1;
-    }
-    return {
-      ...s.point,
-      alongM: s.alongM,
-      at,
-      forecast:
-        h && idx >= 0
-          ? {
-              tempC: h.temperature_2m[idx],
-              precipMm: h.precipitation[idx] ?? 0,
-              precipProb: h.precipitation_probability[idx] ?? null,
-              windKmh: h.wind_speed_10m[idx],
-              gustKmh: h.wind_gusts_10m[idx],
-              code: h.weather_code[idx],
-            }
-          : null,
-    };
+    const row = rowAt(rows[i], at.getTime() / 1000);
+    return { ...s.point, alongM: s.alongM, at, forecast: row ? toForecast(row) : null };
   });
   const value: RouteWeather = {
     samples: result,
@@ -163,27 +169,91 @@ export async function fetchRouteWeather(points: LatLng[], durationS: number, dep
 
 /** Ce qui mérite une alerte avant de partir à moto */
 export function weatherAlerts(samples: WeatherSample[]): string[] {
-  const f = samples.map((s) => s.forecast).filter((x): x is NonNullable<WeatherSample['forecast']> => !!x);
+  const f = samples.map((s) => s.forecast).filter((x): x is Forecast => !!x);
   if (!f.length) return [];
   const alerts: string[] = [];
-  if (f.some((x) => x.code >= 95)) alerts.push('Orages prévus sur le trajet');
-  const rain = f.filter((x) => x.precipMm >= 0.5 || ((x.precipProb ?? 0) >= 60 && x.precipMm > 0));
-  if (rain.length) {
-    const max = Math.max(...rain.map((x) => x.precipProb ?? 0));
-    alerts.push(`Pluie prévue sur le trajet${max ? ` (jusqu’à ${max} %)` : ''}`);
-  }
-  if (f.some((x) => (x.code >= 71 && x.code <= 77) || x.code === 85 || x.code === 86)) alerts.push('Neige possible');
-  const gust = Math.max(...f.map((x) => x.gustKmh));
-  if (gust >= 60) alerts.push(`Vent fort : rafales jusqu’à ${Math.round(gust)} km/h`);
+  if (f.some(isStorm)) alerts.push('Orages prévus sur le trajet');
+  if (f.some(isSnow)) alerts.push('Neige possible');
+  else if (f.some(isRain)) alerts.push('Pluie prévue sur le trajet');
+  const gust = f.reduce((m, x) => (x.gustKmh > m.gustKmh ? x : m));
+  if (gust.gustKmh >= GUST_ALERT_KMH) alerts.push(`Vent fort : rafales ${gust.gustEstimated ? 'estimées à' : 'jusqu’à'} ${Math.round(gust.gustKmh)} km/h`);
   const cold = Math.min(...f.map((x) => x.tempC));
-  if (cold <= 3) alerts.push(`Risque de gel : ${Math.round(cold)} °C, verglas possible`);
-  if (f.some((x) => x.code === 45 || x.code === 48)) alerts.push('Brouillard');
+  if (cold <= FROST_C) alerts.push(`Risque de gel : ${Math.round(cold)} °C, verglas possible`);
+  const hot = Math.max(...f.map((x) => x.tempC));
+  if (hot >= HEAT_C) alerts.push(`Forte chaleur : jusqu’à ${Math.round(hot)} °C, hydrate-toi`);
+  if (f.some(isFog)) alerts.push('Brouillard');
   return alerts;
+}
+
+const hourLabel = (d: Date) => `${d.getHours()}h${d.getMinutes() >= 30 ? '30' : ''}`;
+
+/** Nom de la commune la plus proche (Photon, position arrondie ~1 km), pour le résumé */
+async function nearbyTown(p: LatLng): Promise<string | null> {
+  try {
+    const res = await fetch(`https://photon.komoot.io/reverse?lat=${p.latitude.toFixed(2)}&lon=${p.longitude.toFixed(2)}&lang=fr&limit=1`);
+    const json = (await res.json()) as { features?: { properties?: { city?: string; name?: string } }[] };
+    const props = json.features?.[0]?.properties;
+    return props?.city ?? props?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type WeatherSummary = { emoji: string; text: string; bad: boolean };
+
+/**
+ * Résumé en une ligne : « ☀️ Sec, 18-22 °C » ou « 🌧️ Pluie possible vers Gémenos vers 15h, rafales
+ * 60 km/h ». town : commune du premier point mouillé (facultatif, voir useWeatherSummary).
+ */
+export function weatherSummary(w: RouteWeather | null, town?: string | null): WeatherSummary | null {
+  const list = (w?.samples ?? []).filter((s): s is WeatherSample & { forecast: Forecast } => !!s.forecast);
+  if (!list.length) return null;
+  const temps = list.map((s) => s.forecast.tempC);
+  const lo = Math.round(Math.min(...temps));
+  const hi = Math.round(Math.max(...temps));
+  const range = lo === hi ? `${lo} °C` : `${lo}-${hi} °C`;
+  const gust = Math.max(...list.map((s) => s.forecast.gustKmh));
+  const wet = list.find((s) => isStorm(s.forecast)) ?? list.find((s) => isSnow(s.forecast)) ?? list.find((s) => isRain(s.forecast));
+  const parts: string[] = [];
+  let emoji: string;
+  if (wet) {
+    const kind = isStorm(wet.forecast) ? 'Orage possible' : isSnow(wet.forecast) ? 'Neige possible' : 'Pluie possible';
+    emoji = weatherInfo(wet.forecast.symbol).emoji;
+    parts.push(`${kind}${town ? ` vers ${town}` : ''} vers ${hourLabel(wet.at)}`);
+  } else {
+    // Le ciel le plus fréquent sur le trajet
+    const counts = new Map<string, number>();
+    for (const s of list) counts.set(weatherInfo(s.forecast.symbol).emoji, (counts.get(weatherInfo(s.forecast.symbol).emoji) ?? 0) + 1);
+    emoji = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    parts.push(`Sec, ${range}`);
+  }
+  if (gust >= GUST_ALERT_KMH) parts.push(`rafales ${Math.round(gust / 5) * 5} km/h`);
+  if (lo <= FROST_C) parts.push('verglas possible');
+  else if (hi >= HEAT_C) parts.push('forte chaleur');
+  if (wet) parts.push(range);
+  return { emoji, text: parts.join(', '), bad: !!wet || gust >= GUST_ALERT_KMH || lo <= FROST_C || hi >= HEAT_C };
+}
+
+/** Résumé d'une météo de trajet, avec le nom de la commune où la pluie est attendue */
+export function useWeatherSummary(w: RouteWeather | null): WeatherSummary | null {
+  const wet = w?.samples.find((s) => s.forecast && (isStorm(s.forecast) || isSnow(s.forecast) || isRain(s.forecast))) ?? null;
+  const wetKey = wet ? `${wet.latitude.toFixed(2)},${wet.longitude.toFixed(2)}` : null;
+  const [town, setTown] = useState<{ key: string; name: string | null } | null>(null);
+  useEffect(() => {
+    if (!wet || !wetKey) return;
+    let cancelled = false;
+    nearbyTown(wet).then((name) => !cancelled && setTown({ key: wetKey, name }));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wetKey]);
+  return weatherSummary(w, town && town.key === wetKey ? town.name : null);
 }
 
 // ---------- Pendant la navigation : ce qui arrive devant moi ----------
 
-export type WeatherHazard = 'storm' | 'rain' | 'snow' | 'wind' | 'frost' | 'fog';
+export type WeatherHazard = 'storm' | 'rain' | 'snow' | 'wind' | 'frost' | 'heat' | 'fog';
 
 export type WeatherAhead = {
   hazard: WeatherHazard;
@@ -194,13 +264,14 @@ export type WeatherAhead = {
   inM: number;
 };
 
-function hazardOf(f: NonNullable<WeatherSample['forecast']>): { hazard: WeatherHazard; emoji: string; label: string; extra: string } | null {
-  if (f.code >= 95) return { hazard: 'storm', emoji: '⛈️', label: 'Orage prévu', extra: '' };
-  if ((f.code >= 71 && f.code <= 77) || f.code === 85 || f.code === 86) return { hazard: 'snow', emoji: '🌨️', label: 'Neige prévue', extra: '' };
-  if (f.precipMm >= 0.5 || ((f.precipProb ?? 0) >= 60 && f.precipMm > 0)) return { hazard: 'rain', emoji: '🌧️', label: 'Pluie prévue', extra: '' };
-  if (f.gustKmh >= 60) return { hazard: 'wind', emoji: '💨', label: 'Vent fort', extra: ` (rafales ${Math.round(f.gustKmh)} km/h)` };
-  if (f.tempC <= 3) return { hazard: 'frost', emoji: '🧊', label: 'Risque de gel', extra: ` (${Math.round(f.tempC)} °C)` };
-  if (f.code === 45 || f.code === 48) return { hazard: 'fog', emoji: '🌫️', label: 'Brouillard', extra: '' };
+function hazardOf(f: Forecast): { hazard: WeatherHazard; emoji: string; label: string; extra: string } | null {
+  if (isStorm(f)) return { hazard: 'storm', emoji: '⛈️', label: 'Orage prévu', extra: '' };
+  if (isSnow(f)) return { hazard: 'snow', emoji: '🌨️', label: 'Neige prévue', extra: '' };
+  if (isRain(f)) return { hazard: 'rain', emoji: '🌧️', label: 'Pluie prévue', extra: '' };
+  if (f.gustKmh >= GUST_ALERT_KMH) return { hazard: 'wind', emoji: '💨', label: 'Vent fort', extra: ` (rafales ${Math.round(f.gustKmh)} km/h)` };
+  if (f.tempC <= FROST_C) return { hazard: 'frost', emoji: '🧊', label: 'Risque de gel', extra: ` (${Math.round(f.tempC)} °C)` };
+  if (f.tempC >= HEAT_C) return { hazard: 'heat', emoji: '🥵', label: 'Forte chaleur', extra: ` (${Math.round(f.tempC)} °C)` };
+  if (isFog(f)) return { hazard: 'fog', emoji: '🌫️', label: 'Brouillard', extra: '' };
   return null;
 }
 
@@ -223,7 +294,7 @@ export function weatherAhead(weather: RouteWeather | null, alongM: number): Weat
   return null;
 }
 
-/** Nouvelle prévision pendant la navigation toutes les 30 min (le cache évite de rappeler l'API) */
+/** Nouvelle prévision pendant la navigation toutes les 30 min (le cache évite de rappeler le serveur) */
 const NAV_REFRESH_MS = 30 * 60_000;
 
 /**
@@ -309,4 +380,45 @@ export function useRouteWeather(input: LatLng[] | null, durationS: number | null
 
   const current = state && state.key === key ? state : null;
   return { weather: current?.weather ?? null, loading: !!key && !current, error: current?.error ?? false };
+}
+
+// ---------- Météo actuelle (coin de la carte) ----------
+
+export type HourForecast = Forecast & { at: Date };
+
+/** Maintenant + les 12 prochaines heures à cet endroit */
+export async function fetchLocalWeather(p: LatLng): Promise<HourForecast[]> {
+  const [rows] = await fetchRows([p]);
+  const now = Date.now() / 1000;
+  const out: HourForecast[] = [];
+  for (let h = 0; h <= 12; h++) {
+    const t = Math.floor(now / 3600) * 3600 + h * 3600;
+    const row = rowAt(rows, t + 1800);
+    if (row) out.push({ ...toForecast(row), at: new Date(t * 1000) });
+  }
+  return out;
+}
+
+const LOCAL_REFRESH_MS = 30 * 60_000;
+
+/** Météo de l'endroit (position arrondie ~10 km : on ne recharge qu'en changeant de case ou toutes les 30 min) */
+export function useLocalWeather(p: LatLng | null, enabled: boolean) {
+  const cell = p && enabled ? `${(Math.round(p.latitude * 10) / 10).toFixed(1)},${(Math.round(p.longitude * 10) / 10).toFixed(1)}` : null;
+  const [state, setState] = useState<{ cell: string; hours: HourForecast[] } | null>(null);
+  useEffect(() => {
+    if (!cell) return;
+    let cancelled = false;
+    const [lat, lng] = cell.split(',').map(Number);
+    const load = () =>
+      fetchLocalWeather({ latitude: lat, longitude: lng })
+        .then((hours) => !cancelled && setState({ cell, hours }))
+        .catch((e) => console.warn('Météo locale indisponible', e));
+    load();
+    const timer = setInterval(load, LOCAL_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [cell]);
+  return state && state.cell === cell ? state.hours : null;
 }
