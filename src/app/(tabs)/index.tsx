@@ -103,6 +103,8 @@ const SPEED_MARGIN_KMH = 3;
 const SPEED_BEEP_REPEAT_MS = 20_000;
 const KEEP_AWAKE_TAG = 'navigation';
 const NAV_ORIENTATION_KEY = 'moto.nav.orientation';
+/** Boutons de la colonne de navigation (boussole, son, ⋯, SOS) */
+const NAV_RAIL_BUTTON = 44;
 /** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
 const HOMECOMING_POSITION_MS = 60_000;
 const HOMECOMING_ARRIVED_M = 150;
@@ -608,6 +610,28 @@ export default function MapScreen() {
     };
   }, [status, navigating]);
 
+  // Navigation : menu « ⋯ » (tout ce qui n'est pas boussole, son, danger, recentrer ni SOS)
+  const navMoreMenu = () =>
+    showActionSheet({
+      title: 'Options de navigation',
+      options: [
+        { label: ghost ? 'Quitter le mode fantôme' : 'Mode fantôme (me masquer)', icon: 'eye-off-outline', onPress: onGhostPress },
+        {
+          label: layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements',
+          icon: 'warning-outline',
+          onPress: () => layers.setShowReports(!layers.showReports),
+        },
+        { label: passenger ? 'Je ne suis plus passager' : 'Je suis passager', icon: 'person-outline', onPress: () => setPassenger(!passenger) },
+        {
+          label: nav.shares.length ? 'Partage du trajet' : 'Partager mon trajet en direct',
+          icon: 'share-social-outline',
+          onPress: () => setShareSheet(true),
+        },
+        { label: 'Ajouter un arrêt', icon: 'add-circle-outline', onPress: () => setStopPicker({ kind: null }) },
+        { label: 'Station essence sur mon trajet', icon: 'speedometer-outline', onPress: () => setStopPicker({ kind: 'fuel' }) },
+      ],
+    });
+
   const onGhostPress = async () => {
     setTogglingGhost(true);
     try {
@@ -1076,71 +1100,81 @@ export default function MapScreen() {
           <View style={styles.top} pointerEvents="box-none">
             <View style={styles.left} pointerEvents="box-none">
               <Speedometer kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />
-              <Pressable
-                style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
-                onPress={onGhostPress}
-                disabled={!settings || togglingGhost}
-                accessibilityLabel={ghost ? 'Quitter le mode fantôme' : 'Passer en mode fantôme'}>
-                {togglingGhost ? (
-                  <ActivityIndicator color={ghost ? Colors.white : Colors.ghost} />
-                ) : (
-                  <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
-                )}
-              </Pressable>
-              <SosButton
-                onTrigger={() => setSosKind('manual')}
-                onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
-              />
-              <MapCompass
-                navigating={navigating}
-                orientation={navOrientation}
-                onPress={() => (navigating ? toggleNavOrientation() : setNorthUpKey((k) => k + 1))}
-              />
+              {!navigating && (
+                <>
+                  <Pressable
+                    style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
+                    onPress={onGhostPress}
+                    disabled={!settings || togglingGhost}
+                    accessibilityLabel={ghost ? 'Quitter le mode fantôme' : 'Passer en mode fantôme'}>
+                    {togglingGhost ? (
+                      <ActivityIndicator color={ghost ? Colors.white : Colors.ghost} />
+                    ) : (
+                      <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
+                    )}
+                  </Pressable>
+                  <SosButton
+                    onTrigger={() => setSosKind('manual')}
+                    onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
+                  />
+                  <MapCompass navigating={false} orientation={navOrientation} onPress={() => setNorthUpKey((k) => k + 1)} />
+                </>
+              )}
             </View>
-            <View style={styles.right} pointerEvents="box-none">
-              {/* Afficher / masquer les calques (choix mémorisé) */}
-              <LayerButton
-                active={layers.showReports}
-                icon="warning"
-                label={layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements'}
-                onPress={() => layers.setShowReports(!layers.showReports)}
-              />
-              {/* Muet rapide : coupe toutes les annonces vocales (mémorisé) */}
-              {navigating && (
+            {navigating ? (
+              // Navigation : une colonne fine sur le bord (boussole, son, ⋯, SOS) ; le reste est dans ⋯
+              <View style={styles.navRail}>
+                <MapCompass navigating orientation={navOrientation} onPress={toggleNavOrientation} size={NAV_RAIL_BUTTON} />
+                {/* Muet rapide : coupe toutes les annonces vocales (mémorisé) */}
                 <Pressable
-                  style={[styles.layerButton, styles.navButton, voice.muted && styles.muteOn]}
+                  style={[styles.railButton, voice.muted && styles.muteOn]}
                   onPress={() => updateVoiceSettings({ muted: !voice.muted })}
                   hitSlop={6}
                   accessibilityLabel={voice.muted ? 'Réactiver la voix' : 'Couper la voix'}>
-                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={32} color={voice.muted ? Colors.white : Colors.accent} />
+                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={22} color={voice.muted ? Colors.white : Colors.accent} />
                 </Pressable>
-              )}
-              {!navigating && !homecoming && (
-                <Pressable
-                  style={styles.layerButton}
-                  onPress={() => router.push('/homecoming')}
-                  hitSlop={6}
-                  accessibilityLabel="Je rentre : prévenir mes contacts si je n'arrive pas">
-                  <Ionicons name="home-outline" size={24} color={Colors.accent} />
+                <Pressable style={styles.railButton} onPress={navMoreMenu} hitSlop={6} accessibilityLabel="Plus d’options">
+                  <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text} />
+                  {ghost && <View style={styles.railDot} />}
                 </Pressable>
-              )}
-              {!navigating && (
+                <SosButton
+                  size={NAV_RAIL_BUTTON}
+                  onTrigger={() => setSosKind('manual')}
+                  onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
+                />
+              </View>
+            ) : (
+              <View style={styles.right} pointerEvents="box-none">
+                {/* Afficher / masquer les calques (choix mémorisé) */}
+                <LayerButton
+                  active={layers.showReports}
+                  icon="warning"
+                  label={layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements'}
+                  onPress={() => layers.setShowReports(!layers.showReports)}
+                />
+                {!homecoming && (
+                  <Pressable
+                    style={styles.layerButton}
+                    onPress={() => router.push('/homecoming')}
+                    hitSlop={6}
+                    accessibilityLabel="Je rentre : prévenir mes contacts si je n'arrive pas">
+                    <Ionicons name="home-outline" size={24} color={Colors.accent} />
+                  </Pressable>
+                )}
                 <LayerButton
                   active={layers.showRides}
                   icon="flag"
                   label={layers.showRides ? 'Masquer les balades et événements' : 'Afficher les balades et événements'}
                   onPress={() => layers.setShowRides(!layers.showRides)}
                 />
-              )}
-              {!navigating && (
                 <LayerButton
                   active={layers.showPlaces}
                   icon="cafe"
                   label="Filtres de la carte : spots"
                   onPress={() => setPlaceFilter(true)}
                 />
-              )}
-            </View>
+              </View>
+            )}
           </View>
 
           {ghost && (
@@ -1206,7 +1240,8 @@ export default function MapScreen() {
             )}
             {navigating || riding ? (
               <View style={styles.dangerColumn} pointerEvents="box-none">
-                <PassengerToggle on={passenger} onChange={setPassenger} />
+                {/* En navigation : interrupteur dans ⋯, rappelé ici seulement quand il est activé */}
+                {(!navigating || passenger) && <PassengerToggle on={passenger} onChange={setPassenger} />}
                 <DangerButton
                   riding={riding && !passenger}
                   onPress={() => (riding && !passenger ? markDangerWhileRiding() : setQuickSheet(true))}
@@ -1585,8 +1620,28 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   layerButtonOn: { backgroundColor: Colors.accent },
-  // En navigation : boutons plus gros, utilisables avec des gants
-  navButton: { width: 64, height: 64, borderRadius: 32 },
+  // Navigation : colonne fine sur le bord droit, fond semi-transparent
+  navRail: {
+    gap: 8,
+    padding: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surfaceGlass,
+    alignItems: 'center',
+  },
+  railButton: {
+    width: NAV_RAIL_BUTTON,
+    height: NAV_RAIL_BUTTON,
+    borderRadius: NAV_RAIL_BUTTON / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    elevation: 2,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  railDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.ghost },
   layerStrike: {
     position: 'absolute',
     width: 34,

@@ -40,6 +40,8 @@ export const LightColors = {
   // Fonds et textes
   background: '#F4F4F5',
   surface: '#FFFFFF',
+  /** Colonne de boutons posée sur la carte en navigation (semi-transparente) */
+  surfaceGlass: 'rgba(255,255,255,0.72)',
   /** Texte ou icône posé sur une couleur vive (bouton bleu, bandeau rouge…) */
   white: '#FFFFFF',
   /** QR code (toujours noir sur blanc) */
@@ -101,6 +103,7 @@ export const DarkColors: Palette = {
 
   background: '#0B0F14',
   surface: '#161B22',
+  surfaceGlass: 'rgba(22,27,34,0.72)',
   text: '#F4F4F5',
   textMuted: '#A1A1AA',
   textFaint: '#71717A',

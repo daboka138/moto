@@ -10,7 +10,8 @@ const HOLD_MS = 2000;
  * Bouton SOS de la carte : il faut le garder appuyé 2 s (le bouton se remplit).
  * Un appui court affiche seulement l'aide.
  */
-export function SosButton({ onTrigger, onHint }: { onTrigger: () => void; onHint: () => void }) {
+/** size : 64 par défaut, plus petit dans la colonne de la navigation (toujours 2 s d'appui) */
+export function SosButton({ onTrigger, onHint, size = 64 }: { onTrigger: () => void; onHint: () => void; size?: number }) {
   const styles = useStyles();
   const [progress] = useState(() => new Animated.Value(0));
   const [holding, setHolding] = useState(false);
@@ -47,11 +48,11 @@ export function SosButton({ onTrigger, onHint }: { onTrigger: () => void; onHint
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel="SOS : garder appuyé 2 secondes pour alerter tes contacts d'urgence">
-      <View style={styles.button}>
+      <View style={[styles.button, size !== 64 && { width: size, height: size, borderRadius: size / 2, borderWidth: 2 }]}>
         <Animated.View
           style={[styles.fill, { height: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
         />
-        <Text style={styles.text}>SOS</Text>
+        <Text style={[styles.text, size < 56 && styles.textSmall]}>SOS</Text>
       </View>
     </Pressable>
   );
@@ -77,4 +78,5 @@ const useStyles = makeStyles((Colors) => ({
   // Se remplit du bas vers le haut pendant l'appui
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: Colors.dark, opacity: 0.45 },
   text: { color: Colors.white, fontSize: Type.large, fontWeight: '900', letterSpacing: 1 },
+  textSmall: { fontSize: Type.small, letterSpacing: 0.5 },
 }));
