@@ -99,6 +99,15 @@ function buildHtml(Colors: Palette, dark: boolean) {
 
   var container = map.getContainer();
   var lastDragAt = 0;
+  // Doigts posés (événements tactiles) : à 2 doigts, la carte tourne / zoome en CSS et rien n'est redessiné
+  var touches = 0;
+  function onTouches(e) {
+    touches = e.touches ? e.touches.length : 0;
+    if (touches < 2) redrawAfterGesture();
+  }
+  container.addEventListener('touchstart', onTouches, true);
+  container.addEventListener('touchend', onTouches, true);
+  container.addEventListener('touchcancel', onTouches, true);
   // Glisser ou tourner la carte au doigt coupe le suivi tout de suite (l'app affiche « Recentrer »)
   function userMoved() {
     lastDragAt = Date.now();
@@ -145,6 +154,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
   // bougé de 4° ou plus (ou vient de revenir au nord) pour ne pas redessiner l'écran en continu
   var sentBearing = 0, bearingTimer = null;
   map.on('rotate', function () {
+    // Pastilles et flèche : repositionnées sans transition pendant que la carte tourne (au doigt ou en suivi)
+    markRotating();
     if (bearingTimer) return;
     bearingTimer = setTimeout(function () {
       bearingTimer = null;
@@ -226,6 +237,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
   var frame = null, lastFrameAt = 0;
   /** Bouton boussole ou fin de navigation : la carte revient nord en haut */
   var resetNorth = false;
+  /** Navigation : 'heading' = ma direction en haut (par défaut), 'north' = nord en haut (bouton boussole) */
+  var mapOrientation = 'heading';
 
   function meIcon() {
     var el = document.createElement('div');
@@ -251,7 +264,7 @@ function buildHtml(Colors: Palette, dark: boolean) {
     var pos = interpolated(now);
     var busy = !!(pos && me.dur && now - me.t0 < me.dur);
     // Pas pendant un zoom ni tant qu'un doigt est posé (pincement, rotation)
-    var touching = pointers > 0 || container.classList.contains('zooming');
+    var touching = pointers > 0 || touches > 0 || container.classList.contains('zooming');
 
     // Cap lissé (constante de temps 250 ms)
     if (me.targetHeading !== null) {
@@ -266,8 +279,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
     // Navigation suivie : ma direction en haut. Nord en haut sur demande. Sinon, l'orientation
     // choisie au doigt est gardée.
     var targetBearing = null;
-    if (me.nav && me.follow && me.heading !== null) targetBearing = (360 - me.heading) % 360;
-    else if (resetNorth) targetBearing = 0;
+    if (me.nav && me.follow && mapOrientation === 'heading' && me.heading !== null) targetBearing = (360 - me.heading) % 360;
+    else if (resetNorth || (me.nav && me.follow && mapOrientation === 'north')) targetBearing = 0;
     if (map.setBearing && targetBearing !== null && !touching) {
       var bearing = mapBearing();
       var db = angleDelta(bearing, targetBearing);
@@ -357,6 +370,12 @@ function buildHtml(Colors: Palette, dark: boolean) {
 
   window.northUp = function () {
     resetNorth = true;
+    wake();
+  };
+
+  window.setOrientation = function (mode) {
+    mapOrientation = mode === 'north' ? 'north' : 'heading';
+    if (mapOrientation === 'north') resetNorth = true;
     wake();
   };
 
@@ -489,8 +508,32 @@ function buildHtml(Colors: Palette, dark: boolean) {
   var routeLayer = L.layerGroup().addTo(map);
   // Tracés dessinés sur un canvas, pas en SVG : pendant un zoom au doigt, le WebView Android
   // recompose le SVG en retard sur les tuiles (le tracé « glisse » puis se recale) ; le canvas est
-  // transformé comme une image, avec les tuiles. Marge 0,5 : rien de coupé en dézoomant.
-  var routeRenderer = L.canvas({ padding: 0.5 });
+  // transformé comme une image, avec les tuiles. Marge 0,7 : rien de coupé en dézoomant ni en tournant.
+  var routeRenderer = L.canvas({ padding: 0.7 });
+  // leaflet-rotate redessine le canvas à CHAQUE pas de rotation : pendant un geste à 2 doigts, le zoom
+  // est fractionnaire et l'origine des pixels bouge, mais les points du tracé sont encore projetés au
+  // zoom de départ → tracé redessiné à la mauvaise échelle (il se décale de la route) jusqu'au
+  // relâchement. Ici : rien n'est redessiné pendant le geste (le canvas tourne et zoome en CSS avec
+  // les tuiles), et hors geste seulement si la vue sort de la zone déjà dessinée (suivi GPS, rotation
+  // en navigation : plus de redessin complet à chaque image).
+  var rawRendererUpdate = routeRenderer._update;
+  var drawnOrigin = null, redrawPending = false;
+  routeRenderer._update = function () {
+    var m = this._map;
+    if (this._bounds && m) {
+      if (touches > 1) { redrawPending = true; return; }
+      var sameView = drawnOrigin && this._zoom === m.getZoom() && m.getPixelOrigin().equals(drawnOrigin);
+      if (sameView && this._bounds.contains(m._getPaddedPixelBounds(0.05))) return;
+    }
+    rawRendererUpdate.apply(this, arguments);
+    if (m) drawnOrigin = m.getPixelOrigin();
+  };
+  /** Fin du geste sans zoom ni déplacement (rotation seule) : la zone dessinée est vérifiée une fois */
+  function redrawAfterGesture() {
+    if (!redrawPending) return;
+    redrawPending = false;
+    setTimeout(function () { if (touches < 2 && !map._animatingZoom) routeRenderer._update(); }, 350);
+  }
   window.setRoutes = function (list) {
     routeLayer.clearLayers();
     // Alternatives d'abord : l'itinéraire choisi est dessiné par-dessus
@@ -583,6 +626,7 @@ export function LeafletMap({
   onViewChange,
   defaultView,
   onPainted,
+  orientation = 'heading',
 }: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -623,6 +667,11 @@ export function LeafletMap({
     if (!pageLoads || !northUpKey) return;
     webRef.current?.injectJavaScript(`window.northUp && window.northUp(); true;`);
   }, [pageLoads, northUpKey]);
+
+  useEffect(() => {
+    if (!pageLoads) return;
+    webRef.current?.injectJavaScript(`window.setOrientation && window.setOrientation(${JSON.stringify(orientation)}); true;`);
+  }, [pageLoads, orientation]);
 
   const markersJson = JSON.stringify(markers);
   useEffect(() => {

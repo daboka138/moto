@@ -29,6 +29,7 @@ import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
+import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, Radius, ReportSigns, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
@@ -101,6 +102,7 @@ const SPEED_MARGIN_KMH = 3;
 /** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
 const SPEED_BEEP_REPEAT_MS = 20_000;
 const KEEP_AWAKE_TAG = 'navigation';
+const NAV_ORIENTATION_KEY = 'moto.nav.orientation';
 /** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
 const HOMECOMING_POSITION_MS = 60_000;
 const HOMECOMING_ARRIVED_M = 150;
@@ -121,9 +123,26 @@ export default function MapScreen() {
   const [heading, setHeading] = useState<number | null>(null);
   // La carte suit ma position (et mon cap en navigation) ; coupé dès que je la déplace ou la tourne
   const [follow, setFollow] = useState(true);
-  // Orientation de la carte (0 = nord en haut) : boussole affichée hors navigation si ≠ 0
-  const [bearing, setBearing] = useState(0);
   const [northUpKey, setNorthUpKey] = useState(0);
+  // Navigation : ma direction en haut (par défaut) ou nord en haut, au bouton boussole (mémorisé)
+  const [navOrientation, setNavOrientation] = useState<'heading' | 'north'>(() => {
+    try {
+      return localStorage.getItem(NAV_ORIENTATION_KEY) === 'north' ? 'north' : 'heading';
+    } catch {
+      return 'heading';
+    }
+  });
+  const toggleNavOrientation = () => {
+    const next = navOrientation === 'heading' ? 'north' : 'heading';
+    setNavOrientation(next);
+    // « Cap en haut » : la carte suit de nouveau ma direction
+    if (next === 'heading') setFollow(true);
+    try {
+      localStorage.setItem(NAV_ORIENTATION_KEY, next);
+    } catch {
+      // stockage indisponible : le choix vaut pour cette navigation
+    }
+  };
   const voice = useVoiceSettings();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [togglingGhost, setTogglingGhost] = useState(false);
@@ -1009,8 +1028,9 @@ export default function MapScreen() {
         navigating={navigating}
         follow={follow && nav.phase !== 'preview'}
         onUserPan={() => setFollow(false)}
-        onBearingChange={setBearing}
+        onBearingChange={setMapBearing}
         northUpKey={northUpKey}
+        orientation={navOrientation}
         markers={markers}
         selectedMarkerId={selectedId}
         onMarkerPress={(id) => {
@@ -1071,19 +1091,11 @@ export default function MapScreen() {
                 onTrigger={() => setSosKind('manual')}
                 onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
               />
-              {/* Boussole : la carte a été tournée au doigt ; un appui remet le nord en haut */}
-              {!navigating && Math.abs(((bearing + 540) % 360) - 180) >= 2 && (
-                <Pressable
-                  style={styles.compass}
-                  onPress={() => setNorthUpKey((k) => k + 1)}
-                  hitSlop={6}
-                  accessibilityLabel="Remettre le nord en haut">
-                  <View style={{ transform: [{ rotate: `${bearing}deg` }], alignItems: 'center' }}>
-                    <MaterialCommunityIcons name="navigation" size={26} color={Colors.danger} />
-                    <Text style={styles.compassN}>N</Text>
-                  </View>
-                </Pressable>
-              )}
+              <MapCompass
+                navigating={navigating}
+                orientation={navOrientation}
+                onPress={() => (navigating ? toggleNavOrientation() : setNorthUpKey((k) => k + 1))}
+              />
             </View>
             <View style={styles.right} pointerEvents="box-none">
               {/* Afficher / masquer les calques (choix mémorisé) */}
@@ -1599,20 +1611,6 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   ghostButtonOn: { backgroundColor: Colors.ghost },
-  compass: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: Colors.shadow,
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  compassN: { fontSize: Type.small, fontWeight: '900', color: Colors.text, marginTop: -4 },
   muteOn: { backgroundColor: Colors.danger, borderColor: Colors.danger },
   recenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   recenterNav: { minHeight: 64, paddingHorizontal: 24, borderRadius: 32 },

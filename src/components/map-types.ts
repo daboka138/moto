@@ -75,6 +75,8 @@ export type MapProps = {
    * (dernière position connue, ville du profil, France)
    */
   defaultView?: (LatLng & { zoom: number }) | null;
+  /** Navigation : ma direction en haut (par défaut) ou nord en haut (bouton boussole) */
+  orientation?: 'heading' | 'north';
   /** Premières tuiles affichées (ou 1,5 s après le chargement de la page) : une seule fois */
   onPainted?: () => void;
 };
