@@ -482,9 +482,9 @@ function buildHtml(Colors: Palette, dark: boolean) {
         el.innerHTML = p.icon.svg;
         var w = p.icon.width, h = p.icon.height;
         icon = L.divIcon({ className: 'mapicon-wrap', html: el, iconSize: [w, h], iconAnchor: [w / 2, p.icon.anchor === 'bottom' ? h * 0.88 : h / 2] });
-        if (p.kind === 'signal') {
-          // Feu tricolore : non cliquable, au-dessus des tuiles mais sous tous les autres repères
-          pins[p.id] = L.marker([p.latitude, p.longitude], { icon: icon, interactive: false, keyboard: false, zIndexOffset: -1000 }).addTo(map);
+        if (p.kind === 'signal' || p.kind === 'zone') {
+          // Feu tricolore, zone de danger : non cliquables, au-dessus des tuiles mais sous les autres repères
+          pins[p.id] = L.marker([p.latitude, p.longitude], { icon: icon, interactive: false, keyboard: false, zIndexOffset: p.kind === 'zone' ? -500 : -1000 }).addTo(map);
           return;
         }
       } else if (p.kind === 'dropped') {

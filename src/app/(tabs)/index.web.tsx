@@ -15,7 +15,8 @@ import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { parkingPinIcon, placePinIcon, reportPinIcon } from '@/lib/map-pin-icons';
+import { parkingPinIcon, placePinIcon, reportPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
+import { useMapDangerZones } from '@/lib/danger-zones';
 import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -154,9 +155,12 @@ export default function MapScreen() {
   const selectedPlace = mapPlaces.find((p) => PLACE_PREFIX + p.id === selectedId) ?? null;
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(center ? { center, zoom } : null, layers.showParkings);
+  // Zones de danger (points noirs officiels), seulement de près
+  const zones = useMapDangerZones(center ? { center, zoom } : null, layers.showReports);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
 
   const pins: MapPin[] = [
+    ...zones.map((z) => ({ id: `zone:${z.id}`, kind: 'zone' as const, label: 'Zone de danger', icon: zonePinIcon(), latitude: z.latitude, longitude: z.longitude })),
     ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, cluster: true, label: 'P', icon: parkingPinIcon(), latitude: p.latitude, longitude: p.longitude })),
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,

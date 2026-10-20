@@ -79,7 +79,7 @@ export function NewsAdmin() {
       <Text style={styles.title}>Sources</Text>
       <Text style={styles.muted}>
         Récupération automatique toutes les 3 h. Dernière : {when(last)}. On garde le titre, 1-2 phrases du résumé du
-        flux et le lien ; rien sur la police, les contrôles, les radars ou les permis.
+        flux et le lien ; rien sur les sanctions routières ni les permis.
       </Text>
       {sources.map((s) => (
         <View key={s.id} style={styles.row}>

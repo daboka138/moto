@@ -337,8 +337,8 @@ export function LeafletMap({
         .addTo(group);
     }
     for (const p of loose) {
-      if (p.kind === 'signal') {
-        L.marker([p.latitude, p.longitude], { icon: pinIcon(p), interactive: false, keyboard: false, zIndexOffset: -1000 }).addTo(group);
+      if (p.kind === 'signal' || p.kind === 'zone') {
+        L.marker([p.latitude, p.longitude], { icon: pinIcon(p), interactive: false, keyboard: false, zIndexOffset: p.kind === 'zone' ? -500 : -1000 }).addTo(group);
         continue;
       }
       L.marker([p.latitude, p.longitude], { icon: pinIcon(p), zIndexOffset: p.kind === 'dropped' ? 2000 : p.kind === 'parking' ? 300 : 500 })

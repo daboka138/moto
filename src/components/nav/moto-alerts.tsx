@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
@@ -7,12 +8,22 @@ import type { BreakReminder } from '@/lib/moto-alerts';
 import { shortDistance } from '@/lib/navigation';
 
 /** Petit bandeau d'alerte moto sous le guidage (virage serré, coucher du soleil) : rien à toucher */
-export function MotoAlertChip({ icon, text, tone = 'warning' }: { icon: string; text: string; tone?: 'warning' | 'night' }) {
+export function MotoAlertChip({
+  icon,
+  text,
+  tone = 'warning',
+}: {
+  /** Texte (flèche…) ou icône dessinée (zone de danger) */
+  icon: string | ReactNode;
+  text: string;
+  tone?: 'warning' | 'night' | 'danger';
+}) {
   const styles = useStyles();
   return (
-    <View style={[styles.chip, tone === 'night' && styles.chipNight]}>
+    <View style={[styles.chip, tone === 'night' && styles.chipNight, tone === 'danger' && styles.chipDanger, styles.chipRow]}>
+      {typeof icon !== 'string' && icon}
       <Text style={styles.chipText} numberOfLines={1}>
-        {icon} {text}
+        {typeof icon === 'string' ? `${icon} ${text}` : text}
       </Text>
     </View>
   );
@@ -100,6 +111,8 @@ const useStyles = makeStyles((Colors) => ({
     elevation: 4,
   },
   chipNight: { backgroundColor: Colors.accentDark },
+  chipDanger: { backgroundColor: Colors.danger },
+  chipRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   chipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
   card: { gap: 12, backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: 16, borderWidth: 2, borderColor: Colors.accent, elevation: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },

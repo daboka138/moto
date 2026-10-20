@@ -161,7 +161,7 @@ function placeGlyph(kind: PlaceIconKind, c: string): string {
   }
 }
 
-/** Lettre P dessinée (pas de police : même rendu partout) */
+/** Lettre P dessinée (pas de fonte : même rendu partout) */
 const parkingLetter = (c: string) => `<path d="M12.6 23.2V9.4h4.4a4 4 0 0 1 0 8h-4.4" ${S(c, 2.8)}/>`;
 
 /** Repère d'un spot (pastille ronde) */

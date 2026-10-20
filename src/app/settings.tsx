@@ -407,6 +407,12 @@ function VoiceSection() {
           </View>
         )}
         <SwitchRow
+          label="Annoncer les zones de danger"
+          description="« Zone de danger sur 2 kilomètres, prudence. » une seule fois en entrant, d’après les accidents corporels officiels (ONISR) et les dangers confirmés par la commu."
+          value={voice.dangerZones}
+          onChange={(v) => updateVoiceSettings({ dangerZones: v })}
+        />
+        <SwitchRow
           label="Limitation de vitesse"
           description="Panneau de la limitation de la route à côté du compteur (données OpenStreetMap, pas toujours connues)."
           value={voice.speedLimit}

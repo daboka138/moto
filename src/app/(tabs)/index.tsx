@@ -31,7 +31,7 @@ import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { DANGER_ZONE_ROUTE, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
 import { setAppBusy } from '@/lib/app-busy';
 import { useConvoy } from '@/lib/convoy';
@@ -49,7 +49,8 @@ import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useTrafficSignals } from '@/lib/traffic-signals';
-import { parkingPinIcon, placePinIcon, reportPinIcon, signalPinIcon } from '@/lib/map-pin-icons';
+import { parkingPinIcon, placePinIcon, reportPinIcon, signalPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
+import { segmentPoints, useDangerZoneAlerts, useMapDangerZones, useRouteDangerZones, zoneSegments } from '@/lib/danger-zones';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -78,7 +79,7 @@ import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
-import { ReportIcon } from '@/components/map-icon';
+import { ReportIcon, ZoneIcon } from '@/components/map-icon';
 
 /** ask : pas encore demandé (carte d'explication avant la fenêtre d'Android) */
 type Status = 'loading' | 'ask' | 'denied' | 'ready';
@@ -476,6 +477,16 @@ export default function MapScreen() {
   const signalsView = navigating ? (position ? { center: position, zoom: 17 } : null) : mapView;
   const signals = useTrafficSignals(signalsView, !layers.hideSignals, navigating ? (nav.route?.points ?? null) : null);
 
+  // ---------- Zones de danger (points noirs officiels + dangers confirmés de la commu) ----------
+  const routeZones = useRouteDangerZones(navigating ? nav.route : null, navigating);
+  const zoneSegs = useMemo(
+    () => (navigating && nav.route ? zoneSegments(nav.route, routeZones, reports) : []),
+    [navigating, nav.route, routeZones, reports],
+  );
+  const zoneNow = useDangerZoneAlerts(zoneSegs, nav.progress?.alongM ?? null, navigating && voice.dangerZones);
+  // Hors navigation : seulement de près (zoom ≥ 14)
+  const mapZones = useMapDangerZones(navigating ? null : mapView, !navigating && layers.showReports);
+
   // ---------- Repères : RDV de balades, signalements, destination ----------
   const mapRides = navigating
     ? []
@@ -529,6 +540,13 @@ export default function MapScreen() {
       latitude: r.latitude,
       longitude: r.longitude,
     })),
+    ...(navigating
+      ? zoneSegs.map((s, i) => {
+          const at = segmentPoints(nav.route!, s)[0];
+          return at ? { id: `zone:${i}`, kind: 'zone' as const, label: 'Zone de danger', icon: zonePinIcon(), latitude: at.latitude, longitude: at.longitude } : null;
+        })
+      : mapZones.map((z) => ({ id: `zone:${z.id}`, kind: 'zone' as const, label: 'Zone de danger', icon: zonePinIcon(), latitude: z.latitude, longitude: z.longitude }))
+    ).filter((p) => p !== null),
     ...signals.map((p, i) => ({
       id: `signal:${i}`,
       kind: 'signal' as const,
@@ -567,12 +585,18 @@ export default function MapScreen() {
             .filter((c) => c.route && !c.sameAs && c.route !== nav.route)
             .map((c) => ({ id: `alt:${c.variant}`, points: toLine(c.route!.points), color: Colors.textFaint, muted: true }))
         : [];
+    // Zones de danger : portions du tracé surlignées, sous l'itinéraire
+    const zones: MapRoute[] = nav.route
+      ? zoneSegs
+          .map((s, i) => ({ id: `zone:${i}`, points: toLine(segmentPoints(nav.route!, s)), color: DANGER_ZONE_ROUTE, zone: true }))
+          .filter((r) => r.points.length >= 2)
+      : [];
     return nav.route
-      ? [...alternatives, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
+      ? [...alternatives, ...zones, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
       : rideLine
         ? [{ id: 'ride', points: rideLine, color: Colors.accent }]
         : alternatives;
-  }, [nav.phase, nav.choices, nav.route, rideLine, Colors]);
+  }, [nav.phase, nav.choices, nav.route, rideLine, zoneSegs, Colors]);
   // Aperçu : la carte cadre tout l'itinéraire (2 coins suffisent)
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 
@@ -1108,6 +1132,7 @@ export default function MapScreen() {
             <>
               <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
               <NavWeatherChip ahead={navWeather} />
+              {zoneNow?.official && <MotoAlertChip icon={<ZoneIcon size={22} />} text="Zone de danger, prudence" tone="danger" />}
               {curveAlert && <MotoAlertChip icon={curveAlert.side === 'left' ? '↰' : '↱'} text={curveAlert.text} />}
               {sunAlert && <MotoAlertChip icon="🌇" text={sunAlert.text} tone="night" />}
               {simulating && <MotoAlertChip icon="🧪" text="Simulation de trajet : position non publiée" tone="night" />}

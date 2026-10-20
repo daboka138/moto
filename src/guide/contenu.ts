@@ -648,7 +648,7 @@ export const FICHES: Fiche[] = [
     ],
     limites: [
       'Au plus 1 actu pour 3 posts de membres. Mise à jour toutes les 3 h, actus gardées 30 jours.',
-      'Jamais d’actu sur la police, les contrôles, les radars ou les retraits de permis.',
+      'Jamais d’actu sur les sanctions routières ou les retraits de permis.',
     ],
     motsCles: ['news', 'actualité', 'rss', 'article', 'presse'],
   },

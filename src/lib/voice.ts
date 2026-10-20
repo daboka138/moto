@@ -16,6 +16,8 @@ export type VoiceSettings = {
   guidance: boolean;
   /** Alertes vocales des dangers */
   dangers: boolean;
+  /** Annonce en entrant dans une zone de danger (points noirs) */
+  dangerZones: boolean;
   /** Types de danger annoncés (tous par défaut) */
   mutedDangerTypes: ReportType[];
   rate: VoiceRate;
@@ -62,6 +64,7 @@ const KEY = 'moto.voice';
 const DEFAULTS: VoiceSettings = {
   guidance: true,
   dangers: true,
+  dangerZones: true,
   mutedDangerTypes: [],
   rate: 'normal',
   volume: 'high',
