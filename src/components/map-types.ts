@@ -1,4 +1,3 @@
-import type { SignStyle } from '@/constants/theme';
 import type { LatLng } from '@/lib/geo';
 
 // Types communs aux deux cartes : leaflet-map.tsx (app, WebView) et leaflet-map.web.tsx (site web).
@@ -28,16 +27,21 @@ export type MapPin = {
   id: string;
   latitude: number;
   longitude: number;
-  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event' | 'parking' | 'signal';
+  kind: 'start' | 'end' | 'step' | 'meeting' | 'report' | 'dropped' | 'place' | 'event' | 'parking' | 'signal' | 'zone';
   label: string;
-  /** Panneau de signalisation (signalements) : dessiné à la place de la pastille */
-  sign?: SignStyle;
+  /** Icône SVG (constants/map-icons.ts) dessinée à la place de la pastille ; bottom = pointe du triangle sur le lieu */
+  icon?: MapPinIcon;
   /** Regroupable avec ses voisins selon le zoom (balades, événements, spots, parkings ; jamais les dangers) */
   cluster?: boolean;
 };
 
-/** Tracé : [[lat, lng], ...]. muted : itinéraire alternatif, plus fin et dessous */
-export type MapRoute = { id: string; points: [number, number][]; color?: string; muted?: boolean };
+export type MapPinIcon = { svg: string; width: number; height: number; anchor?: 'bottom' | 'center' };
+
+/**
+ * Tracé : [[lat, lng], ...]. muted : itinéraire alternatif, plus fin et dessous ;
+ * zone : portion en zone de danger, surlignage large et transparent sous l'itinéraire
+ */
+export type MapRoute = { id: string; points: [number, number][]; color?: string; muted?: boolean; zone?: boolean };
 
 export type MapProps = {
   position: MapPosition | null;

@@ -101,11 +101,14 @@ export function Field({ label, required, style, editable, placeholder, ...props 
 export function Chip({
   label,
   icon,
+  leading,
   selected,
   onPress,
 }: {
   label: string;
   icon?: IconName;
+  /** Icône dessinée (ex. icône de signalement ou de spot), à la place d'une icône Ionicons */
+  leading?: ReactNode;
   selected?: boolean;
   onPress?: () => void;
 }) {
@@ -114,6 +117,7 @@ export function Chip({
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={[styles.chip, selected && styles.chipSelected]}>
       {icon && <Ionicons name={icon} size={16} color={selected ? Colors.white : Colors.textMuted} />}
+      {leading}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );

@@ -4,7 +4,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { mapCss, MAPTILER_KEY, OSM_COPYRIGHT, TILES } from '@/components/map-style';
 import type { MapProps } from '@/components/map-types';
-import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette } from '@/constants/theme';
+import { DarkColors, LightColors, useTheme, type Palette } from '@/constants/theme';
 import { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } from '@/lib/map-cluster';
 import { useMapDark } from '@/lib/use-map-dark';
 
@@ -436,9 +436,6 @@ function buildHtml(Colors: Palette, dark: boolean) {
   ${CLUSTER_JS}
   var pins = {};
   var pinList = [];
-  var SIGNAL_SVG = '<svg viewBox="0 0 12 22"><rect x="0.5" y="0.5" width="11" height="21" rx="3" fill="${Colors.signalBody}" stroke="${Colors.white}" stroke-width="1.2"/>' +
-    '<circle cx="6" cy="5" r="2.4" fill="${Colors.signalRed}"/><circle cx="6" cy="11" r="2.4" fill="${Colors.signalAmber}"/>' +
-    '<circle cx="6" cy="17" r="2.4" fill="${Colors.signalGreen}"/></svg>';
   window.setPins = function (list) {
     pinList = list;
     renderPins();
@@ -479,30 +476,17 @@ function buildHtml(Colors: Palette, dark: boolean) {
     loose.forEach(function (p) {
       var el = document.createElement('div');
       var icon;
-      if (p.kind === 'signal') {
-        // Feu tricolore : petite icône non cliquable, au-dessus des tuiles mais sous tous les autres repères
-        el.className = 'signal';
-        el.innerHTML = SIGNAL_SVG;
-        var sm = L.marker([p.latitude, p.longitude], {
-          icon: L.divIcon({ className: 'signal-wrap', html: el, iconSize: [14, 26], iconAnchor: [7, 13] }),
-          interactive: false, keyboard: false, zIndexOffset: -1000
-        }).addTo(map);
-        pins[p.id] = sm;
-        return;
-      }
-      if (p.sign) {
-        // Panneau façon signalisation routière : triangle (danger) ou losange (circulation)
-        el.className = 'sign';
-        var shape = p.sign.shape === 'diamond'
-          ? '<path d="M23 2 L44 23 L23 44 L2 23 Z"'
-          : '<path d="M23 3 L44 41 L2 41 Z"';
-        var y = p.sign.shape === 'diamond' ? 30 : 35;
-        var size = p.sign.glyph === '!' ? 24 : 17;
-        el.innerHTML = '<svg viewBox="0 0 46 46">' + shape + ' fill="' + p.sign.fill + '" stroke="' + p.sign.stroke +
-          '" stroke-width="4" stroke-linejoin="round"/>' +
-          '<text x="23" y="' + y + '" font-size="' + size + '" font-weight="900" font-family="sans-serif" text-anchor="middle" fill="${SIGN_INK}">' +
-          p.sign.glyph + '</text></svg>';
-        icon = L.divIcon({ className: 'sign-wrap', html: el, iconSize: [46, 46], iconAnchor: [23, 41] });
+      if (p.icon) {
+        // Icône SVG (signalements, spots, parkings, feux, zones de danger : constants/map-icons.ts)
+        el.className = 'mapicon';
+        el.innerHTML = p.icon.svg;
+        var w = p.icon.width, h = p.icon.height;
+        icon = L.divIcon({ className: 'mapicon-wrap', html: el, iconSize: [w, h], iconAnchor: [w / 2, p.icon.anchor === 'bottom' ? h * 0.88 : h / 2] });
+        if (p.kind === 'signal') {
+          // Feu tricolore : non cliquable, au-dessus des tuiles mais sous tous les autres repères
+          pins[p.id] = L.marker([p.latitude, p.longitude], { icon: icon, interactive: false, keyboard: false, zIndexOffset: -1000 }).addTo(map);
+          return;
+        }
       } else if (p.kind === 'dropped') {
         el.className = 'drop';
         icon = L.divIcon({ className: 'pin-wrap', html: el, iconSize: [26, 26], iconAnchor: [13, 31] });
@@ -551,7 +535,11 @@ function buildHtml(Colors: Palette, dark: boolean) {
   window.setRoutes = function (list) {
     routeLayer.clearLayers();
     // Alternatives d'abord : l'itinéraire choisi est dessiné par-dessus
-    list.filter(function (r) { return r.muted; }).concat(list.filter(function (r) { return !r.muted; })).forEach(function (r) {
+    // Zones de danger : surlignage large et transparent, sous l'itinéraire
+    list.filter(function (r) { return r.zone; }).forEach(function (r) {
+      L.polyline(r.points, { renderer: routeRenderer, color: r.color, weight: 16, opacity: 1, lineCap: 'butt', interactive: false }).addTo(routeLayer);
+    });
+    list.filter(function (r) { return r.muted && !r.zone; }).concat(list.filter(function (r) { return !r.muted && !r.zone; })).forEach(function (r) {
       L.polyline(r.points, { renderer: routeRenderer, color: '${Colors.white}', weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(routeLayer);
       L.polyline(r.points, { renderer: routeRenderer, color: r.color || '${Colors.accent}', weight: r.muted ? 4 : 5, opacity: r.muted ? 0.8 : 0.95, interactive: false }).addTo(routeLayer);
     });

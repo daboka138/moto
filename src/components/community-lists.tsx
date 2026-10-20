@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { EventCard, PlaceCard } from '@/components/community-cards';
+import { PlaceIcon } from '@/components/map-icon';
 import { Chip } from '@/components/ui';
 import { makeStyles, Type, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -124,7 +125,8 @@ export function PlacesList({ me }: { me: LatLng | null }) {
         {PLACE_KINDS.map((k) => (
           <Chip
             key={k.value}
-            label={`${k.emoji} ${k.label}`}
+            leading={<PlaceIcon kind={k.value} size={18} />}
+            label={k.label}
             selected={kinds.includes(k.value)}
             onPress={() => setKinds((ks) => (ks.includes(k.value) ? ks.filter((x) => x !== k.value) : [...ks, k.value]))}
           />

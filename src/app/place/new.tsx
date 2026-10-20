@@ -12,6 +12,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { createPlace, PLACE_KINDS, type PlaceKind } from '@/lib/places';
 import type { PhotoValue } from '@/lib/profile';
 import { useSession } from '@/lib/session';
+import { PlaceIcon } from '@/components/map-icon';
 
 /** Ajouter un spot motard (onglet Sorties, bouton « + » ou appui long sur la carte). */
 export default function NewPlaceScreen() {
@@ -70,7 +71,7 @@ export default function NewPlaceScreen() {
         <Section title="Catégorie">
           <ScrollView horizontal={false} contentContainerStyle={styles.chips}>
             {PLACE_KINDS.map((k) => (
-              <Chip key={k.value} label={`${k.emoji} ${k.label}`} selected={kind === k.value} onPress={() => setKind(k.value)} />
+              <Chip key={k.value} leading={<PlaceIcon kind={k.value} size={18} />} label={k.label} selected={kind === k.value} onPress={() => setKind(k.value)} />
             ))}
           </ScrollView>
         </Section>

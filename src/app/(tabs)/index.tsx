@@ -31,7 +31,7 @@ import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
 import { TipBubble } from '@/components/guide/tip-bubble';
-import { makeStyles, Radius, ReportSigns, Type, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
 import { setAppBusy } from '@/lib/app-busy';
 import { useConvoy } from '@/lib/convoy';
@@ -49,6 +49,7 @@ import { takePendingGpx, viaPointsAlong } from '@/lib/gpx';
 import { MAP_DEFAULT_DAYS, MAP_MIN_SPOT_RATING, useMapLayers } from '@/lib/map-layers';
 import { parkingTitle, useMotoParkings } from '@/lib/moto-parkings';
 import { useTrafficSignals } from '@/lib/traffic-signals';
+import { parkingPinIcon, placePinIcon, reportPinIcon, signalPinIcon } from '@/lib/map-pin-icons';
 import { useFallDetection } from '@/lib/fall-detection';
 import { findFavorite, removeFavorite, setFavorite } from '@/lib/favorites';
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -77,6 +78,7 @@ import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
+import { ReportIcon } from '@/components/map-icon';
 
 /** ask : pas encore demandé (carte d'explication avant la fenêtre d'Android) */
 type Status = 'loading' | 'ask' | 'denied' | 'ready';
@@ -489,7 +491,8 @@ export default function MapScreen() {
       id: PLACE_PREFIX + p.id,
       kind: 'place' as const,
       cluster: true,
-      label: placeKindInfo(p.kind).emoji,
+      label: placeKindInfo(p.kind).short,
+      icon: placePinIcon(p.kind),
       latitude: p.latitude,
       longitude: p.longitude,
     })),
@@ -498,6 +501,7 @@ export default function MapScreen() {
       kind: 'parking' as const,
       cluster: true,
       label: 'P',
+      icon: parkingPinIcon(),
       latitude: p.latitude,
       longitude: p.longitude,
     })),
@@ -512,8 +516,8 @@ export default function MapScreen() {
     ...(layers.showReports ? reports : []).map((r) => ({
       id: REPORT_PREFIX + r.id,
       kind: 'report' as const,
-      label: reportInfo(r.type).emoji,
-      sign: ReportSigns[r.type],
+      label: reportInfo(r.type).label,
+      icon: reportPinIcon(r.type),
       latitude: r.latitude,
       longitude: r.longitude,
     })),
@@ -521,6 +525,7 @@ export default function MapScreen() {
       id: `signal:${i}`,
       kind: 'signal' as const,
       label: '',
+      icon: signalPinIcon(),
       latitude: p.latitude,
       longitude: p.longitude,
     })),
@@ -1225,9 +1230,10 @@ export default function MapScreen() {
             </Pressable>
           )}
           {!navigating && danger && (
-            <View style={styles.dangerChip}>
+            <View style={[styles.dangerChip, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+              <ReportIcon type={danger.report.type} size={22} />
               <Text style={styles.dangerText}>
-                {reportInfo(danger.report.type).emoji} {reportInfo(danger.report.type).label} droit devant
+                {reportInfo(danger.report.type).label} droit devant
               </Text>
             </View>
           )}

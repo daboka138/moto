@@ -5,6 +5,7 @@ import { Chip } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { useMapLayers } from '@/lib/map-layers';
 import { PLACE_KINDS } from '@/lib/places';
+import { PlaceIcon } from '@/components/map-icon';
 
 /** Filtres de la carte : dates des balades, parkings moto OSM, spots (tout / par catégorie), mémorisés. */
 export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -76,7 +77,8 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
                 {PLACE_KINDS.map((k) => (
                   <Chip
                     key={k.value}
-                    label={`${k.emoji} ${k.label}`}
+                    leading={<PlaceIcon kind={k.value} size={18} />}
+                    label={k.label}
                     selected={!hidden.includes(k.value)}
                     onPress={() =>
                       layers.setHiddenPlaceKinds(hidden.includes(k.value) ? hidden.filter((x) => x !== k.value) : [...hidden, k.value])

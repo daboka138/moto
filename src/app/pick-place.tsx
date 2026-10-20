@@ -16,6 +16,8 @@ import { currentPickRequest, resolvePick } from '@/lib/place-picker';
 import { fetchPopularSpots, MEETING_KINDS, placeKindInfo, spotAsPlace, type CommunityPlace } from '@/lib/places';
 import { formatDistance } from '@/lib/routing';
 import { reverseGeocode } from '@/lib/search';
+import { PlaceIcon } from '@/components/map-icon';
+import { placePinIcon } from '@/lib/map-pin-icons';
 
 /**
  * Choix d'un lieu : recherche d'adresse (même barre que l'onglet Carte), appui (ou appui long) sur
@@ -105,7 +107,7 @@ export default function PickPlaceScreen() {
         onMapPress={onMapPress}
         onMapLongPress={onMapPress}
         pins={[
-          ...spots.map((p) => ({ id: p.id, kind: 'place' as const, label: placeKindInfo(p.kind).emoji, latitude: p.latitude, longitude: p.longitude })),
+          ...spots.map((p) => ({ id: p.id, kind: 'place' as const, label: placeKindInfo(p.kind).short, icon: placePinIcon(p.kind), latitude: p.latitude, longitude: p.longitude })),
           ...(selected
             ? [{ id: 'selected', kind: 'meeting' as const, label: '●', latitude: selected.latitude, longitude: selected.longitude }]
             : []),
@@ -139,7 +141,7 @@ export default function PickPlaceScreen() {
               <Text style={styles.spotsTitle}>Spots PasseRyder proches</Text>
               {spots.slice(0, 4).map((p) => (
                 <Pressable key={p.id} style={({ pressed }) => [styles.spot, pressed && { opacity: 0.6 }]} onPress={() => choose(spotAsPlace(p))}>
-                  <Text style={styles.spotEmoji}>{placeKindInfo(p.kind).emoji}</Text>
+                  <PlaceIcon kind={p.kind} size={24} />
                   <Text style={styles.spotName} numberOfLines={1}>
                     {p.name}
                   </Text>

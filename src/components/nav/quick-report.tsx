@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReportSign } from '@/components/report-sign';
 import { makeStyles, Radius, Type } from '@/constants/theme';
 import { QUICK_REPORT_TYPES, reportInfo, type ReportType } from '@/lib/reports';
+import { ReportIcon } from '@/components/map-icon';
 
 // Signalement de danger pensé pour la moto (sécurité d'abord : on ne manipule pas son téléphone en
 // conduisant) :
@@ -121,8 +122,9 @@ export function UndoReportBar({ type, seconds, onUndo }: { type: ReportType; sec
   const styles = useStyles();
   return (
     <View style={styles.undo}>
+      <ReportIcon type={type} size={26} />
       <Text style={styles.undoText} numberOfLines={2}>
-        {reportInfo(type).emoji} {reportInfo(type).label} : envoi dans {seconds} s
+        {reportInfo(type).label} : envoi dans {seconds} s
       </Text>
       <Pressable style={styles.undoButton} onPress={onUndo} hitSlop={10} accessibilityLabel="Annuler le signalement">
         <Text style={styles.undoButtonText}>Annuler</Text>

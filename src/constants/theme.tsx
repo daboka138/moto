@@ -21,6 +21,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
+import type { IconPalette } from '@/constants/map-icons';
 
 /** Couleur principale (celle du logo), identique dans les deux thèmes : bleu ciel */
 const ACCENT = '#0EA5E9';
@@ -181,27 +182,29 @@ export const LevelColors = {
   sportif: LightColors.danger,
 };
 
-/**
- * Panneaux de signalement, façon signalisation routière :
- * rouge = accident / danger, jaune = chaussée (gravillons, huile, travaux),
- * orange = obstacle, losange = circulation (bouchon, véhicule arrêté).
- */
-export const ReportSigns = {
-  accident: { shape: 'triangle', fill: '#DC2626', stroke: '#FFFFFF', glyph: '💥' },
-  danger: { shape: 'triangle', fill: '#FFFFFF', stroke: '#DC2626', glyph: '!' },
-  gravel: { shape: 'triangle', fill: '#FACC15', stroke: '#DC2626', glyph: '🪨' },
-  oil: { shape: 'triangle', fill: '#FACC15', stroke: '#DC2626', glyph: '🛢️' },
-  roadworks: { shape: 'triangle', fill: '#FACC15', stroke: '#DC2626', glyph: '🚧' },
-  object: { shape: 'triangle', fill: '#FB923C', stroke: '#FFFFFF', glyph: '📦' },
-  animal: { shape: 'triangle', fill: '#FFFFFF', stroke: '#DC2626', glyph: '🦌' },
-  traffic_jam: { shape: 'diamond', fill: '#F97316', stroke: '#FFFFFF', glyph: '🚗' },
-  stopped_vehicle: { shape: 'diamond', fill: '#FACC15', stroke: '#18181B', glyph: '🚙' },
-} as const;
-
-export type SignStyle = (typeof ReportSigns)[keyof typeof ReportSigns];
-
 /** Couleur du pictogramme dans les panneaux */
 export const SIGN_INK = '#18181B';
+
+/**
+ * Icônes des signalements et repères de la carte (constants/map-icons.ts) : identiques en clair et en
+ * sombre (la carte ne suit pas le thème), liseré blanc pour rester lisibles sur les deux fonds.
+ */
+export const MapIconColors: IconPalette = {
+  alert: '#DC2626',
+  traffic: '#F97316',
+  ink: SIGN_INK,
+  white: '#FFFFFF',
+  zone: '#DC2626',
+  place: '#EA580C',
+  parking: '#1D4ED8',
+  signalBody: '#27272A',
+  signalRed: '#EF4444',
+  signalAmber: '#F59E0B',
+  signalGreen: '#22C55E',
+};
+
+/** Portion d'itinéraire en zone de danger (surlignage discret sous le tracé) */
+export const DANGER_ZONE_ROUTE = 'rgba(220,38,38,0.5)';
 
 // ---------- Typographie, espacements, coins ----------
 

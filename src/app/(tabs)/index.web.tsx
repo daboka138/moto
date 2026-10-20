@@ -14,7 +14,8 @@ import { OpenInApp } from '@/components/open-in-app';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
-import { makeStyles, Radius, ReportSigns, Type, useColors } from '@/constants/theme';
+import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { parkingPinIcon, placePinIcon, reportPinIcon } from '@/lib/map-pin-icons';
 import { openInApp } from '@/lib/app-link';
 import { distanceM, type LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
@@ -156,7 +157,7 @@ export default function MapScreen() {
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
 
   const pins: MapPin[] = [
-    ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, cluster: true, label: 'P', latitude: p.latitude, longitude: p.longitude })),
+    ...parkings.map((p) => ({ id: PARKING_PREFIX + p.id, kind: 'parking' as const, cluster: true, label: 'P', icon: parkingPinIcon(), latitude: p.latitude, longitude: p.longitude })),
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
       kind: 'meeting' as const,
@@ -169,7 +170,8 @@ export default function MapScreen() {
       id: PLACE_PREFIX + p.id,
       kind: 'place' as const,
       cluster: true,
-      label: placeKindInfo(p.kind).emoji,
+      label: placeKindInfo(p.kind).short,
+      icon: placePinIcon(p.kind),
       latitude: p.latitude,
       longitude: p.longitude,
     })),
@@ -184,8 +186,8 @@ export default function MapScreen() {
     ...(layers.showReports ? reports : []).map((r) => ({
       id: REPORT_PREFIX + r.id,
       kind: 'report' as const,
-      label: reportInfo(r.type).emoji,
-      sign: ReportSigns[r.type],
+      label: reportInfo(r.type).label,
+      icon: reportPinIcon(r.type),
       latitude: r.latitude,
       longitude: r.longitude,
     })),

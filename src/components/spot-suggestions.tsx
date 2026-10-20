@@ -5,7 +5,8 @@ import { Chip } from '@/components/ui';
 import { makeStyles, Type } from '@/constants/theme';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
-import { fetchPopularSpots, placeKindInfo, spotAsPlace, type CommunityPlace, type PlaceKind } from '@/lib/places';
+import { fetchPopularSpots, spotAsPlace, type CommunityPlace, type PlaceKind } from '@/lib/places';
+import { PlaceIcon } from '@/components/map-icon';
 
 /**
  * « Départs populaires » / « Spots proches » : 3-4 spots les mieux notés à moins de 20 km, en un
@@ -50,7 +51,8 @@ export function SpotSuggestions({
         {spots.map((p) => (
           <Chip
             key={p.id}
-            label={`${placeKindInfo(p.kind).emoji} ${p.name}${p.rating != null ? ` ★ ${p.rating.toFixed(1).replace('.', ',')}` : ''}`}
+            leading={<PlaceIcon kind={p.kind} size={18} />}
+            label={`${p.name}${p.rating != null ? ` ★ ${p.rating.toFixed(1).replace('.', ',')}` : ''}`}
             selected={!!selected && selected.latitude === p.latitude && selected.longitude === p.longitude}
             onPress={() => onPick(spotAsPlace(p))}
           />

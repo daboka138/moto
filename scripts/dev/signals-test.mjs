@@ -75,6 +75,10 @@ const palette = (dark) => {
   return new Proxy({}, { get: (_, k) => (typeof k === 'string' && pick(k)) || '#888888' });
 };
 
+const { signalIconSvg } = await import(pathToFileURL(join(ROOT, 'src/constants/map-icons.ts')).href);
+const iconBlock = theme.slice(theme.indexOf('export const MapIconColors'));
+const IP = Object.fromEntries([...iconBlock.slice(0, iconBlock.indexOf('};')).matchAll(/(\w+): '([^']+)'/g)].map((m) => [m[1], m[2]]));
+const signalSvg = signalIconSvg(IP);
 const browser = await puppeteer.launch({
   executablePath: process.env.BROWSER ?? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
   headless: true,
@@ -102,12 +106,12 @@ for (const dark of [false, true]) {
         window.setPins(pins);
       },
       v,
-      merged.map((p, i) => ({ id: 'signal:' + i, kind: 'signal', label: '', latitude: p.latitude, longitude: p.longitude })),
+      merged.map((p, i) => ({ id: 'signal:' + i, kind: 'signal', label: '', icon: { svg: signalSvg, width: 14, height: 26 }, latitude: p.latitude, longitude: p.longitude })),
     );
     await new Promise((r) => setTimeout(r, 2500));
     const shown = await page.evaluate(() => {
       const b = map.getBounds();
-      return [...document.querySelectorAll('.signal')].filter((el) => {
+      return [...document.querySelectorAll('.mapicon')].filter((el) => {
         const r = el.getBoundingClientRect();
         return r.width > 0 && b && r.top > 0 && r.top < innerHeight && r.left > 0 && r.left < innerWidth;
       }).length;

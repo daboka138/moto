@@ -72,12 +72,11 @@ export function mapCss(Colors: Palette) {
     width: 26px; height: 26px; box-sizing: border-box; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
     background: ${Colors.danger}; border: 3px solid ${Colors.white}; box-shadow: 0 2px 6px ${Colors.markerShadow};
   }
-  /* Feu tricolore OpenStreetMap : petite icône discrète, jamais regroupée */
-  .signal-wrap { background: none; border: none; pointer-events: none; }
-  .signal svg { width: 14px; height: 26px; display: block; filter: drop-shadow(0 1px 1px ${Colors.markerShadow}); }
-  .sign-wrap { background: none; border: none; }
-  .sign svg { width: 46px; height: 46px; display: block; overflow: visible;
-    filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }
+  /* Icônes SVG (constants/map-icons.ts) : liseré blanc dans le dessin + ombre légère */
+  .mapicon-wrap { background: none; border: none; }
+  .mapicon { width: 100%; height: 100%; }
+  .mapicon svg { width: 100%; height: 100%; display: block; overflow: visible;
+    filter: drop-shadow(0 1px 2px ${Colors.markerShadow}); }
   .leaflet-control-attribution { background: ${Colors.surface}cc !important; color: ${Colors.textMuted}; }
   .leaflet-control-attribution a { color: ${Colors.accent}; }
   /* Ma position : flèche pointée dans ma direction, rond si le cap est inconnu */

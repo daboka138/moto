@@ -17,6 +17,7 @@ import type { FuelSuggestion } from '@/lib/fuel';
 import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
 import type { RouteWeather } from '@/lib/weather';
+import { ReportIcon } from '@/components/map-icon';
 
 /** « 🚦 3 feux » sur l'itinéraire (trajets de moins de 60 km ; rien si inconnu ou aucun) */
 function SignalCount({ route }: { route: { points: LatLng[]; distanceM: number } }) {
@@ -434,9 +435,10 @@ export function NavBanner({
         </View>
       )}
       {danger && (
-        <View style={[styles.chip, { backgroundColor: Colors.danger }]}>
+        <View style={[styles.chip, { backgroundColor: Colors.danger }, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <ReportIcon type={danger.report.type} size={22} />
           <Text style={styles.chipText}>
-            {reportInfo(danger.report.type).emoji} {reportInfo(danger.report.type).label} dans {shortDistance(danger.distanceM)}
+            {reportInfo(danger.report.type).label} dans {shortDistance(danger.distanceM)}
           </Text>
         </View>
       )}

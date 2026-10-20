@@ -7,6 +7,7 @@ import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { eventKindInfo, formatEventDates, type MotoEvent } from '@/lib/events';
 import { parkingFacts, parkingTitle, type MotoParking } from '@/lib/moto-parkings';
 import { placeKindInfo, type CommunityPlace } from '@/lib/places';
+import { PlaceIcon } from '@/components/map-icon';
 
 /** Étoiles : affichage, ou saisie si onChange est fourni */
 export function Stars({ value, size = 16, onChange }: { value: number; size?: number; onChange?: (v: number) => void }) {
@@ -49,7 +50,7 @@ export function PlaceCard({
         <Image source={{ uri: place.photoUrl }} style={styles.thumb} contentFit="cover" />
       ) : (
         <View style={[styles.thumb, styles.thumbEmpty]}>
-          <Text style={styles.thumbEmoji}>{kind.emoji}</Text>
+          <PlaceIcon kind={place.kind} size={36} />
         </View>
       )}
       <View style={styles.body}>
@@ -57,7 +58,7 @@ export function PlaceCard({
           {place.name}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {kind.emoji} {kind.short}
+          {kind.short}
           {distanceM != null ? ` · à ${formatDistance(distanceM)}` : ''}
         </Text>
         <View style={styles.ratingRow}>

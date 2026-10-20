@@ -26,6 +26,8 @@ import {
 } from '@/lib/places';
 import type { PhotoValue } from '@/lib/profile';
 import { useSession } from '@/lib/session';
+import { PlaceIcon } from '@/components/map-icon';
+import { placePinIcon } from '@/lib/map-pin-icons';
 
 /** Fiche d'un lieu motard : photo, carte, note moyenne, avis ; mon avis (note, texte, photo). */
 export default function PlaceScreen() {
@@ -177,16 +179,17 @@ export default function PlaceScreen() {
         <ExpandableMap
           style={styles.map}
           position={null}
-          pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]}
+          pins={[{ id: 'p', kind: 'place', label: kind.short, icon: placePinIcon(place.kind), latitude: place.latitude, longitude: place.longitude }]}
           fitPoints={[place]}
           title={place.name}
-          subtitle={`${kind.emoji} ${kind.label}`}
+          subtitle={kind.label}
         />
       )}
       <View style={styles.body}>
-        <Text style={styles.kind}>
-          {kind.emoji} {kind.label}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <PlaceIcon kind={place.kind} size={22} />
+          <Text style={styles.kind}>{kind.label}</Text>
+        </View>
         <Text style={styles.title}>{place.name}</Text>
         <View style={styles.ratingRow}>
           {avg !== null ? (
@@ -209,10 +212,10 @@ export default function PlaceScreen() {
           <ExpandableMap
             style={styles.mapSmall}
             position={null}
-            pins={[{ id: 'p', kind: 'place', label: kind.emoji, latitude: place.latitude, longitude: place.longitude }]}
+            pins={[{ id: 'p', kind: 'place', label: kind.short, icon: placePinIcon(place.kind), latitude: place.latitude, longitude: place.longitude }]}
             fitPoints={[place]}
             title={place.name}
-            subtitle={`${kind.emoji} ${kind.label}`}
+            subtitle={kind.label}
           />
         )}
 

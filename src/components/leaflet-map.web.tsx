@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { mapCss, MAPTILER_KEY, OSM_COPYRIGHT, TILES } from '@/components/map-style';
 import { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX, type ClusterFn } from '@/lib/map-cluster';
 import type { MapMarker, MapPin, MapProps } from '@/components/map-types';
-import { DarkColors, LightColors, SIGN_INK, useTheme, type Palette } from '@/constants/theme';
+import { DarkColors, LightColors, useTheme, type Palette } from '@/constants/theme';
 import { useMapDark } from '@/lib/use-map-dark';
 
 export type { MapMarker, MapPin, MapPosition, MapRoute } from '@/components/map-types';
@@ -50,18 +50,12 @@ function personIcon(m: MapMarker, selected: boolean) {
 
 function pinIcon(p: MapPin) {
   const el = document.createElement('div');
-  if (p.sign) {
-    // Panneau façon signalisation routière : triangle (danger) ou losange (circulation)
-    el.className = 'sign';
-    const shape =
-      p.sign.shape === 'diamond' ? '<path d="M23 2 L44 23 L23 44 L2 23 Z"' : '<path d="M23 3 L44 41 L2 41 Z"';
-    const y = p.sign.shape === 'diamond' ? 30 : 35;
-    const size = p.sign.glyph === '!' ? 24 : 17;
-    el.innerHTML =
-      `<svg viewBox="0 0 46 46">${shape} fill="${p.sign.fill}" stroke="${p.sign.stroke}" stroke-width="4" stroke-linejoin="round"/>` +
-      `<text x="23" y="${y}" font-size="${size}" font-weight="900" font-family="sans-serif" text-anchor="middle" fill="${SIGN_INK}">` +
-      `${p.sign.glyph}</text></svg>`;
-    return L.divIcon({ className: 'sign-wrap', html: el, iconSize: [46, 46], iconAnchor: [23, 41] });
+  if (p.icon) {
+    // Icône SVG (signalements, spots, parkings, feux, zones de danger : constants/map-icons.ts)
+    el.className = 'mapicon';
+    el.innerHTML = p.icon.svg;
+    const { width: w, height: h } = p.icon;
+    return L.divIcon({ className: 'mapicon-wrap', html: el, iconSize: [w, h], iconAnchor: [w / 2, p.icon.anchor === 'bottom' ? h * 0.88 : h / 2] });
   }
   if (p.kind === 'dropped') {
     el.className = 'drop';
@@ -343,6 +337,10 @@ export function LeafletMap({
         .addTo(group);
     }
     for (const p of loose) {
+      if (p.kind === 'signal') {
+        L.marker([p.latitude, p.longitude], { icon: pinIcon(p), interactive: false, keyboard: false, zIndexOffset: -1000 }).addTo(group);
+        continue;
+      }
       L.marker([p.latitude, p.longitude], { icon: pinIcon(p), zIndexOffset: p.kind === 'dropped' ? 2000 : p.kind === 'parking' ? 300 : 500 })
         .on('click', () => handlers.current.onPinPress?.(p.id))
         .addTo(group);
@@ -358,7 +356,7 @@ export function LeafletMap({
     const list = JSON.parse(routesJson) as NonNullable<MapProps['routes']>;
     // Canvas plutôt que SVG : le tracé reste collé au fond pendant un zoom au doigt (navigateurs mobiles)
     const renderer = (routeRendererRef.current ??= L.canvas({ padding: 0.5 }));
-    for (const r of [...list.filter((x) => x.muted), ...list.filter((x) => !x.muted)]) {
+    for (const r of [...list.filter((x) => x.muted && !x.zone), ...list.filter((x) => !x.muted && !x.zone)]) {
       L.polyline(r.points, { renderer, color: colors.white, weight: r.muted ? 6 : 8, opacity: 0.9, interactive: false }).addTo(
         group,
       );

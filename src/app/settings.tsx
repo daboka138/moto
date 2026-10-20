@@ -9,6 +9,7 @@ import { useIsAdmin } from '@/lib/admin';
 import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
+import { ReportIcon } from '@/components/map-icon';
 import { VoicePicker } from '@/components/voice-picker';
 import { makeStyles, Radius, Type, type ThemePreference, useColors, useTheme } from '@/constants/theme';
 import { resetTips } from '@/guide/state';
@@ -395,7 +396,8 @@ function VoiceSection() {
                 {REPORT_TYPES.map((t) => (
                   <Chip
                     key={t.value}
-                    label={`${t.emoji} ${t.label}`}
+                    leading={<ReportIcon type={t.value} size={18} />}
+                    label={t.label}
                     selected={!voice.mutedDangerTypes.includes(t.value)}
                     onPress={() => toggleType(t.value)}
                   />
