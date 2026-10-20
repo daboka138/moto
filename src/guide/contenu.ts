@@ -259,6 +259,7 @@ export const FICHES: Fiche[] = [
       'Hors itinéraire ? Le trajet est recalculé tout seul.',
       'Si l’app se ferme, ta navigation reprend à la réouverture (moins de 6 h).',
       'Pluie annoncée plus loin ? La voix te prévient (« Pluie prévue dans ~40 km »).',
+      'Zones de danger : les portions de ton trajet où il y a souvent des accidents (données officielles) sont surlignées, avec un triangle. La voix te prévient une fois en entrant (« Zone de danger sur 2 kilomètres, prudence. »). Réglage : Paramètres › Voix et alertes › Annoncer les zones de danger.',
       'Les feux tricolores s’affichent de base dès que tu zoomes sur les rues, et en navigation ceux de ton itinéraire (à masquer tout en bas des Filtres de la carte si tu préfères). L’aperçu de l’itinéraire indique combien il y en a (« 🚦 3 feux », trajets de moins de 60 km).',
     ],
     limites: [
@@ -307,12 +308,13 @@ export const FICHES: Fiche[] = [
     but: 'Voir ta vitesse et la limitation de la route.',
     etapes: [
       'Le compteur en haut à gauche de la Carte affiche ta vitesse GPS.',
-      'Pendant la navigation, le panneau de limitation s’affiche à côté.',
+      'Pendant la navigation, le panneau rond de limitation (comme sur la route) s’affiche à côté. Limitation inconnue : rien d’affiché, l’appli ne devine jamais.',
       'Au-dessus de la limite, le compteur passe en rouge avec un petit bip.',
       'Règle-le dans Profil › ⚙️ Paramètres › Voix et alertes (Limitation de vitesse, Alerte de dépassement).',
     ],
     limites: [
       'Limitations issues d’OpenStreetMap : pas toujours connues ni à jour. Les panneaux font foi.',
+      'Ta vitesse reste privée : jamais montrée aux autres (carte, convoi, profil, partage, points).',
     ],
     android: true,
     motsCles: ['compteur', 'km/h', 'bip', 'dépassement'],
