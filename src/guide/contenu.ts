@@ -259,7 +259,7 @@ export const FICHES: Fiche[] = [
       'Hors itinéraire ? Le trajet est recalculé tout seul.',
       'Si l’app se ferme, ta navigation reprend à la réouverture (moins de 6 h).',
       'Pluie annoncée plus loin ? La voix te prévient (« Pluie prévue dans ~40 km »).',
-      'Les feux tricolores de ton itinéraire s’affichent en zoomant (Filtres de la carte › Feux tricolores en navigation). L’aperçu de l’itinéraire indique combien il y en a (« 🚦 3 feux », trajets de moins de 60 km).',
+      'Les feux tricolores s’affichent de base dès que tu zoomes sur les rues, et en navigation ceux de ton itinéraire (à masquer tout en bas des Filtres de la carte si tu préfères). L’aperçu de l’itinéraire indique combien il y en a (« 🚦 3 feux », trajets de moins de 60 km).',
     ],
     limites: [
       'Saisie de texte bloquée au-dessus de 10 km/h : c’est pour ta sécurité.',
@@ -327,7 +327,7 @@ export const FICHES: Fiche[] = [
       'Va dans Profil › ⚙️ Paramètres › Voix et alertes.',
       'Active ou coupe le guidage vocal GPS et les alertes vocales des dangers.',
       'Choisis les types de dangers annoncés, le débit et le volume.',
-      'Voix du guidage : choisis parmi les voix françaises de ton téléphone (« Écouter » pour chacune). En automatique, une voix d’homme calme si ton téléphone en a une.',
+      'Voix du guidage : « Changer » ouvre la liste des voix françaises installées sur ton téléphone (« Écouter » pour chacune) ; les voix réseau sont à part, dans « Autres voix ». En automatique, une voix d’homme calme si ton téléphone en a une. Si une voix ne marche pas, l’appli revient toute seule à une voix qui marche : le guidage n’est jamais muet.',
       'Alertes moto, désactivables une par une : virages serrés, coucher du soleil et nuit, météo sur le trajet.',
       'Rappel de pause : désactivé, 1 h, 1 h 30 ou 2 h de route.',
       'Appuie sur « Tester la voix ».',
@@ -398,7 +398,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'À droite de la Carte : ⚠️ affiche ou masque les signalements.',
       '🚩 affiche ou masque les balades et les événements.',
-      '☕ ouvre les filtres de la carte : 🗓️ Toutes les dates, 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant), 🚦 Feux tricolores (désactivés par défaut, visibles de près) et spots (café, point de vue, belle route, station, garage, parking), avec « Tous les spots ».',
+      '☕ ouvre les filtres de la carte : 🗓️ Toutes les dates, 🅿️ Parkings moto (OpenStreetMap, visibles en zoomant), spots (café, point de vue, belle route, station, garage, parking), avec « Tous les spots ». Tout en bas : « Masquer les feux tricolores ».',
       'Par défaut, la carte montre les balades et événements des 7 prochains jours (plus ceux où tu es inscrit) et les spots notés ★ 4 et plus (plus les tiens).',
       'Beaucoup de repères au même endroit ? Ils sont regroupés en une pastille avec le nombre (« 12 ») : touche-la ou zoome pour les voir. Les amis en direct et les dangers ne sont jamais regroupés.',
       'Style de carte (Classique, Sombre, Automatique) : Profil › ⚙️ Paramètres › Style de carte.',
