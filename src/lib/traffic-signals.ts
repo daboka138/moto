@@ -3,15 +3,22 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LatLng } from '@/lib/geo';
 import { overpass, type OverpassElement } from '@/lib/pois';
 
-// Feux tricolores OpenStreetMap (highway=traffic_signals), même méthode que les parkings moto hors
-// France : API Overpass case par case (0,05° ≈ 5 × 4 km), gardée 30 jours sur l'appareil, une seule
-// requête à la fois, pause de 2 min après une erreur (charte d'usage d'Overpass).
-// Affichés seulement à partir du zoom 15 ; en navigation, seulement ceux de l'itinéraire.
+// Feux tricolores OpenStreetMap (highway=traffic_signals), affichés de base (masquables dans les Filtres) :
+// API Overpass case par case (0,05° ≈ 5 × 4 km), gardée 30 jours sur l'appareil (1 jour si la case est
+// vide), une seule requête à la fois, nouvel essai 1 min après une erreur (charte d'usage d'Overpass).
+// Serveur d'OpenStreetMap France d'abord : overpass-api.de répond souvent « 502 at capacity » et les
+// autres serveurs publics ne répondent plus (constaté en octobre 2026).
+// Affichés seulement à partir du zoom 16 (rues) ; en navigation, seulement ceux de l'itinéraire.
 // Un carrefour compte souvent plusieurs feux dans OSM (un par voie) : regroupés en un seul repère.
 // Rien d'autre (jamais de radar ni de contrôle : règle de l'appli).
 
 /** Zoom minimal pour charger et afficher les feux */
-export const SIGNALS_MIN_ZOOM = 15;
+export const SIGNALS_MIN_ZOOM = 16;
+const SERVERS = [
+  'https://overpass.openstreetmap.fr/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
 /** Feux à moins de cette distance du même carrefour : un seul repère */
 const MERGE_M = 30;
 /** Navigation : feux à moins de 20 m du tracé */
@@ -20,8 +27,12 @@ const MAX_SHOWN = 200;
 
 const CELL = 0.05;
 const TTL_MS = 30 * 24 * 3600_000;
+/** Case sans aucun feu : revérifiée plus tôt (au cas où la réponse était incomplète) */
+const EMPTY_TTL_MS = 24 * 3600_000;
+const RETRY_MS = 60_000;
 const MAX_CELLS = 80;
-const CACHE_KEY = 'moto.signals.v1';
+// v2 : les cases vides enregistrées par la 1re version sont oubliées
+const CACHE_KEY = 'moto.signals.v2';
 
 /** Case : [lat, lon] arrondis à 5 décimales (~1 m), pour un stockage compact */
 type Cell = { t: number; pts: [number, number][] };
@@ -69,14 +80,16 @@ async function fetchCells(cells: [number, number][]) {
   const bbox = [Math.min(...is) * CELL, Math.min(...js) * CELL, (Math.max(...is) + 1) * CELL, (Math.max(...js) + 1) * CELL]
     .map((v) => v.toFixed(3))
     .join(',');
-  const elements = await overpass(`[out:json][timeout:25];node["highway"="traffic_signals"](${bbox});out skel qt 5000;`, { timeoutMs: 30_000 });
+  const elements = await overpass(`[out:json][timeout:25];node["highway"="traffic_signals"](${bbox});out skel qt 5000;`, { timeoutMs: 30_000, servers: SERVERS });
   const c = load();
   const now = Date.now();
-  for (const [i, j] of cells) c[cellKey(i, j)] = { t: now, pts: [] };
+  const fresh = new Map(cells.map(([i, j]) => [cellKey(i, j), { t: now, pts: [] as [number, number][] }]));
   for (const el of elements as OverpassElement[]) {
     if (el.lat == null || el.lon == null) continue;
-    c[cellKey(Math.floor(el.lat / CELL), Math.floor(el.lon / CELL))]?.pts.push([round5(el.lat), round5(el.lon)]);
+    // Le rectangle demandé peut couvrir des cases déjà en cache : seules les cases demandées sont remplies
+    fresh.get(cellKey(Math.floor(el.lat / CELL), Math.floor(el.lon / CELL)))?.pts.push([round5(el.lat), round5(el.lon)]);
   }
+  for (const [k, cell] of fresh) c[k] = cell;
   save();
   listeners.forEach((l) => l());
 }
@@ -124,7 +137,7 @@ function distanceToLine(p: LatLng, line: LatLng[]): number {
 }
 
 /**
- * Feux tricolores de la zone affichée (zoom ≥ 15). route : en navigation, seulement ceux du tracé.
+ * Feux tricolores de la zone affichée (zoom ≥ 16). route : en navigation, seulement ceux du tracé.
  * Charge les cases manquantes (Overpass) et se met à jour quand elles arrivent.
  */
 export function useTrafficSignals(
@@ -137,8 +150,8 @@ export function useTrafficSignals(
   const lng = view ? Math.round(view.center.longitude * 500) / 500 : null;
   const zoom = view ? Math.round(view.zoom) : 0;
   const active = enabled && lat != null && lng != null && zoom >= SIGNALS_MIN_ZOOM;
-  // Zone affichée (degrés) : ~2 km autour du centre au zoom 15, moins au-delà
-  const r = zoom >= 17 ? 0.006 : zoom >= 16 ? 0.01 : 0.018;
+  // Zone affichée (degrés) : ~1 km autour du centre au zoom 16, moins au-delà
+  const r = zoom >= 17 ? 0.006 : 0.01;
 
   useEffect(() => {
     const l = () => setTick((t) => t + 1);
@@ -156,20 +169,23 @@ export function useTrafficSignals(
       const now = Date.now();
       const missing = cellsAround({ latitude: lat!, longitude: lng! }, r).filter(([i, j]) => {
         const cell = c[cellKey(i, j)];
-        return !cell || now - cell.t > TTL_MS;
+        return !cell || now - cell.t > (cell.pts.length ? TTL_MS : EMPTY_TTL_MS);
       });
       if (!missing.length || missing.length > 6) return;
       inFlight = true;
       fetchCells(missing)
-        .catch(() => {
-          pausedUntil = Date.now() + 120_000;
+        .catch((e) => {
+          console.warn('Feux tricolores indisponibles', e);
+          pausedUntil = Date.now() + RETRY_MS;
+          // Nouvel essai même si la carte ne bouge pas
+          setTimeout(() => listeners.forEach((l) => l()), RETRY_MS + 100);
         })
         .finally(() => {
           inFlight = false;
         });
     }, 500);
     return () => clearTimeout(timer);
-  }, [active, lat, lng, r]);
+  }, [active, lat, lng, r, tick]);
 
   // Recalculé seulement quand la zone (arrondie à ~200 m), le tracé ou les cases chargées changent
   return useMemo(() => {
@@ -234,6 +250,7 @@ async function countOnLine(points: LatLng[], distanceM: number): Promise<number 
   try {
     const elements = await overpass(`[out:json][timeout:20];node["highway"="traffic_signals"](around:${ON_ROUTE_M},${coords});out skel qt 3000;`, {
       timeoutMs: 20_000,
+      servers: SERVERS,
     });
     const pts = (elements as OverpassElement[])
       .filter((el) => el.lat != null && el.lon != null)

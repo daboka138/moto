@@ -78,8 +78,11 @@ const HEDGE_MS = 1500;
  * d'attendre l'un puis l'autre, le suivant est lancé si le précédent n'a pas répondu en 1,5 s (ou dès
  * qu'il échoue) ; la première bonne réponse gagne et les autres requêtes sont annulées.
  */
-export async function overpass(query: string, { timeoutMs = TIMEOUT_MS }: { timeoutMs?: number } = {}) {
-  const controllers = SERVERS.map(() => new AbortController());
+export async function overpass(
+  query: string,
+  { timeoutMs = TIMEOUT_MS, servers = SERVERS }: { timeoutMs?: number; servers?: string[] } = {},
+) {
+  const controllers = servers.map(() => new AbortController());
   const timer = setTimeout(() => controllers.forEach((c) => c.abort()), timeoutMs);
   const ask = async (server: string, controller: AbortController) => {
     const res = await fetch(server, {
@@ -92,7 +95,10 @@ export async function overpass(query: string, { timeoutMs = TIMEOUT_MS }: { time
       signal: controller.signal,
     });
     if (!res.ok) throw new Error(`Overpass ${res.status}`);
-    return ((await res.json()) as { elements?: OverpassElement[] }).elements ?? [];
+    const json = (await res.json()) as { elements?: OverpassElement[]; remark?: string };
+    // Serveur saturé : réponse 200 sans résultat avec « runtime error » (ne pas la prendre pour une zone vide)
+    if (!json.elements?.length && /error/i.test(json.remark ?? '')) throw new Error(`Overpass : ${json.remark}`);
+    return json.elements ?? [];
   };
   try {
     return await new Promise<OverpassElement[]>((resolve, reject) => {
@@ -103,9 +109,9 @@ export async function overpass(query: string, { timeoutMs = TIMEOUT_MS }: { time
       let hedge: ReturnType<typeof setTimeout> | null = null;
       const startNext = () => {
         if (hedge) clearTimeout(hedge);
-        if (done || started >= SERVERS.length) return;
+        if (done || started >= servers.length) return;
         const i = started++;
-        ask(SERVERS[i], controllers[i]).then(
+        ask(servers[i], controllers[i]).then(
           (elements) => {
             if (done) return;
             done = true;
@@ -116,7 +122,7 @@ export async function overpass(query: string, { timeoutMs = TIMEOUT_MS }: { time
           (e) => {
             if (done) return;
             lastError = e;
-            if (++failed === SERVERS.length) {
+            if (++failed === servers.length) {
               done = true;
               console.warn('Recherche de lieux OpenStreetMap impossible', lastError);
               reject(new Error('Recherche indisponible pour le moment, réessaie dans un instant.'));

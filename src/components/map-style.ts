@@ -74,7 +74,7 @@ export function mapCss(Colors: Palette) {
   }
   /* Feu tricolore OpenStreetMap : petite icône discrète, jamais regroupée */
   .signal-wrap { background: none; border: none; pointer-events: none; }
-  .signal svg { width: 12px; height: 22px; display: block; filter: drop-shadow(0 1px 1px ${Colors.markerShadow}); }
+  .signal svg { width: 14px; height: 26px; display: block; filter: drop-shadow(0 1px 1px ${Colors.markerShadow}); }
   .sign-wrap { background: none; border: none; }
   .sign svg { width: 46px; height: 46px; display: block; overflow: visible;
     filter: drop-shadow(0 2px 3px ${Colors.markerShadow}); }

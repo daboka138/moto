@@ -49,30 +49,6 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
             />
           </View>
           <View style={styles.row}>
-            <View style={styles.flex}>
-              <Text style={styles.label}>Feux tricolores</Text>
-              <Text style={styles.sub}>OpenStreetMap, visibles en zoomant de près (nombreux en ville)</Text>
-            </View>
-            <Switch
-              value={layers.showSignals}
-              onValueChange={layers.setShowSignals}
-              trackColor={{ true: Colors.accent, false: Colors.border }}
-              thumbColor={Colors.white}
-            />
-          </View>
-          <View style={styles.row}>
-            <View style={styles.flex}>
-              <Text style={styles.label}>Feux tricolores en navigation</Text>
-              <Text style={styles.sub}>Seulement ceux de ton itinéraire</Text>
-            </View>
-            <Switch
-              value={layers.navSignals}
-              onValueChange={layers.setNavSignals}
-              trackColor={{ true: Colors.accent, false: Colors.border }}
-              thumbColor={Colors.white}
-            />
-          </View>
-          <View style={styles.row}>
             <Text style={styles.label}>Afficher les spots</Text>
             <Switch
               value={layers.showPlaces}
@@ -110,6 +86,18 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
               </View>
             </>
           )}
+          <View style={styles.row}>
+            <View style={styles.flex}>
+              <Text style={styles.label}>Masquer les feux tricolores</Text>
+              <Text style={styles.sub}>Affichés de près (rues) et, en navigation, sur ton itinéraire</Text>
+            </View>
+            <Switch
+              value={layers.hideSignals}
+              onValueChange={layers.setHideSignals}
+              trackColor={{ true: Colors.accent, false: Colors.border }}
+              thumbColor={Colors.white}
+            />
+          </View>
         </Pressable>
       </Pressable>
     </Modal>

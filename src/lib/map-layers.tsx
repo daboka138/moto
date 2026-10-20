@@ -11,8 +11,7 @@ const KEYS = {
   rides: 'moto.map.showRides.v2',
   places: 'moto.map.showPlaces',
   parkings: 'moto.map.showParkings',
-  signals: 'moto.map.showSignals',
-  navSignals: 'moto.map.navSignals',
+  hideSignals: 'moto.map.hideSignals',
   hiddenPlaceKinds: 'moto.map.hiddenPlaceKinds',
   allDates: 'moto.map.allDates',
   allSpots: 'moto.map.allSpots',
@@ -52,12 +51,9 @@ type MapLayers = {
   /** Parkings moto OpenStreetMap (activé par défaut) */
   showParkings: boolean;
   setShowParkings: (v: boolean) => void;
-  /** Feux tricolores hors navigation (désactivé par défaut : nombreux en ville) */
-  showSignals: boolean;
-  setShowSignals: (v: boolean) => void;
-  /** Feux tricolores de l'itinéraire en navigation (activé par défaut) */
-  navSignals: boolean;
-  setNavSignals: (v: boolean) => void;
+  /** Feux tricolores masqués (affichés par défaut : zoom 16+, et en navigation ceux de l'itinéraire) */
+  hideSignals: boolean;
+  setHideSignals: (v: boolean) => void;
   /** Catégories de spots masquées sur la carte */
   hiddenPlaceKinds: PlaceKind[];
   setHiddenPlaceKinds: (v: PlaceKind[]) => void;
@@ -108,8 +104,7 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showRides, setRides] = useState(() => read(KEYS.rides));
   const [showPlaces, setPlaces] = useState(() => read(KEYS.places));
   const [showParkings, setParkings] = useState(() => read(KEYS.parkings));
-  const [showSignals, setSignals] = useState(() => readOff(KEYS.signals));
-  const [navSignals, setNavSignalsState] = useState(() => read(KEYS.navSignals));
+  const [hideSignals, setHideSignalsState] = useState(() => readOff(KEYS.hideSignals));
   const [hiddenPlaceKinds, setHidden] = useState(readHiddenKinds);
   const [mapStyle, setStyle] = useState(readStyle);
   // Désactivés par défaut (absents = « 0 »)
@@ -138,15 +133,10 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
           setParkings(v);
           write(KEYS.parkings, v);
         },
-        showSignals,
-        setShowSignals: (v) => {
-          setSignals(v);
-          write(KEYS.signals, v);
-        },
-        navSignals,
-        setNavSignals: (v) => {
-          setNavSignalsState(v);
-          write(KEYS.navSignals, v);
+        hideSignals,
+        setHideSignals: (v) => {
+          setHideSignalsState(v);
+          write(KEYS.hideSignals, v);
         },
         hiddenPlaceKinds,
         setHiddenPlaceKinds: (v) => {

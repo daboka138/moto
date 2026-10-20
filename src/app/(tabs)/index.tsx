@@ -462,13 +462,9 @@ export default function MapScreen() {
   const selectedEvent = mapEvents.find((e) => EVENT_PREFIX + e.id === selectedId) ?? null;
   const parkings = useMotoParkings(mapView, layers.showParkings && !navigating);
   const selectedParking = parkings.find((p) => PARKING_PREFIX + p.id === selectedId) ?? null;
-  // Feux tricolores (zoom ≥ 15) : en navigation, ceux de l'itinéraire autour de ma position ; sinon la zone affichée
+  // Feux tricolores (affichés de base, zoom ≥ 16) : en navigation, ceux de l'itinéraire autour de ma position ; sinon la zone affichée
   const signalsView = navigating ? (position ? { center: position, zoom: 17 } : null) : mapView;
-  const signals = useTrafficSignals(
-    signalsView,
-    navigating ? layers.navSignals : layers.showSignals,
-    navigating ? (nav.route?.points ?? null) : null,
-  );
+  const signals = useTrafficSignals(signalsView, !layers.hideSignals, navigating ? (nav.route?.points ?? null) : null);
 
   // ---------- Repères : RDV de balades, signalements, destination ----------
   const mapRides = navigating
