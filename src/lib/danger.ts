@@ -8,8 +8,6 @@ import type { RoadReport } from '@/lib/reports';
 const ON_ROUTE_M = 35;
 /** Annonce quand le danger est à moins de… */
 export const ANNOUNCE_M = 600;
-/** Rappel quand le danger est tout proche (si la première annonce était loin) */
-const REMINDER_M = 200;
 /** Conduite libre : danger droit devant à moins de 400 m, cône de ±35° */
 const FREE_DRIVE_M = 400;
 const FREE_DRIVE_CONE_DEG = 35;
@@ -49,11 +47,10 @@ export function dangerAhead(
   return best;
 }
 
-/** Faut-il annoncer ce danger maintenant ? Renvoie la nouvelle étape, ou null s'il n'y a rien à dire. */
-export function announcementStage(stage: 'far' | 'near' | null, distanceM: number): 'far' | 'near' | null {
-  if (distanceM > ANNOUNCE_M || stage === 'near') return null;
-  const near = distanceM <= REMINDER_M;
-  if (stage === 'far') return near ? 'near' : null;
-  // Première annonce déjà proche : pas de rappel ensuite
-  return distanceM <= REMINDER_M * 1.5 ? 'near' : 'far';
+/**
+ * Distance à laquelle un danger est annoncé (UNE seule fois) : ~20 s avant à ma vitesse, entre
+ * 250 m (en ville) et 600 m (route rapide).
+ */
+export function dangerAnnounceDistance(speedKmh: number) {
+  return Math.max(250, Math.min(ANNOUNCE_M, (speedKmh / 3.6) * 20));
 }

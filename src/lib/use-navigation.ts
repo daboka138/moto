@@ -10,6 +10,7 @@ import {
   nextStep,
   projectOnRoute,
   sameRoute,
+  spokenDistance,
   stepSentence,
   variantOptions,
   variantsFor,
@@ -105,10 +106,23 @@ const SAVE_STATS_EVERY_MS = 15_000;
 const RESUME_MAX_AGE_MS = 6 * 3600 * 1000;
 
 /** Paliers d'annonce avant une manœuvre, selon la vitesse. */
-function thresholds(speedKmh: number) {
-  if (speedKmh > 80) return { far: 1200, mid: 400, near: 60 };
-  if (speedKmh > 45) return { far: 700, mid: 250, near: 40 };
-  return { far: 400, mid: 150, near: 25 };
+/**
+ * Distance à laquelle une manœuvre est annoncée (UNE seule fois) : ~12 s avant à ma vitesse,
+ * entre 150 m (en ville) et 300 m (route rapide).
+ */
+export function announceDistance(speedKmh: number) {
+  return Math.max(150, Math.min(300, (speedKmh / 3.6) * 12));
+}
+
+/**
+ * Annonce déjà faite : même type de manœuvre à moins de 40 m, dans les 10 dernières minutes (un
+ * recalcul ne la répète pas ; une boucle qui repasse au même carrefour plus tard est annoncée).
+ */
+type Spoken = { location: LatLng; icon: string; at: number };
+const SAME_MANEUVER_M = 40;
+const SPOKEN_MEMORY_MS = 10 * 60_000;
+export function alreadySpoken(list: Spoken[], step: { location: LatLng; icon: string }, now = Date.now()) {
+  return list.some((s) => s.icon === step.icon && now - s.at < SPOKEN_MEMORY_MS && distanceM(s.location, step.location) < SAME_MANEUVER_M);
 }
 
 // ---------- Navigation en cours, gardée sur le téléphone ----------
@@ -189,7 +203,8 @@ export function useNavigation(
   const progress = phase === 'navigating' && navRoute && me ? computeProgress(navRoute, me) : null;
 
   const meRef = useRef(me);
-  const spoken = useRef(new Set<string>());
+  // Manœuvres déjà annoncées pendant cette navigation (gardées après un recalcul)
+  const spoken = useRef<Spoken[]>([]);
   const offRouteCount = useRef(0);
   const lastReroute = useRef(0);
   const rerouting = useRef(false);
@@ -309,7 +324,6 @@ export function useNavigation(
       .then((r) => {
         setNavRoute(pickRoute(v, r));
         setNavError(null);
-        spoken.current = new Set();
         offRouteCount.current = 0;
       })
       .catch((e) => {
@@ -324,7 +338,7 @@ export function useNavigation(
 
   const start = () => {
     if (!selected?.route || !destination) return;
-    spoken.current = new Set();
+    spoken.current = [];
     offRouteCount.current = 0;
     stats.current = newTripStats();
     setTripM(0);
@@ -333,7 +347,13 @@ export function useNavigation(
     setShares([]);
     setPhase('navigating');
     const first = nextStep(selected.route, 0);
-    speak(first ? `C'est parti. ${stepSentence(first.step, first.distanceM)}` : "C'est parti", true, 'guidance');
+    // Première manœuvre proche : annoncée maintenant (et pas une 2e fois) ; sinon, la route à suivre
+    if (first && first.distanceM <= 300) {
+      spoken.current.push({ location: first.step.location, icon: first.step.icon, at: Date.now() });
+      speak(`C'est parti. ${stepSentence(first.step, first.distanceM)}.`, true, 'guidance');
+    } else {
+      speak(first ? `C'est parti. Suis la route pendant ${spokenDistance(first.distanceM)}.` : "C'est parti.", true, 'guidance');
+    }
   };
 
   /** Fin de navigation (arrivée ou arrêt) : résumé enregistré dans « Mes trajets », partages terminés */
@@ -449,7 +469,7 @@ export function useNavigation(
 
     // Arrivée (arrêt différé : pas de changement d'état pendant l'effet)
     if (distanceM(me, destination) < ARRIVAL_M || remainingM < ARRIVAL_M / 2) {
-      speak('Vous êtes arrivé à destination', true, 'guidance');
+      speak('Tu es arrivé à destination.', true, 'guidance');
       setTimeout(() => stopRef.current(true), 0);
       return;
     }
@@ -475,20 +495,13 @@ export function useNavigation(
       reroute(stops, destination, options, variant, "Recalcul de l'itinéraire");
     }
 
-    // Annonces vocales à l'approche de la manœuvre
-    if (next && !off) {
-      const t = thresholds(speedKmh);
-      const key = (level: string) => `${navRoute.engine}:${next.index}:${level}`;
-      if (next.distanceM <= t.near && !spoken.current.has(key('near'))) {
-        spoken.current.add(key('near')).add(key('mid')).add(key('far'));
-        speak(stepSentence(next.step), true, 'guidance');
-      } else if (next.distanceM <= t.mid && next.distanceM > t.near && !spoken.current.has(key('mid'))) {
-        spoken.current.add(key('mid')).add(key('far'));
-        speak(stepSentence(next.step, next.distanceM), false, 'guidance');
-      } else if (next.distanceM <= t.far && next.distanceM > t.mid * 1.5 && !spoken.current.has(key('far'))) {
-        spoken.current.add(key('far'));
-        speak(stepSentence(next.step, next.distanceM), false, 'guidance');
-      }
+    // Annonce vocale UNE seule fois par manœuvre, ~12 s avant (150 à 300 m) ; jamais répétée à la
+    // position suivante, ni si la position saute, ni après un recalcul qui retombe sur la même
+    if (next && !off && next.step.icon !== 'arrive' && next.distanceM <= announceDistance(speedKmh) && !alreadySpoken(spoken.current, next.step)) {
+      spoken.current.push({ location: next.step.location, icon: next.step.icon, at: now });
+      // Manœuvre toute proche (juste après la précédente) : l'action seule, sans distance
+      const sentence = next.distanceM > 60 ? stepSentence(next.step, next.distanceM) : stepSentence(next.step);
+      speak(`${sentence}.`, next.distanceM < 100, 'guidance');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, navRoute, me]);

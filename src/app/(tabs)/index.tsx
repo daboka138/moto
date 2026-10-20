@@ -410,7 +410,7 @@ export default function MapScreen() {
   const danger = dangerAhead(reports, position, heading, kmh, route, alongM);
   // Annonce vocale : seulement les types de danger choisis dans Paramètres > Voix et alertes
   const spokenReports = reports.filter((r) => !voice.mutedDangerTypes.includes(r.type));
-  useDangerAnnouncements(dangerAhead(spokenReports, position, heading, kmh, route, alongM));
+  useDangerAnnouncements(dangerAhead(spokenReports, position, heading, kmh, route, alongM), kmh);
 
   // ---------- Motards réels : Supabase ne renvoie que ceux que j'ai le droit de voir ----------
   const liveRiders = useLiveRiders(userId, simulating ? null : me, settings?.mode ?? null);

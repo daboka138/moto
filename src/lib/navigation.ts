@@ -234,8 +234,43 @@ const MODIFIERS: Record<string, { text: string; icon: ManeuverIcon }> = {
   uturn: { text: 'demi-tour', icon: 'uturn' },
 };
 
-function ordinal(n: number) {
-  return n === 1 ? '1re' : `${n}e`;
+/** « première », « deuxième »… (lu par la voix ; au-delà de 8, « 9e ») */
+function ordinalWord(n: number) {
+  const words = ['première', 'deuxième', 'troisième', 'quatrième', 'cinquième', 'sixième', 'septième', 'huitième'];
+  return words[n - 1] ?? `${n}e`;
+}
+
+/**
+ * Valhalla rédige ses instructions au vouvoiement (« Tournez à droite sur Rue X ») : passées au
+ * tutoiement de l'appli (« Tourne à droite sur Rue X »). Les verbes inconnus restent tels quels.
+ */
+const TUTOIEMENT: [RegExp, string][] = [
+  [/\bTournez\b/g, 'Tourne'], [/\btournez\b/g, 'tourne'],
+  [/\bPrenez\b/g, 'Prends'], [/\bprenez\b/g, 'prends'],
+  [/\bContinuez\b/g, 'Continue'], [/\bcontinuez\b/g, 'continue'],
+  [/\bRestez\b/g, 'Reste'], [/\brestez\b/g, 'reste'],
+  [/\bSerrez\b/g, 'Serre'], [/\bserrez\b/g, 'serre'],
+  [/\bGardez\b/g, 'Garde'], [/\bgardez\b/g, 'garde'],
+  [/\bSuivez\b/g, 'Suis'], [/\bsuivez\b/g, 'suis'],
+  [/\bQuittez\b/g, 'Quitte'], [/\bquittez\b/g, 'quitte'],
+  [/\bRejoignez\b/g, 'Rejoins'], [/\brejoignez\b/g, 'rejoins'],
+  [/\bSortez\b/g, 'Sors'], [/\bsortez\b/g, 'sors'],
+  [/\bConduisez\b/g, 'Roule'], [/\bconduisez\b/g, 'roule'],
+  [/\bRoulez\b/g, 'Roule'], [/\broulez\b/g, 'roule'],
+  [/\bAllez\b/g, 'Va'], [/\ballez\b/g, 'va'],
+  [/\bPartez\b/g, 'Pars'], [/\bpartez\b/g, 'pars'],
+  [/\bFaites\b/g, 'Fais'], [/\bfaites\b/g, 'fais'],
+  [/\bEmpruntez\b/g, 'Emprunte'], [/\bempruntez\b/g, 'emprunte'],
+  [/\bInsérez-vous\b/g, 'Insère-toi'], [/\binsérez-vous\b/g, 'insère-toi'],
+  [/\bEngagez-vous\b/g, 'Engage-toi'], [/\bengagez-vous\b/g, 'engage-toi'],
+  [/\bDirigez-vous\b/g, 'Dirige-toi'], [/\bdirigez-vous\b/g, 'dirige-toi'],
+  // Pas de \b après « é » (lettre accentuée : hors de \w sans le drapeau u)
+  [/\bVous êtes arrivée?s?/g, 'Tu es arrivé'], [/\bvous êtes arrivée?s?/g, 'tu es arrivé'],
+  [/\bVotre\b/g, 'Ta'], [/\bvotre\b/g, 'ta'],
+  [/\bVous\b/g, 'Tu'], [/\bvous\b/g, 'tu'],
+];
+export function tutoyer(text: string) {
+  return TUTOIEMENT.reduce((t, [re, to]) => t.replace(re, to), text);
 }
 
 /** Instruction en français à partir d'une étape OSRM (null = étape à ne pas annoncer). */
@@ -245,44 +280,44 @@ export function osrmInstruction(s: OsrmStep): { icon: ManeuverIcon; action: stri
   const road = s.name || s.ref || null;
   switch (type) {
     case 'depart':
-      return { icon: 'depart', action: 'Partez', road };
+      return { icon: 'depart', action: 'Pars', road };
     case 'arrive':
-      return { icon: 'arrive', action: 'Vous êtes arrivé', road: null };
+      return { icon: 'arrive', action: 'Tu es arrivé', road: null };
     case 'turn':
-      if (modifier === 'uturn') return { icon: 'uturn', action: 'Faites demi-tour', road };
-      if (modifier === 'straight') return { icon: 'straight', action: 'Continuez tout droit', road };
-      return { icon: mod.icon, action: `Tournez ${mod.text}`, road };
+      if (modifier === 'uturn') return { icon: 'uturn', action: 'Fais demi-tour', road };
+      if (modifier === 'straight') return { icon: 'straight', action: 'Continue tout droit', road };
+      return { icon: mod.icon, action: `Tourne ${mod.text}`, road };
     case 'end of road':
-      return { icon: mod.icon, action: `Au bout de la route, tournez ${mod.text}`, road };
+      return { icon: mod.icon, action: `Au bout de la route, tourne ${mod.text}`, road };
     case 'fork':
-      return { icon: mod.icon, action: `À l'embranchement, restez ${mod.text}`, road };
+      return { icon: mod.icon, action: `À l'embranchement, reste ${mod.text}`, road };
     case 'merge':
-      return { icon: mod.icon, action: `Insérez-vous ${mod.text}`, road };
+      return { icon: mod.icon, action: `Insère-toi ${mod.text}`, road };
     case 'on ramp':
-      return { icon: mod.icon, action: `Prenez la bretelle ${mod.text}`, road };
+      return { icon: mod.icon, action: `Prends la bretelle ${mod.text}`, road };
     case 'off ramp':
-      return { icon: mod.icon, action: `Prenez la sortie ${mod.text}`, road };
+      return { icon: mod.icon, action: `Prends la sortie ${mod.text}`, road };
     case 'roundabout':
     case 'rotary':
       return {
         icon: 'roundabout',
-        action: exit ? `Au rond-point, prenez la ${ordinal(exit)} sortie` : 'Au rond-point, continuez',
+        action: exit ? `Au rond-point, prends la ${ordinalWord(exit)} sortie` : 'Au rond-point, continue',
         road,
       };
     case 'roundabout turn':
-      return { icon: mod.icon, action: `Au rond-point, tournez ${mod.text}`, road };
+      return { icon: mod.icon, action: `Au rond-point, tourne ${mod.text}`, road };
     case 'continue':
     case 'new name':
       // Simple changement de nom de rue tout droit : rien à annoncer
       if (!modifier || modifier === 'straight') return null;
-      return { icon: mod.icon, action: `Continuez ${mod.text}`, road };
+      return { icon: mod.icon, action: `Continue ${mod.text}`, road };
     case 'exit roundabout':
     case 'exit rotary':
     case 'notification':
     case 'use lane':
       return null;
     default:
-      return { icon: mod.icon, action: `Continuez ${mod.text}`, road };
+      return { icon: mod.icon, action: `Continue ${mod.text}`, road };
   }
 }
 
@@ -490,8 +525,8 @@ function valhallaTrip(trip: ValhallaTrip, routeOptions: RouteOptions): NavRoute 
           location: points[index],
           alongM: cumulative[index],
           icon: valhallaIcon(m.type),
-          // Valhalla rédige déjà l'instruction complète en français
-          action: m.instruction.replace(/\.$/, ''),
+          // Valhalla rédige déjà l'instruction complète en français (au vouvoiement : passée au tutoiement)
+          action: tutoyer(m.instruction.replace(/\.$/, '')),
           road: null,
         };
       }),
