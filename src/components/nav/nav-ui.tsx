@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, PanResponder, Pressable, Text, View } from 'r
 
 import { BottomSheet } from '@/components/nav/bottom-sheet';
 import { WeatherAlerts, WeatherStrip } from '@/components/weather-strip';
-import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { Fonts, makeStyles, MapIconColors, Radius, Type, useColors } from '@/constants/theme';
 import type { RouteOptions } from '@/lib/moto';
 import { needsValhalla, shortDistance, variantInfo, variantOptions, type ManeuverIcon, type RouteVariant } from '@/lib/navigation';
 import { poiInfo } from '@/lib/pois';
@@ -658,8 +658,10 @@ export function Speedometer({ kmh, limit, over }: { kmh: number; limit: number |
         <Text style={styles.speedUnit}>km/h</Text>
       </View>
       {limit !== null && (
-        <View style={styles.limit} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
-          <Text style={[styles.limitText, limit >= 100 && { fontSize: Type.large }]}>{limit}</Text>
+        <View style={styles.limitRim} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
+          <View style={styles.limit}>
+            <Text style={[styles.limitText, limit >= 100 && styles.limitText3]}>{limit}</Text>
+          </View>
         </View>
       )}
     </View>
@@ -846,19 +848,31 @@ const useStyles = makeStyles((Colors) => ({
   speedOver: { backgroundColor: Colors.danger },
   speedValue: { color: Colors.white, fontSize: 36, fontWeight: '700', fontVariant: ['tabular-nums'] },
   speedUnit: { color: Colors.white, fontSize: Type.small, opacity: 0.8 },
-  // Panneau rond de limitation, comme sur la route
+  // Panneau rond de limitation façon panneau officiel (B14) : couronne rouge, fond blanc, chiffres noirs,
+  // liseré blanc extérieur ; mêmes couleurs en clair et en sombre (MapIconColors)
+  limitRim: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    padding: 2,
+    backgroundColor: MapIconColors.white,
+    elevation: 4,
+    shadowColor: Colors.shadow,
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
   limit: {
-    width: 58,
-    height: 58,
+    flex: 1,
     borderRadius: 29,
-    backgroundColor: Colors.white,
-    borderWidth: 6,
-    borderColor: Colors.danger,
+    backgroundColor: MapIconColors.white,
+    borderWidth: 7,
+    borderColor: MapIconColors.alert,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
   },
-  limitText: { fontSize: Type.title, fontWeight: '900', color: Colors.dark, fontVariant: ['tabular-nums'] },
+  limitText: { fontFamily: Fonts.title, fontSize: 27, color: MapIconColors.ink, fontVariant: ['tabular-nums'], marginTop: -1 },
+  limitText3: { fontSize: 22, letterSpacing: -0.5 },
   reportButton: {
     width: 76,
     height: 76,

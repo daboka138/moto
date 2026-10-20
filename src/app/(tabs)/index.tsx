@@ -67,7 +67,7 @@ import { createReport, deleteReport, reportAge, reportInfo, setReportType, voteR
 import { fetchRide, RIDE_ROLES, setRegroupPoint, type RideSummary } from '@/lib/rides';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
-import { useSpeedLimit } from '@/lib/speed-limit';
+import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
@@ -354,7 +354,15 @@ export default function MapScreen() {
   const pointsOn = goodPointsEnabled && goodPointsAllowed;
 
   // Limitation de vitesse de la route (OSM) ; dépassement : compteur rouge + bip
-  const speedLimit = useSpeedLimit(position, kmh, voice.speedLimit || voice.speedAlert || (pointsOn && navigating));
+  // En navigation : limitations du tracé chargées d'avance par morceaux ; sinon (ou hors itinéraire) en direct
+  const limitWanted = voice.speedLimit || voice.speedAlert || (pointsOn && navigating);
+  const routeLimit = useRouteSpeedLimit(
+    navigating ? nav.route : null,
+    nav.progress?.alongM ?? null,
+    limitWanted && navigating && !nav.progress?.offRoute,
+  );
+  const liveLimit = useSpeedLimit(position, kmh, limitWanted && routeLimit === undefined);
+  const speedLimit = routeLimit !== undefined ? routeLimit : liveLimit;
   const overLimit = voice.speedAlert && speedLimit !== null && kmh > speedLimit + SPEED_MARGIN_KMH;
   const [beepKey, setBeepKey] = useState(0);
   useEffect(() => {

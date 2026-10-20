@@ -9,8 +9,8 @@ type Props = {
   photoUrl: string;
   username: string;
   motoLabel: string | null;
+  /** Vitesse publiée : sert seulement à dire « en route » ou « à l'arrêt » (jamais affichée) */
   speedKmh: number | null;
-  speeding?: boolean;
   distanceM: number | null;
   badge?: string;
   onViewProfile: () => void;
@@ -18,10 +18,11 @@ type Props = {
 };
 
 /** Fiche rapide affichée quand on appuie sur un motard de la carte. */
-export function PersonCard({ photoUrl, username, motoLabel, speedKmh, speeding, distanceM, badge, onViewProfile, onClose }: Props) {
+export function PersonCard({ photoUrl, username, motoLabel, speedKmh, distanceM, badge, onViewProfile, onClose }: Props) {
   const Colors = useColors();
   const styles = useStyles();
-  const speed = speedKmh === null ? null : Math.round(speedKmh);
+  // Règle de l'appli : la vitesse d'un motard n'est JAMAIS montrée aux autres
+  const moving = speedKmh === null ? null : speedKmh >= 5;
 
   return (
     <View style={styles.card}>
@@ -44,10 +45,8 @@ export function PersonCard({ photoUrl, username, motoLabel, speedKmh, speeding, 
 
       <View style={styles.stats}>
         <View style={styles.stat}>
-          <Text style={[styles.statValue, speeding && { color: Colors.danger }]}>
-            {speed === null ? '–' : speed === 0 ? 'Arrêté' : `${speed} km/h`}
-          </Text>
-          <Text style={styles.statLabel}>{speeding ? 'Excès de vitesse' : 'Vitesse'}</Text>
+          <Text style={styles.statValue}>{moving === null ? '–' : moving ? 'En route' : 'À l’arrêt'}</Text>
+          <Text style={styles.statLabel}>Statut</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.stat}>
