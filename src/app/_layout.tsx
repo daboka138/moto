@@ -1,3 +1,5 @@
+// En premier : l'horloge du démarrage part du chargement du JS
+import { onMapReady, startupMark, useStartupDone } from '@/lib/startup';
 import {
   DarkTheme,
   DefaultTheme,
@@ -10,7 +12,7 @@ import {
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -137,9 +139,32 @@ function RootNavigator() {
   const [fontsLoaded, fontsError] = useFonts(FontFiles);
   const fontsReady = fontsLoaded || !!fontsError;
 
+  // Écran de démarrage gardé jusqu'à ce que la carte soit affichée (plutôt qu'un écran qui saccade) ;
+  // ailleurs (connexion, CGU, profil, lien d'email…) ou au plus tard 4 s après : retiré
+  const onMap = !!session && !!termsAccepted && !!profile && !onAuthLink && (pathname === '/' || pathname === '');
+  const [mapShown, setMapShown] = useState(false);
+  useEffect(() => onMapReady(() => setMapShown(true)), []);
+  const [splashTimeout, setSplashTimeout] = useState(false);
   useEffect(() => {
-    if (session !== undefined && fontsReady) SplashScreen.hideAsync();
+    if (session !== undefined) startupMark('session lue');
+  }, [session]);
+  useEffect(() => {
+    if (fontsReady) startupMark('polices chargées');
+  }, [fontsReady]);
+  useEffect(() => {
+    if (profile) startupMark('profil chargé');
+  }, [profile]);
+  useEffect(() => {
+    if (session === undefined || !fontsReady) return;
+    const t = setTimeout(() => setSplashTimeout(true), 4000);
+    return () => clearTimeout(t);
   }, [session, fontsReady]);
+  const splashDone = session !== undefined && fontsReady && (mapShown || splashTimeout || (ready && !onMap) || session === null);
+  useEffect(() => {
+    if (!splashDone) return;
+    startupMark('écran de démarrage retiré');
+    SplashScreen.hideAsync();
+  }, [splashDone]);
 
   if (session === undefined || !fontsReady) return null;
 
@@ -249,9 +274,11 @@ function RootNavigator() {
 /** Fonctionnalités (gratuit / premium), plan et réglage des points, rechargés à chaque changement de compte */
 function AccountSync() {
   const { session } = useSession();
+  // Fonctionnalités : en cache sur le téléphone, rafraîchies tout de suite ; le reste après la carte
+  const startupDone = useStartupDone();
   useFeaturesSync(session?.user.id);
-  useGoodPointsSync(session?.user.id);
-  const userId = session?.user.id;
+  useGoodPointsSync(startupDone ? session?.user.id : undefined);
+  const userId = startupDone ? session?.user.id : undefined;
   useEffect(() => {
     if (userId) loadRoutePrefs(userId).catch(() => {});
   }, [userId]);

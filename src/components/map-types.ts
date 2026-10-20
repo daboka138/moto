@@ -75,4 +75,6 @@ export type MapProps = {
    * (dernière position connue, ville du profil, France)
    */
   defaultView?: (LatLng & { zoom: number }) | null;
+  /** Premières tuiles affichées (ou 1,5 s après le chargement de la page) : une seule fois */
+  onPainted?: () => void;
 };

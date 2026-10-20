@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { UpdateBannerView } from '@/components/update-banner-view';
 import { useAppBusy } from '@/lib/app-busy';
 import { useHomecoming } from '@/lib/homecoming';
+import { whenStartupDone } from '@/lib/startup';
 
 /** Une vérification au plus toutes les 30 min quand l'app revient au premier plan */
 const CHECK_EVERY_MS = 30 * 60_000;
@@ -39,13 +40,16 @@ export function UpdateBanner() {
   }, []);
 
   useEffect(() => {
-    // Au lancement (juste après le premier affichage), puis au retour au premier plan
-    const first = setTimeout(check, 0);
+    // Au lancement (une fois la carte affichée), puis au retour au premier plan
+    let alive = true;
+    whenStartupDone().then(() => {
+      if (alive) check();
+    });
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active' && Date.now() - lastCheck.current >= CHECK_EVERY_MS) check();
     });
     return () => {
-      clearTimeout(first);
+      alive = false;
       sub.remove();
     };
   }, [check]);

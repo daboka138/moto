@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { useSession } from '@/lib/session';
+import { useStartupDone } from '@/lib/startup';
 import { fetchStories, fetchViewedIds, markStoryViewed, type Story } from '@/lib/stories';
 
 type StoriesState = {
@@ -20,6 +21,8 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   const userId = profile ? session?.user.id : undefined;
   const [loaded, setLoaded] = useState<{ userId: string; stories: Story[] } | null>(null);
   const [viewed, setViewed] = useState<Set<string>>(new Set());
+  // Chargées après l'ouverture de la carte (démarrage plus fluide)
+  const startupDone = useStartupDone();
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -34,7 +37,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !startupDone) return;
     let cancelled = false;
     const load = () => !cancelled && refresh();
     load();
@@ -43,7 +46,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [userId, refresh]);
+  }, [userId, refresh, startupDone]);
 
   const markViewed = (story: Story) => {
     if (viewed.has(story.id)) return;

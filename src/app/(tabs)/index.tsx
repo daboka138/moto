@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -65,6 +65,7 @@ import { fetchRide, RIDE_ROLES, setRegroupPoint, type RideSummary } from '@/lib/
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 import { useSpeedLimit } from '@/lib/speed-limit';
+import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useFriends } from '@/lib/use-friends';
@@ -148,6 +149,17 @@ export default function MapScreen() {
   // Balade touchée sur la carte : son tracé est affiché
   const [rideRoute, setRideRoute] = useState<{ id: string; points: [number, number][] } | null>(null);
   const compass = useCompass();
+  // Démarrage : la carte et ma position d'abord ; repères (balades, spots, événements, parkings) ensuite
+  const startupDone = useStartupDone();
+  // Nombre d'affichages de l'écran pendant le démarrage (diagnostic des re-rendus)
+  const renders = useRef(0);
+  useEffect(() => {
+    renders.current += 1;
+  });
+  useEffect(() => startupMark('écran carte monté'), []);
+  useEffect(() => {
+    if (startupDone) startupMark(`écran carte : ${renders.current} rendus pendant le démarrage`);
+  }, [startupDone]);
   const ghost = settings?.mode === 'ghost';
   const insets = useSafeAreaInsets();
   const layers = useMapLayers();
@@ -228,7 +240,7 @@ export default function MapScreen() {
 
   // Cols des trajets précédents pas encore cherchés (Overpass saturé) : nouvel essai à l'ouverture
   useEffect(() => {
-    retryPendingPasses(readTrack).catch(() => {});
+    whenStartupDone().then(() => retryPendingPasses(readTrack).catch(() => {}));
   }, []);
 
   // Météo le long de l'itinéraire proposé, à l'heure de passage
@@ -439,7 +451,7 @@ export default function MapScreen() {
           isWithinDays(r.meetingAt, layers.allDates || r.joined ? RIDES_ON_MAP_DAYS : MAP_DEFAULT_DAYS),
       );
   const selectedRide = layers.showRides ? (mapRides.find((r) => RIDE_PREFIX + r.id === selectedId) ?? null) : null;
-  const pins: MapPin[] = [
+  const allPins: MapPin[] = [
     ...(layers.showRides ? mapRides : []).map((r) => ({
       id: RIDE_PREFIX + r.id,
       kind: 'meeting' as const,
@@ -497,19 +509,25 @@ export default function MapScreen() {
       ? [{ id: REGROUP_PIN, kind: 'meeting' as const, label: '🚩 Regroupement', latitude: convoy.ride.regroup.latitude, longitude: convoy.ride.regroup.longitude }]
       : []),
   ];
-  const toLine = (points: LatLng[]) => points.map((p) => [p.latitude, p.longitude] as [number, number]);
-  // Aperçu : les autres itinéraires proposés en gris, sous celui choisi
-  const alternatives: MapRoute[] =
-    nav.phase === 'preview'
-      ? nav.choices
-          .filter((c) => c.route && !c.sameAs && c.route !== nav.route)
-          .map((c) => ({ id: `alt:${c.variant}`, points: toLine(c.route!.points), color: Colors.textFaint, muted: true }))
-      : [];
-  const routes: MapRoute[] = nav.route
-    ? [...alternatives, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
-    : selectedRide && rideRoute?.id === selectedRide.id
-      ? [{ id: 'ride', points: rideRoute.points, color: Colors.accent }]
-      : alternatives;
+  // Pendant le démarrage : pas les repères regroupables (balades, spots, parkings, événements), envoyés après
+  const pins = startupDone ? allPins : allPins.filter((p) => !p.cluster);
+  // Tracés recalculés seulement s'ils changent (pas à chaque position GPS ni à chaque mouvement de la boussole)
+  const rideLine = selectedRide && rideRoute?.id === selectedRide.id ? rideRoute.points : null;
+  const routes: MapRoute[] = useMemo(() => {
+    const toLine = (points: LatLng[]) => points.map((p) => [p.latitude, p.longitude] as [number, number]);
+    // Aperçu : les autres itinéraires proposés en gris, sous celui choisi
+    const alternatives: MapRoute[] =
+      nav.phase === 'preview'
+        ? nav.choices
+            .filter((c) => c.route && !c.sameAs && c.route !== nav.route)
+            .map((c) => ({ id: `alt:${c.variant}`, points: toLine(c.route!.points), color: Colors.textFaint, muted: true }))
+        : [];
+    return nav.route
+      ? [...alternatives, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
+      : rideLine
+        ? [{ id: 'ride', points: rideLine, color: Colors.accent }]
+        : alternatives;
+  }, [nav.phase, nav.choices, nav.route, rideLine, Colors]);
   // Aperçu : la carte cadre tout l'itinéraire (2 coins suffisent)
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 
@@ -553,6 +571,7 @@ export default function MapScreen() {
         (loc) => {
           // Simulation de trajet (admin) : les vraies positions sont ignorées pendant la navigation
           if (navigating && getSimulation().active) return;
+          startupMark('première position GPS');
           setLocation(loc);
           saveLastPosition(loc.coords);
           // Le cap GPS n'est fiable qu'en mouvement (> 5 km/h)
@@ -1012,6 +1031,7 @@ export default function MapScreen() {
         routes={routes}
         fitPoints={fitPoints}
         onViewChange={(center, zoom) => setMapView({ center, zoom })}
+        onPainted={signalMapReady}
       />
       {/* Couche des commandes : couvre tout l'écran au-dessus de la carte, recherche en haut, + en bas */}
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">

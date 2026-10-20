@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { useStartupDone } from '@/lib/startup';
 import { fetchConversations, isMuted, markDelivered, type Conversation } from '@/lib/messages';
 import { useSession } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +31,8 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const active = useRef<string | null>(null);
   const conversationsRef = useRef<Conversation[]>([]);
+  // Chargées après l'ouverture de la carte (démarrage plus fluide)
+  const startupDone = useStartupDone();
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -50,7 +53,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !startupDone) return;
     let cancelled = false;
     // Messages arrivés pendant mon absence : ✓✓ « reçu » pour leurs auteurs
     const load = () => !cancelled && refresh().then(markDelivered);
@@ -83,7 +86,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [userId, refresh, notify]);
+  }, [userId, refresh, notify, startupDone]);
 
   const conversations = loaded && loaded.userId === userId ? loaded.conversations : [];
   const unreadTotal = conversations.reduce((n, c) => n + (c.blocked ? 0 : c.unread), 0);

@@ -12,6 +12,7 @@ export type { MapMarker, MapPin, MapPosition, MapRoute } from '@/components/map-
 
 type WebMessage =
   | { type: 'ready' }
+  | { type: 'painted' }
   | { type: 'pan' }
   | { type: 'bearing'; value: number }
   | { type: 'mapPress'; latitude: number; longitude: number }
@@ -68,19 +69,24 @@ function buildHtml(Colors: Palette, dark: boolean) {
   function mapBearing() { return map.getBearing ? map.getBearing() : 0; }
   /** Écart d'angle le plus court, entre -180 et 180 */
   function angleDelta(from, to) { return ((to - from + 540) % 360) - 180; }
+  // Premières tuiles affichées (ou 1,5 s après le chargement) : l'app retire l'écran de démarrage
+  var painted = false;
+  function firstPaint() { if (!painted) { painted = true; post({ type: 'painted' }); } }
+  setTimeout(firstPaint, 1500);
   // Fond MapTiler, avec repli sur OpenStreetMap si les tuiles sont refusées
   var fallenBack = false, primary = null;
   function useFallbackTiles(reason) {
     if (fallenBack) return;
     fallenBack = true;
     if (primary) map.removeLayer(primary);
-    L.tileLayer('${TILES.fallback}', { maxZoom: 19, attribution: '${OSM_COPYRIGHT}' }).addTo(map);
+    L.tileLayer('${TILES.fallback}', { maxZoom: 19, attribution: '${OSM_COPYRIGHT}' }).on('load', firstPaint).addTo(map);
     post({ type: 'error', message: 'Tuiles MapTiler indisponibles (' + reason + ') : repli sur OpenStreetMap' });
   }
   if ('${tilesUrl}') {
     var loaded = 0, failed = 0;
     primary = L.tileLayer('${tilesUrl}', { maxZoom: 19, attribution: '${TILES.attribution}' });
     primary.on('tileload', function () { loaded++; });
+    primary.on('load', firstPaint);
     primary.on('tileerror', function () {
       failed++;
       // Aucune tuile reçue, ou beaucoup plus d'échecs que de réussites : MapTiler ne répond pas
@@ -576,6 +582,7 @@ export function LeafletMap({
   onBeepFailed,
   onViewChange,
   defaultView,
+  onPainted,
 }: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -626,8 +633,9 @@ export function LeafletMap({
   }, [pageLoads, markersJson, selectedMarkerId]);
 
   // Les tracés peuvent être gros : on ne les renvoie que s'ils ont changé
-  const pinsJson = JSON.stringify(pins);
-  const routesJson = JSON.stringify(routes);
+  // Sérialisés seulement quand la liste change (la carte se redessine à chaque position GPS)
+  const pinsJson = useMemo(() => JSON.stringify(pins), [pins]);
+  const routesJson = useMemo(() => JSON.stringify(routes), [routes]);
   const fitJson = fitPoints ? JSON.stringify(fitPoints.map((p) => [p.latitude, p.longitude])) : null;
 
   useEffect(() => {
@@ -660,7 +668,8 @@ export function LeafletMap({
     if (msg.type === 'ready') {
       setPageLoads((n) => n + 1);
       onBearingChange?.(0);
-    } else if (msg.type === 'pan') onUserPan?.();
+    } else if (msg.type === 'painted') onPainted?.();
+    else if (msg.type === 'pan') onUserPan?.();
     else if (msg.type === 'bearing') onBearingChange?.(msg.value);
     else if (msg.type === 'mapPress') onMapPress?.({ latitude: msg.latitude, longitude: msg.longitude });
     else if (msg.type === 'longPress') onMapLongPress?.({ latitude: msg.latitude, longitude: msg.longitude });

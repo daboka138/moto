@@ -35,6 +35,7 @@ import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 import { REPORT_TYPES } from '@/lib/reports';
 import { setSimulation, SIMULATION_SPEEDS, useSimulation } from '@/lib/simulation';
+import { startupReport } from '@/lib/startup';
 import { fetchInSuggestions, setInSuggestions } from '@/lib/suggestions';
 import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
 import { errorMessage } from '@/lib/errors';
@@ -165,6 +166,11 @@ export default function SettingsScreen() {
         </LinkGroup>
       )}
       {isAdmin && !IS_WEB && <SimulationSection />}
+      {isAdmin && (
+        <LinkGroup>
+          <LinkRow icon="speedometer-outline" label="Mesures du démarrage" onPress={showStartupReport} />
+        </LinkGroup>
+      )}
 
       <Text style={styles.section}>Aide</Text>
       <LinkGroup>
@@ -214,6 +220,18 @@ export default function SettingsScreen() {
 
       {!IS_WEB && <UpdateCard />}
     </ScrollView>
+  );
+}
+
+/** Admin : temps de chaque étape du dernier lancement et blocages du fil JS (saccades) */
+function showStartupReport() {
+  const { marks, stalls } = startupReport();
+  const lines = marks.map((m) => `${(m.ms / 1000).toFixed(2)} s · ${m.label}`);
+  const worst = [...stalls].sort((a, b) => parseInt(b.label.replace(/\D/g, ''), 10) - parseInt(a.label.replace(/\D/g, ''), 10)).slice(0, 8);
+  const blocks = worst.map((m) => `${(m.ms / 1000).toFixed(2)} s · ${m.label}`);
+  Alert.alert(
+    'Démarrage (ce lancement)',
+    `${lines.join('\n')}\n\nBlocages du fil JS (${stalls.length}, les plus longs) :\n${blocks.join('\n') || 'aucun'}`,
   );
 }
 

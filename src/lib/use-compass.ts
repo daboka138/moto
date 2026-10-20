@@ -4,6 +4,8 @@ import { useCallback, useState } from 'react';
 
 /** En dessous de cet écart (degrés), on ne rafraîchit pas l'écran */
 const MIN_CHANGE_DEG = 3;
+/** Au plus 4 rafraîchissements par seconde : chaque changement redessine tout l'écran de la carte */
+const MIN_INTERVAL_MS = 250;
 
 /**
  * Boussole du téléphone (cap vrai si disponible, sinon magnétique), active seulement quand l'écran
@@ -16,9 +18,13 @@ export function useCompass(): number | null {
     useCallback(() => {
       let subscription: Location.LocationSubscription | undefined;
       let cancelled = false;
+      let lastAt = 0;
       Location.watchHeadingAsync((h) => {
         const value = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
         if (value < 0) return;
+        const now = Date.now();
+        if (now - lastAt < MIN_INTERVAL_MS) return;
+        lastAt = now;
         setHeading((prev) => {
           if (prev === null) return value;
           const delta = Math.abs(((value - prev + 540) % 360) - 180);

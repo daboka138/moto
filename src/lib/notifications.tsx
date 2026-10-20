@@ -6,6 +6,7 @@ import { acceptFriendRequest, removeFriendship } from '@/lib/friends';
 import { photoUrl } from '@/lib/profile';
 import { joinRide, leaveRide } from '@/lib/rides';
 import { useSession } from '@/lib/session';
+import { useStartupDone } from '@/lib/startup';
 import { supabase } from '@/lib/supabase';
 
 // Centre de notifications : likes, commentaires, amis, invitations, messages, spots, convoi, SOS…
@@ -182,6 +183,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { session, profile } = useSession();
   const userId = profile ? session?.user.id : undefined;
   const [count, setCount] = useState<{ userId: string; unread: number } | null>(null);
+  // Compteur chargé après l'ouverture de la carte (démarrage plus fluide)
+  const startupDone = useStartupDone();
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -194,7 +197,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !startupDone) return;
     let cancelled = false;
     const load = () => !cancelled && refresh();
     load();
@@ -207,7 +210,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, [userId, refresh]);
+  }, [userId, refresh, startupDone]);
 
   const unread = count && count.userId === userId ? count.unread : 0;
   return <NotificationsContext.Provider value={{ unread, refresh }}>{children}</NotificationsContext.Provider>;

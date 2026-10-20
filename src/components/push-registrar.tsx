@@ -7,6 +7,7 @@ import { ensureHomecomingLoaded } from '@/lib/homecoming';
 import { markNotificationsReadByUrl, useNotificationsBadge } from '@/lib/notifications';
 import { registerForPush } from '@/lib/push';
 import { useSession } from '@/lib/session';
+import { whenStartupDone } from '@/lib/startup';
 
 /**
  * Une fois connecté (profil créé) : enregistre le téléphone pour les notifications push,
@@ -22,8 +23,15 @@ export function PushRegistrar() {
 
   useEffect(() => {
     if (!ready || !userId) return;
-    registerForPush(true).catch((e) => console.warn('Notifications indisponibles', e));
     ensureHomecomingLoaded(userId);
+    // Jeton push (et demande d'autorisation) : après l'ouverture de la carte
+    let alive = true;
+    whenStartupDone().then(() => {
+      if (alive) registerForPush(true).catch((e) => console.warn('Notifications indisponibles', e));
+    });
+    return () => {
+      alive = false;
+    };
   }, [ready, userId]);
 
   useEffect(() => {
