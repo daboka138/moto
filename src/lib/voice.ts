@@ -32,6 +32,8 @@ export type VoiceSettings = {
   weatherAlerts: boolean;
   /** Rappel de pause : 0 = désactivé, sinon minutes de route (60, 90, 120 ; 2 = test admin) */
   breakReminderMin: number;
+  /** Voix choisie (identifiant du téléphone) ; null = automatique (voix d'homme française si dispo) */
+  voiceId: string | null;
 };
 
 export const BREAK_OPTIONS: { value: number; label: string }[] = [
@@ -41,11 +43,14 @@ export const BREAK_OPTIONS: { value: number; label: string }[] = [
   { value: 120, label: '2 h' },
 ];
 
+// « Normal » = un peu plus lent que la voix du téléphone : rendu calme et posé
 export const VOICE_RATES: { value: VoiceRate; label: string; rate: number }[] = [
-  { value: 'slow', label: 'Lent', rate: 0.85 },
-  { value: 'normal', label: 'Normal', rate: 1 },
-  { value: 'fast', label: 'Rapide', rate: 1.2 },
+  { value: 'slow', label: 'Lent', rate: 0.8 },
+  { value: 'normal', label: 'Normal', rate: 0.9 },
+  { value: 'fast', label: 'Rapide', rate: 1.05 },
 ];
+/** Ton légèrement plus grave que celui du téléphone */
+const PITCH = 0.9;
 
 export const VOICE_VOLUMES: { value: VoiceVolume; label: string; volume: number }[] = [
   { value: 'low', label: 'Faible', volume: 0.5 },
@@ -67,6 +72,7 @@ const DEFAULTS: VoiceSettings = {
   sunAlerts: true,
   weatherAlerts: true,
   breakReminderMin: 0,
+  voiceId: null,
 };
 
 function read(): VoiceSettings {
@@ -111,13 +117,92 @@ export function isDangerAnnounced(type: ReportType) {
   return settings.dangers && !settings.muted && !settings.mutedDangerTypes.includes(type);
 }
 
-function say(text: string, urgent: boolean) {
+// ---------- Voix du téléphone ----------
+// La liste dépend du téléphone (moteur de synthèse installé : Google, Samsung…) ou du navigateur.
+// Aucune voix d'homme n'est garantie : sans elle, la meilleure voix française disponible.
+
+export type FrenchVoice = {
+  id: string;
+  /** « Voix 2 · homme · hors ligne » */
+  label: string;
+  /** true homme, false femme, null inconnu */
+  male: boolean | null;
+  /** Fonctionne sans réseau (null : inconnu) */
+  offline: boolean | null;
+  language: string;
+};
+
+// Google (Android) : fr-fr-x-fra / frc / vlf = femme, frb / frd = homme ; Samsung : smtm = homme,
+// smtf = femme ; navigateurs : prénoms des voix Microsoft / Apple / Google
+const MALE = /x-frb|x-frd|smtm|\b(paul|henri|thomas|claude|nicolas|mathieu|remy|rémy|antoine|jerome|jérôme|daniel|yves|guillaume|gilles|jean|alain|male|homme)\b/i;
+const FEMALE = /x-fra|x-frc|x-vlf|smtf|\b(julie|hortense|denise|amelie|amélie|audrey|aurelie|aurélie|marie|virginie|celine|céline|lea|léa|eloise|éloïse|vivienne|female|femme)\b|google français/i;
+
+function describe(v: Speech.Voice, index: number): FrenchVoice {
+  const key = `${v.identifier} ${v.name}`;
+  const male = MALE.test(key) ? true : FEMALE.test(key) ? false : null;
+  const offline = /local/i.test(key) ? true : /network/i.test(key) ? false : (v as { localService?: boolean }).localService ?? null;
+  // Nom lisible : prénom du navigateur, sinon « Voix 1, 2… » (les identifiants Android sont illisibles)
+  const plain = /^[A-Za-zÀ-ÿ' -]+$/.test(v.name) && !/^fr[-_]/i.test(v.name) ? v.name.replace(/^Microsoft |^Google /, '').split(' - ')[0] : `Voix ${index + 1}`;
+  const parts = [plain, male === true ? 'homme' : male === false ? 'femme' : null, offline === true ? 'hors ligne' : offline === false ? 'en ligne' : null];
+  return { id: v.identifier, label: parts.filter(Boolean).join(' · '), male, offline, language: v.language };
+}
+
+let voicesPromise: Promise<FrenchVoice[]> | null = null;
+let autoVoiceId: string | null = null;
+
+/** Voix françaises du téléphone (fr-FR d'abord), chargées une fois */
+export function listFrenchVoices(): Promise<FrenchVoice[]> {
+  if (!voicesPromise) {
+    voicesPromise = (async () => {
+      let all = await Speech.getAvailableVoicesAsync().catch(() => [] as Speech.Voice[]);
+      // Android : le moteur de synthèse peut ne pas être prêt au tout premier appel
+      if (!all.length) {
+        await new Promise((r) => setTimeout(r, 1500));
+        all = await Speech.getAvailableVoicesAsync().catch(() => [] as Speech.Voice[]);
+      }
+      const fr = all
+        .filter((v) => /^fr([-_]|$)/i.test(v.language))
+        .sort((a, b) => Number(/^fr[-_]fr/i.test(b.language)) - Number(/^fr[-_]fr/i.test(a.language)) || a.identifier.localeCompare(b.identifier));
+      const list = fr.map(describe);
+      autoVoiceId = pickDefaultVoice(list)?.id ?? null;
+      if (!list.length) voicesPromise = null; // nouvel essai au prochain appel
+      return list;
+    })();
+  }
+  return voicesPromise;
+}
+
+/** Voix par défaut : homme fr-FR hors ligne, puis homme fr-FR, puis fr-FR hors ligne, fr-FR, autre français */
+export function pickDefaultVoice(list: FrenchVoice[]): FrenchVoice | null {
+  const frFR = (v: FrenchVoice) => /^fr[-_]fr/i.test(v.language);
+  return (
+    list.find((v) => frFR(v) && v.male === true && v.offline !== false) ??
+    list.find((v) => frFR(v) && v.male === true) ??
+    list.find((v) => frFR(v) && v.offline !== false) ??
+    list.find(frFR) ??
+    list[0] ??
+    null
+  );
+}
+
+// Chargée dès le démarrage du module : la première annonce a déjà sa voix
+listFrenchVoices().catch(() => {});
+
+function say(text: string, urgent: boolean, voiceId?: string | null) {
   if (urgent) Speech.stop();
+  const voice = voiceId ?? settings.voiceId ?? autoVoiceId;
   Speech.speak(text, {
     language: 'fr-FR',
+    ...(voice ? { voice } : {}),
+    pitch: PITCH,
     rate: VOICE_RATES.find((r) => r.value === settings.rate)!.rate,
     volume: VOICE_VOLUMES.find((v) => v.value === settings.volume)!.volume,
   });
+}
+
+/** Bouton « Écouter » d'une voix de la liste */
+export function previewVoice(voiceId: string | null) {
+  say('Dans 200 mètres, tourne à droite. Au rond-point, prends la deuxième sortie.', true, voiceId ?? autoVoiceId);
 }
 
 /** Annonce vocale en français, selon les réglages. urgent = coupe l'annonce en cours. */
@@ -130,7 +215,7 @@ export function speak(text: string, urgent = false, kind: SpeechKind = 'info') {
 
 /** Bouton « Tester la voix » : joue toujours, même en muet, avec le débit et le volume choisis. */
 export function testVoice() {
-  say('Attention, gravillons signalés dans 500 mètres. Dans 200 mètres, tournez à droite.', true);
+  say('Attention, gravillons signalés dans 400 mètres. Dans 200 mètres, tourne à droite.', true);
 }
 
 /** Alerte de sécurité (chute détectée…) : lue même en muet, au débit et au volume choisis. */

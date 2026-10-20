@@ -9,6 +9,7 @@ import { useIsAdmin } from '@/lib/admin';
 import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
+import { VoicePicker } from '@/components/voice-picker';
 import { makeStyles, Radius, Type, type ThemePreference, useColors, useTheme } from '@/constants/theme';
 import { resetTips } from '@/guide/state';
 import { IS_WEB } from '@/lib/app-link';
@@ -369,7 +370,7 @@ function VoiceSection() {
         />
         <SwitchRow
           label="Alertes vocales des dangers"
-          description="Annonce vers 600 m puis rappel à 200 m quand un danger signalé est sur ta route."
+          description="Annoncée une seule fois, environ 20 secondes avant (250 à 600 m), quand un danger signalé est sur ta route."
           value={voice.dangers}
           onChange={(v) => updateVoiceSettings({ dangers: v })}
         />
@@ -434,6 +435,10 @@ function VoiceSection() {
             Après ce temps de route, annonce vocale et café ou point de vue proposé à moins de 10 min. Un arrêt de 10 min
             remet le compteur à zéro. L’étape s’ajoute à l’arrêt.
           </Text>
+        </View>
+        <View style={styles.voiceBlock}>
+          <Text style={styles.optionLabel}>Voix du guidage</Text>
+          <VoicePicker />
         </View>
         <View style={styles.voiceBlock}>
           <Text style={styles.optionLabel}>Débit de la voix</Text>
