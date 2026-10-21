@@ -47,7 +47,6 @@ import { FEATURE_STATUS_LABELS, refreshFeatures, setFeatureStatus, setUserPremiu
 import { deletePartnerLink, fetchPartnerLinks, savePartnerLink, type PartnerLink, type PartnerLinkDraft } from '@/lib/partners';
 import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
-import { setFeaturePlanned } from '@/lib/premium';
 import { useSession } from '@/lib/session';
 
 type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
@@ -562,17 +561,6 @@ function Features() {
     }
   };
 
-  const plan = async (key: string, planned: boolean) => {
-    setBusy(key);
-    try {
-      await setFeaturePlanned(key, planned);
-    } catch (e) {
-      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.section}>Premium (préparation, aucun paiement)</Text>
@@ -593,12 +581,10 @@ function Features() {
               <ActivityIndicator color={Colors.accent} />
             ) : (
               <View style={styles.actions}>
-                {STATUSES.map((st) => (
+                {STATUSES.filter((st) => st !== 'premium' || f.premium_planned).map((st) => (
                   <Chip key={st} label={FEATURE_STATUS_LABELS[st]} selected={f.status === st} onPress={() => f.status !== st && change(f.key, st)} />
                 ))}
-                {f.key !== 'premium_offer' && (
-                  <Chip label="Prévue en premium" icon="star-outline" selected={!!f.premium_planned} onPress={() => plan(f.key, !f.premium_planned)} />
-                )}
+                {f.premium_planned && <Text style={styles.small}>★ Prévue en premium</Text>}
               </View>
             )}
           </View>

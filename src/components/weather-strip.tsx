@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { useCanUse } from '@/lib/features';
 import { useWeatherSummary, WEATHER_CREDIT, weatherInfo, type RouteWeather, type WeatherAhead, type WeatherSummary } from '@/lib/weather';
 
 function clock(d: Date) {
@@ -93,8 +92,8 @@ function Endpoints({ weather }: { weather: RouteWeather }) {
 }
 
 /**
- * Météo le long du trajet : résumé + alertes (gratuits pour tous), puis le détail (fonction
- * weather_detail) : un point tous les ~20 km à l'heure de passage.
+ * Météo le long du trajet (gratuite pour tous, pour toujours) : résumé, alertes, puis le détail :
+ * un point tous les ~20 km à l'heure de passage.
  */
 export function WeatherStrip({
   weather,
@@ -111,7 +110,6 @@ export function WeatherStrip({
   const Colors = useColors();
   const styles = useStyles();
   const summary = useWeatherSummary(weather);
-  const detail = useCanUse('weather_detail');
   if (loading) {
     return (
       <View style={styles.row}>
@@ -126,34 +124,31 @@ export function WeatherStrip({
   return (
     <View style={styles.wrap}>
       <WeatherSummaryLine summary={summary} />
-      {detail && showEnds && <Endpoints weather={weather} />}
+      {showEnds && <Endpoints weather={weather} />}
       <WeatherAlerts alerts={weather.alerts} />
-      {detail && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-          {weather.samples.map((s, i) => {
-            const f = s.forecast;
-            return (
-              <View key={i} style={styles.cell}>
-                <Text style={styles.time}>{clock(s.at)}</Text>
-                <Text style={styles.km}>{Math.round(s.alongM / 1000)} km</Text>
-                {f ? (
-                  <>
-                    <Text style={styles.emoji}>{weatherInfo(f.symbol).emoji}</Text>
-                    <Text style={styles.temp}>{Math.round(f.tempC)}°</Text>
-                    <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontFamily: Fonts.bold }]}>💧{f.precipMm.toFixed(1)}</Text>
-                    <Text style={[styles.small, f.gustKmh >= 50 && { color: Colors.danger, fontFamily: Fonts.bold }]}>💨{Math.round(f.windKmh)}</Text>
-                  </>
-                ) : (
-                  <Text style={styles.small}>–</Text>
-                )}
-              </View>
-            );
-          })}
-        </ScrollView>
-      )}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+        {weather.samples.map((s, i) => {
+          const f = s.forecast;
+          return (
+            <View key={i} style={styles.cell}>
+              <Text style={styles.time}>{clock(s.at)}</Text>
+              <Text style={styles.km}>{Math.round(s.alongM / 1000)} km</Text>
+              {f ? (
+                <>
+                  <Text style={styles.emoji}>{weatherInfo(f.symbol).emoji}</Text>
+                  <Text style={styles.temp}>{Math.round(f.tempC)}°</Text>
+                  <Text style={[styles.small, f.precipMm >= 0.5 && { color: Colors.accent, fontFamily: Fonts.bold }]}>💧{f.precipMm.toFixed(1)}</Text>
+                  <Text style={[styles.small, f.gustKmh >= 50 && { color: Colors.danger, fontFamily: Fonts.bold }]}>💨{Math.round(f.windKmh)}</Text>
+                </>
+              ) : (
+                <Text style={styles.small}>–</Text>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
       <Text style={styles.credit}>
-        {WEATHER_CREDIT}
-        {detail ? ' · pluie en mm/h, vent en km/h' : ''}
+        {WEATHER_CREDIT} · pluie en mm/h, vent en km/h
       </Text>
     </View>
   );

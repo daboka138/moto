@@ -443,7 +443,10 @@ passe entièrement par `eas update`. Ce qui suit demande un build, par ordre de 
 Rappel : pas de localisation en arrière-plan ni de service de premier plan sans cette déclaration Google (voir CLAUDE.md).
 ### 7.1 Premium : paiement dans l'app (RevenueCat) — à faire au build 1.3.0, PAS avant
 Déjà prêt côté serveur et app (note 33, tout désactivé) : interrupteur `app_settings.premium_active` (off), catalogue
-`app_features.premium_planned`, tarifs `premium_config` (3,99 €/mois, 29,99 €/an, -50 % la 1re année pour les
+`app_features.premium_planned` FIXÉ par migration et limité à des fonctions pas encore créées : cartes hors ligne
+(`offline_maps`), GPX (`gpx`), statistiques avancées (`full_stats`), carnet multi-motos (`multi_garage`), badge Soutien
+(`supporter_badge`) — le serveur refuse le statut « Premium » pour toute autre fonction (contrainte
+`app_features_premium_only_planned`). Toute la météo, le carburant, les étapes, les boucles et la sécurité restent gratuits pour toujours ; tarifs `premium_config` (3,99 €/mois, 29,99 €/an, -50 % la 1re année pour les
 fondateurs), `founding_members` (badge), `canUse()` / `feature_allowed()` (premium off = tout pour tous), écran
 `premium.tsx` en aperçu admin (Console › Fonctions › Premium › Aperçu). Règles : premium = UNIQUEMENT de nouvelles
 fonctions avancées, la sécurité (SOS, dangers, chute, « Je rentre ») toujours gratuite.
@@ -487,7 +490,7 @@ fonctions avancées, la sécurité (SOS, dangers, chute, « Je rentre ») toujou
 - Offre fondateur : la décision « éligible » vient de `founding_members` (RPC `is_founder`) ; l'app ne propose l'offre
   `fondateur-1re-annee` qu'aux fondateurs.
 - Activation : Console › Fonctions › Premium › « Premium actif » (fige la liste des fondateurs), puis passer au statut
-  « Premium » les fonctions voulues. JAMAIS une fonction de sécurité.
+  « Premium » les fonctions du catalogue voulues (les seules acceptées par le serveur). JAMAIS la sécurité, la météo ni le carburant.
 
 **5. Test**
 - Build `preview` (APK) installé depuis le **test interne** Google Play (les achats ne marchent que si l'app vient du

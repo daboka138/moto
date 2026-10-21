@@ -125,8 +125,9 @@ export function PremiumAdmin() {
       <Button title="Enregistrer les tarifs" variant="secondary" onPress={save} disabled={busy} />
       <Button title="Aperçu de l’écran Premium" icon="eye-outline" variant="ghost" onPress={() => router.push('/premium')} />
       <Text style={styles.small}>
-        Fonctions : « Prévue en premium » = au catalogue de l’écran Premium. Une fonction ne devient réservée que si son statut est
-        « Premium » ET le premium actif. Jamais la sécurité (SOS, dangers, chute, Je rentre).
+        Catalogue fixe (« ★ Prévue en premium ») : uniquement des fonctions pas encore créées (cartes hors ligne, GPX, statistiques
+        avancées, carnet multi-motos, badge Soutien). Le serveur refuse le statut « Premium » pour toute autre fonction. Une fonction
+        n’est réservée que si son statut est « Premium » ET le premium actif. Sécurité, météo et carburant : gratuits pour toujours.
       </Text>
     </View>
   );

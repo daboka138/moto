@@ -9,17 +9,15 @@ import { supabase } from '@/lib/supabase';
 // dans l'app : canUse('clé'). Bêta : tout est gratuit. Aucun paiement n'existe pour l'instant.
 // Interrupteur global « Premium actif » (app_settings.premium_active, off) : tant qu'il est off, une
 // fonction « premium » reste accessible à tous. Le serveur applique la même règle quand c'est lui qui
-// agit (feature_allowed, ex. points). Sécurité (SOS, dangers, chute, « Je rentre ») : jamais ici.
+// agit (feature_allowed, ex. points). Sécurité (SOS, dangers, chute, « Je rentre »), météo et
+// carburant : JAMAIS ici. Premium = UNIQUEMENT des fonctions pas encore créées (premium_planned,
+// fixé par migration : offline_maps, gpx, full_stats, multi_garage, supporter_badge).
 
 export type FeatureKey =
   | 'good_points'
   | 'itineraire_plaisir'
   | 'loop'
-  | 'route_weather'
-  | 'weather_detail'
-  | 'unlimited_stops'
   | 'offline_maps'
-  | 'loop_advanced'
   | 'full_stats'
   | 'multi_garage'
   | 'supporter_badge'
@@ -50,11 +48,7 @@ const DEFAULT_STATUS: Record<FeatureKey, FeatureStatus> = {
   good_points: 'free',
   itineraire_plaisir: 'free',
   loop: 'free',
-  route_weather: 'free',
-  weather_detail: 'free',
-  unlimited_stops: 'free',
   offline_maps: 'free',
-  loop_advanced: 'free',
   full_stats: 'free',
   multi_garage: 'free',
   supporter_badge: 'free',

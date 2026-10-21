@@ -97,11 +97,3 @@ export async function setPremiumActive(on: boolean) {
   if (error) throw new Error(error.message);
   await refreshFeatures();
 }
-
-/** Fonction au catalogue du futur premium (sans effet tant que son statut reste « Gratuit ») */
-export async function setFeaturePlanned(key: string, planned: boolean) {
-  const { data, error } = await supabase.from('app_features').update({ premium_planned: planned }).eq('key', key).select('key');
-  if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error('Modification refusée');
-  await refreshFeatures();
-}

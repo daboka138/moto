@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 import { distanceM, type LatLng } from '@/lib/geo';
 import { speak } from '@/lib/voice';
-import { useCanUse } from '@/lib/features';
 import { supabase } from '@/lib/supabase';
 
 // Météo sur le trajet : prévisions MET Norway (Locationforecast, licences NLOD 2.0 / CC BY 4.0,
 // usage commercial gratuit), demandées à NOTRE serveur (Edge Function `weather`, cache par case de
 // ~10 km) : l'app n'appelle jamais api.met.no. Un point tous les ~20 km, chacun à son heure de
-// passage estimée (départ + part de la durée). Résumé gratuit pour tous ; détail heure par heure =
-// fonction weather_detail (canUse).
+// passage estimée (départ + part de la durée). TOUTE la météo est gratuite pour toujours (jamais
+// derrière canUse / premium).
 
 export const WEATHER_CREDIT = 'Météo : MET Norway (CC BY 4.0)';
 
@@ -302,8 +301,7 @@ const NAV_REFRESH_MS = 30 * 60_000;
  * estimée), rafraîchies toutes les 30 min ou après un recalcul d'itinéraire. Annonce vocale une
  * fois par phénomène.
  */
-export function useNavWeather(input: { points: LatLng[]; durationS: number; distanceM: number } | null, alongM: number | null) {
-  const route = useCanUse('route_weather') ? input : null;
+export function useNavWeather(route: { points: LatLng[]; durationS: number; distanceM: number } | null, alongM: number | null) {
   const [state, setState] = useState<{ key: string; weather: RouteWeather } | null>(null);
   const progress = useRef(alongM ?? 0);
   const announced = useRef(new Set<WeatherHazard>());
@@ -355,8 +353,7 @@ export function spokenWeatherAlert(w: RouteWeather | null) {
 }
 
 /** Météo d'un tracé, recalculée quand le tracé ou l'heure de départ change. */
-export function useRouteWeather(input: LatLng[] | null, durationS: number | null, departAt: Date | null) {
-  const points = useCanUse('route_weather') ? input : null;
+export function useRouteWeather(points: LatLng[] | null, durationS: number | null, departAt: Date | null) {
   const [state, setState] = useState<{ key: string; weather: RouteWeather | null; error: boolean } | null>(null);
   const key =
     points && points.length >= 2 && durationS !== null && departAt

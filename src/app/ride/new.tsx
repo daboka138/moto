@@ -13,7 +13,7 @@ import { TipBubble } from '@/components/guide/tip-bubble';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
 import { ClubPicker } from '@/components/club-picker';
-import { canUse, useCanUse } from '@/lib/features';
+import { canUse } from '@/lib/features';
 import type { LatLng } from '@/lib/geo';
 import type { Place } from '@/lib/geocoding';
 import { simplifyTrack, takePendingGpx, trackLengthM, type GpxData } from '@/lib/gpx';
@@ -40,8 +40,6 @@ import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 
 const MAX_WAYPOINTS = 10;
-/** Sans « Étapes illimitées » (seulement une fois le premium actif) */
-const FREE_WAYPOINTS = 3;
 /** Tracé importé : 1500 points au plus (limite du serveur : 2000) */
 const MAX_IMPORTED_POINTS = 1500;
 /** Durée estimée d'un tracé importé sans horaires : 55 km/h de moyenne */
@@ -75,7 +73,6 @@ export default function NewRideScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const maxWaypoints = useCanUse('unlimited_stops') ? MAX_WAYPOINTS : FREE_WAYPOINTS;
   const params = useLocalSearchParams<{ role?: 'start' | 'end' | 'meeting'; label?: string; lat?: string; lng?: string; gpx?: string; club?: string }>();
   const [clubId, setClubId] = useState<string | null>(params.club ?? null);
   const [given] = useState(() => placeFromParams(params));
@@ -199,7 +196,7 @@ export default function NewRideScreen() {
       { label: 'Arrivée (B)', onPress: set(setEnd) },
       { label: 'Point de regroupement', onPress: set(setMeeting) },
     ];
-    if (waypoints.length < maxWaypoints) options.push({ label: `Étape ${waypoints.length + 1}`, onPress: set(setStep) });
+    if (waypoints.length < MAX_WAYPOINTS) options.push({ label: `Étape ${waypoints.length + 1}`, onPress: set(setStep) });
     showActionSheet({ title: 'Placer ce point comme…', options });
   };
 
@@ -348,17 +345,17 @@ export default function NewRideScreen() {
               )}
             </View>
           ))}
-          {waypoints.length < maxWaypoints ? (
+          {waypoints.length < MAX_WAYPOINTS ? (
             <Pressable
               style={styles.addStep}
               onPress={() => choose(`Étape ${waypoints.length + 1}`, (p) => setWaypoints((ws) => [...ws, p]))}>
               <Ionicons name="add-circle-outline" size={20} color={Colors.accent} />
               <Text style={styles.addStepText}>
-                Ajouter une étape ({waypoints.length}/{maxWaypoints})
+                Ajouter une étape ({waypoints.length}/{MAX_WAYPOINTS})
               </Text>
             </Pressable>
           ) : (
-            <Text style={styles.hint}>{maxWaypoints} étapes au maximum.</Text>
+            <Text style={styles.hint}>{MAX_WAYPOINTS} étapes au maximum.</Text>
           )}
           <PlaceField
             label="Arrivée (B)"
