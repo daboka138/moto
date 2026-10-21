@@ -250,7 +250,7 @@ export const FICHES: Fiche[] = [
     titre: 'Pendant la navigation',
     but: 'Être guidé à la voix, garder les yeux sur la route.',
     etapes: [
-      'Une fois démarrée, la carte tourne dans ton sens de route et la prochaine direction s’affiche en haut.',
+      'Une fois démarrée, la carte passe toute seule en mode conduite : ta direction en haut, ta flèche dans le bas de l’écran (tu vois plus de route devant), zoom rapproché en ville et plus large sur route rapide. La prochaine direction s’affiche en haut.',
       'Chaque direction est annoncée une seule fois, environ 12 secondes avant (150 à 300 m selon ta vitesse) : « Dans 200 mètres, tourne à droite. »',
       'Le bouton haut-parleur coupe ou réactive la voix.',
       'Fais glisser le panneau du bas pour voir les étapes, ajouter un arrêt ou partager ton trajet.',
@@ -258,6 +258,9 @@ export const FICHES: Fiche[] = [
     ],
     astuces: [
       'L’écran reste allumé pendant la navigation.',
+      'Tu as déplacé la carte ? « Recentrer » remet le mode conduite, sinon il revient tout seul après 10 secondes sans toucher.',
+      'Touche la boussole pour avoir le nord en haut (et encore une fois pour revenir à ta direction) : ton choix est gardé pour la prochaine navigation.',
+      'À l’arrêt, ta flèche et la carte ne bougent plus : elles gardent ta dernière direction jusqu’à ce que tu repartes.',
       'Hors itinéraire ? Le trajet est recalculé tout seul.',
       'Si l’app se ferme, ta navigation reprend à la réouverture (moins de 6 h).',
       'Pluie annoncée plus loin ? La voix te prévient (« Pluie prévue dans ~40 km »).',
