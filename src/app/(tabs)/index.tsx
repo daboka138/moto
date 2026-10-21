@@ -74,6 +74,7 @@ import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
 import { useCompass } from '@/lib/use-compass';
+import { initialHeadingFilter, stepHeadingFilter } from '@/lib/heading-filter';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useFriends } from '@/lib/use-friends';
 import { useLiveRiders } from '@/lib/use-live-riders';
@@ -100,8 +101,6 @@ const FUEL_PREFIX = 'fuel:';
 const EVENTS_ON_MAP_DAYS = 60;
 /** Balades affichées sur la carte : publiques, entre amis ou auxquelles je participe, dans les 30 jours */
 const RIDES_ON_MAP_DAYS = 30;
-/** Au-delà de 5,4 km/h, le cap GPS est fiable ; en dessous, la flèche suit la boussole */
-const MOVING_MS = 1.5;
 /** Un signalement du même type à moins de 150 m est confirmé au lieu d'être dupliqué */
 const DUPLICATE_REPORT_M = 150;
 /** Délai pour annuler un signalement choisi dans la grille */
@@ -134,6 +133,7 @@ export default function MapScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
+  const headingFilter = useRef(initialHeadingFilter());
   // La carte suit ma position (et mon cap en navigation) ; coupé dès que je la déplace ou la tourne
   const [follow, setFollow] = useState(true);
   // Dernier toucher de la carte (navigation : retour automatique au mode conduite 10 s après)
@@ -182,7 +182,6 @@ export default function MapScreen() {
   const [reportAt, setReportAt] = useState<LatLng | null>(null);
   // Balade touchée sur la carte : son tracé est affiché
   const [rideRoute, setRideRoute] = useState<{ id: string; points: [number, number][] } | null>(null);
-  const compass = useCompass();
   // Démarrage : la carte et ma position d'abord ; repères (balades, spots, événements, parkings) ensuite
   const startupDone = useStartupDone();
   // Nombre d'affichages de l'écran pendant le démarrage (diagnostic des re-rendus)
@@ -200,14 +199,13 @@ export default function MapScreen() {
   // Zone affichée (parkings moto OpenStreetMap de la zone)
   const [mapView, setMapView] = useState<{ center: LatLng; zoom: number } | null>(null);
 
-  // Flèche : cap GPS en mouvement, boussole à l'arrêt (dernier cap GPS si pas de boussole)
-  const moving = (location?.coords.speed ?? 0) > MOVING_MS;
-  const pointing = moving ? heading : (compass ?? heading);
+  // Flèche : cap GPS filtré (lib/heading-filter.ts : lissé en mouvement, figé à l'arrêt), le même
+  // que celui publié aux amis ; boussole seulement hors navigation et sans aucun cap GPS connu
   const position: MapPosition | null = location && {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     accuracy: location.coords.accuracy,
-    heading: pointing,
+    heading,
   };
   const me: LivePositionInput | null = location && {
     latitude: location.coords.latitude,
@@ -235,11 +233,14 @@ export default function MapScreen() {
   }, [navigating]);
   const navZoom = useNavZoom(navigating, kmh);
   // Navigation sans cap connu (départ à l'arrêt) : sens de l'itinéraire, la carte est déjà dans le bon sens
+  const compass = useCompass(!navigating && heading === null);
   const startBearing =
     position && navigating && position.heading == null && nav.route
       ? routeBearingAt(nav.route.points, nav.route.cumulative, nav.progress?.alongM ?? 0)
       : null;
-  const mapPosition: MapPosition | null = position && startBearing !== null ? { ...position, heading: startBearing } : position;
+  const fallbackHeading = navigating ? startBearing : compass;
+  const mapPosition: MapPosition | null =
+    position && position.heading == null && fallbackHeading !== null ? { ...position, heading: fallbackHeading } : position;
   // Carte déplacée à la main en navigation : mode conduite de nouveau après 10 s sans toucher
   useEffect(() => {
     if (!navigating || follow) return;
@@ -694,12 +695,14 @@ export default function MapScreen() {
           // Simulation de trajet (admin) : les vraies positions sont ignorées pendant la navigation
           if (navigating && getSimulation().active) return;
           startupMark('première position GPS');
-          setLocation(loc);
-          saveLastPosition(loc.coords);
-          // Le cap GPS n'est fiable qu'en mouvement (> 5 km/h)
-          if (loc.coords.heading != null && loc.coords.heading >= 0 && (loc.coords.speed ?? 0) > MOVING_MS) {
-            setHeading(loc.coords.heading);
-          }
+          // Cap lissé en mouvement, figé à l'arrêt (jamais oublié en navigation), petits sauts de
+          // position ignorés à l'arrêt : affiché sur ma carte ET publié aux amis
+          const f = stepHeadingFilter(headingFilter.current, { ...loc.coords, time: loc.timestamp }, navigating);
+          headingFilter.current = f.state;
+          const filtered = { ...loc, coords: { ...loc.coords, ...f.position, heading: f.heading } };
+          setLocation(filtered);
+          saveLastPosition(filtered.coords);
+          setHeading(f.heading);
         },
       );
       if (cancelled) subscription.remove();
