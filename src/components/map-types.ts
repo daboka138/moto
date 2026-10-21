@@ -81,6 +81,8 @@ export type MapProps = {
   defaultView?: (LatLng & { zoom: number }) | null;
   /** Navigation : ma direction en haut (par défaut) ou nord en haut (bouton boussole) */
   orientation?: 'heading' | 'north';
+  /** Navigation : zoom voulu selon la vitesse (lib/nav-view.ts), appliqué tant que la carte suit */
+  navZoom?: number;
   /** Premières tuiles affichées (ou 1,5 s après le chargement de la page) : une seule fois */
   onPainted?: () => void;
 };

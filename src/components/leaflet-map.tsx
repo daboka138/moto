@@ -106,6 +106,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
     if (touches < 2) redrawAfterGesture();
   }
   container.addEventListener('touchstart', onTouches, true);
+  // Navigation, carte déplacée : chaque nouveau toucher repousse le retour automatique au mode conduite
+  container.addEventListener('touchstart', function () { if (me.nav && !me.follow) post({ type: 'pan' }); }, true);
   container.addEventListener('touchend', onTouches, true);
   container.addEventListener('touchcancel', onTouches, true);
   // Glisser ou tourner la carte au doigt coupe le suivi tout de suite (l'app affiche « Recentrer »)
@@ -208,7 +210,11 @@ function buildHtml(Colors: Palette, dark: boolean) {
   container.addEventListener('contextmenu', function (e) { e.preventDefault(); }, true);
 
   // Pas d'animation de déplacement des pastilles pendant un zoom ou une rotation
-  map.on('zoomstart', function () { container.classList.add('zooming'); });
+  map.on('zoomstart', function () {
+    container.classList.add('zooming');
+    // Navigation : un pincement coupe le suivi (sinon le zoom automatique le défait aussitôt)
+    if (me.nav && me.follow && touches > 1) userMoved();
+  });
   map.on('zoomend', function () {
     setTimeout(function () { container.classList.remove('zooming'); }, 50);
   });
@@ -223,6 +229,8 @@ function buildHtml(Colors: Palette, dark: boolean) {
   // Chaque nouvelle position GPS est rejointe en douceur (interpolation sur la durée entre
   // deux mesures), le cap et la rotation de la carte sont lissés : plus de sauts.
   var NAV_ZOOM = 17;
+  /** Zoom de navigation voulu (selon la vitesse, lib/nav-view.ts), rejoint en douceur pendant le suivi */
+  var navZoom = NAV_ZOOM;
   /** En navigation, ma flèche est à 72 % de la hauteur de l'écran (on voit plus loin devant) */
   var NAV_ANCHOR_Y = 0.72;
   /** Au-delà, on saute directement à la nouvelle position (reprise après une coupure GPS) */
@@ -317,7 +325,26 @@ function buildHtml(Colors: Palette, dark: boolean) {
     }
     if (me.nav && me.follow) busy = true;
 
+    // Navigation suivie : zoom adapté à la vitesse, animé autour de ma flèche (elle reste à sa place)
+    if (me.nav && me.follow && !touching && !map._animatingZoom && Math.abs(map.getZoom() - navZoom) > 0.05 && now - lastZoomAt > 1500) {
+      lastZoomAt = now;
+      zoomTo(navZoom, map.latLngToContainerPoint(pos), true);
+    }
+
     if (busy) frame = requestAnimationFrame(animate);
+  }
+
+  var lastZoomAt = 0;
+  /** Zoom fractionnaire (paliers de 0,5) : l'arrondi de Leaflet est coupé le temps de l'appel */
+  function zoomTo(z, around, animate) {
+    var snap = map.options.zoomSnap;
+    map.options.zoomSnap = 0;
+    try {
+      if (around) map.setZoomAround(around, z, { animate: animate });
+      else map.setZoom(z, { animate: animate });
+    } finally {
+      map.options.zoomSnap = snap;
+    }
   }
 
   function wake() {
@@ -351,13 +378,14 @@ function buildHtml(Colors: Palette, dark: boolean) {
       me.lastFixAt = now;
     }
 
-    if (nav && !me.nav) map.setZoom(Math.max(map.getZoom(), NAV_ZOOM), { animate: false });
+    // Début de navigation : zoom de conduite tout de suite
+    if (nav && !me.nav) zoomTo(navZoom, null, false);
     // Fin de navigation : retour nord en haut
     if (!nav && me.nav) resetNorth = true;
     me.nav = !!nav;
 
     if (!me.centered) {
-      map.setView(ll, nav ? NAV_ZOOM : 13, { animate: false });
+      map.setView(ll, nav ? Math.round(navZoom) : 13, { animate: false });
       me.centered = true;
     }
     wake();
@@ -370,6 +398,11 @@ function buildHtml(Colors: Palette, dark: boolean) {
 
   window.northUp = function () {
     resetNorth = true;
+    wake();
+  };
+
+  window.setNavZoom = function (z) {
+    if (typeof z === 'number' && z > 0) navZoom = z;
     wake();
   };
 
@@ -629,6 +662,7 @@ export function LeafletMap({
   defaultView,
   onPainted,
   orientation = 'heading',
+  navZoom,
 }: MapProps) {
   const webRef = useRef<WebView>(null);
   const { colors } = useTheme();
@@ -674,6 +708,11 @@ export function LeafletMap({
     if (!pageLoads) return;
     webRef.current?.injectJavaScript(`window.setOrientation && window.setOrientation(${JSON.stringify(orientation)}); true;`);
   }, [pageLoads, orientation]);
+
+  useEffect(() => {
+    if (!pageLoads || !navZoom) return;
+    webRef.current?.injectJavaScript(`window.setNavZoom && window.setNavZoom(${navZoom}); true;`);
+  }, [pageLoads, navZoom]);
 
   const markersJson = JSON.stringify(markers);
   useEffect(() => {

@@ -72,11 +72,13 @@ import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
+import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
 import { useCompass } from '@/lib/use-compass';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useFriends } from '@/lib/use-friends';
 import { useLiveRiders } from '@/lib/use-live-riders';
 import { useNavigation } from '@/lib/use-navigation';
+import { useNavZoom } from '@/lib/use-nav-view';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
 import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
@@ -109,7 +111,9 @@ const SPEED_MARGIN_KMH = 3;
 /** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
 const SPEED_BEEP_REPEAT_MS = 20_000;
 const KEEP_AWAKE_TAG = 'navigation';
-const NAV_ORIENTATION_KEY = 'moto.nav.orientation';
+// v2 : l'ancienne clé gardait souvent « nord en haut » choisi par erreur (1er appui sur la boussole) ;
+// tout le monde repart en mode conduite, puis le choix est de nouveau mémorisé
+const NAV_ORIENTATION_KEY = 'moto.nav.orientation.v2';
 /** Boutons de la colonne de navigation (boussole, son, ⋯, SOS) */
 const NAV_RAIL_BUTTON = 44;
 /** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
@@ -132,6 +136,8 @@ export default function MapScreen() {
   const [heading, setHeading] = useState<number | null>(null);
   // La carte suit ma position (et mon cap en navigation) ; coupé dès que je la déplace ou la tourne
   const [follow, setFollow] = useState(true);
+  // Dernier toucher de la carte (navigation : retour automatique au mode conduite 10 s après)
+  const [panAt, setPanAt] = useState(0);
   const [northUpKey, setNorthUpKey] = useState(0);
   // Navigation : ma direction en haut (par défaut) ou nord en haut, au bouton boussole (mémorisé)
   const [navOrientation, setNavOrientation] = useState<'heading' | 'north'>(() => {
@@ -227,6 +233,19 @@ export default function MapScreen() {
   useEffect(() => {
     if (navigating) simulatedNav.current = getSimulation().active;
   }, [navigating]);
+  const navZoom = useNavZoom(navigating, kmh);
+  // Navigation sans cap connu (départ à l'arrêt) : sens de l'itinéraire, la carte est déjà dans le bon sens
+  const startBearing =
+    position && navigating && position.heading == null && nav.route
+      ? routeBearingAt(nav.route.points, nav.route.cumulative, nav.progress?.alongM ?? 0)
+      : null;
+  const mapPosition: MapPosition | null = position && startBearing !== null ? { ...position, heading: startBearing } : position;
+  // Carte déplacée à la main en navigation : mode conduite de nouveau après 10 s sans toucher
+  useEffect(() => {
+    if (!navigating || follow) return;
+    const t = setTimeout(() => setFollow(true), AUTO_RECENTER_MS);
+    return () => clearTimeout(t);
+  }, [navigating, follow, panAt]);
   useSimulatedLocation(simulating, nav.route, (loc) => {
     setLocation(loc);
     if (loc.coords.heading != null) setHeading(loc.coords.heading);
@@ -1130,10 +1149,14 @@ export default function MapScreen() {
       )}
       <LeafletMap
         defaultView={defaultView}
-        position={position}
+        position={mapPosition}
         navigating={navigating}
+        navZoom={navZoom}
         follow={follow && nav.phase !== 'preview'}
-        onUserPan={() => setFollow(false)}
+        onUserPan={() => {
+          setFollow(false);
+          setPanAt(Date.now());
+        }}
         onBearingChange={setMapBearing}
         northUpKey={northUpKey}
         orientation={navOrientation}
