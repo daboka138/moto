@@ -48,6 +48,7 @@ export const A_PROPOS = {
     'Moi c’est Dimitri, électricien à Marseille.',
     'J’ai créé PasseRyder parce qu’il manquait une appli simple pour trouver du monde avec qui rouler, partager les bons coins et se prévenir des dangers.',
     'Je la développe seul, sur mon temps libre, et je lis tous vos messages. Une idée, un bug ? Écris-moi directement dans l’appli.',
+    'PasseRyder est gratuit. Plus tard, des options avancées seront proposées en premium pour faire vivre l’appli. Tout ce qui est gratuit aujourd’hui le restera, et la sécurité sera toujours gratuite.',
   ],
 };
 
@@ -232,7 +233,8 @@ export const FICHES: Fiche[] = [
       '🅿️ Parking moto : uniquement de vrais parkings pour motos (OpenStreetMap) et les spots « parking » de la commu, jamais les parkings voiture.',
       'Pas trouvé ? « Chercher plus loin » en bas des résultats.',
       'Les options sont préremplies selon ta moto principale et tes derniers choix (Éviter autoroutes, Sans péage, Éviter les villes).',
-      'La météo sur le trajet s’affiche dans l’aperçu : pluie, vent, froid.',
+      'La météo sur le trajet s’affiche dans l’aperçu en une ligne (« ☀️ Sec, 18-22 °C ») : pluie, rafales, gel, forte chaleur.',
+      'Les stations-service à moins de 2 km du trajet aussi, avec la moins chère pour ton carburant.',
       'Si ton autonomie est trop juste pour le trajet (Garage renseigné), l’app te prévient avant de partir.',
       'Plaisir choisit le plus sinueux parmi plusieurs tracés (même score que « Fais-moi une boucle »), sans dépasser 1,5 fois la durée du plus court d’entre eux.',
     ],
@@ -1078,6 +1080,51 @@ export const FICHES: Fiche[] = [
     motsCles: ['pseudo', 'photo', 'bio', 'moto principale', 'cylindrée'],
   },
   {
+    id: 'meteo',
+    theme: 'carte',
+    emoji: '🌦️',
+    titre: 'Météo sur le trajet',
+    but: 'Savoir avant de partir s’il va pleuvoir, venter ou geler sur ta route, à l’heure où tu passes.',
+    etapes: [
+      'Aperçu d’itinéraire, fiche d’une balade, « Fais-moi une boucle » : une ligne résume la météo du parcours (« ☀️ Sec, 18-22 °C » ou « 🌧️ Pluie possible vers Gémenos vers 15h, rafales 60 km/h »).',
+      'Alerte orange si pluie, rafales de plus de 50 km/h, gel ou verglas possible (3 °C ou moins) ou forte chaleur.',
+      'Dessous : le détail heure par heure, un point tous les 20 km environ, à l’heure de passage prévue.',
+      'Sur la carte (hors navigation), la pastille météo dans la colonne de droite donne le temps qu’il fait autour de toi ; touche-la pour les 12 prochaines heures.',
+      'Inscrit à une balade ? Si la météo prévue est mauvaise, tu reçois une notification la veille au soir.',
+    ],
+    astuces: [
+      'En navigation, la voix te prévient une fois si la pluie ou le vent arrivent devant toi (Paramètres › Voix et alertes).',
+      'Pas de notification la veille : Paramètres › Notifications › « Météo de mes balades ».',
+    ],
+    limites: [
+      'Prévisions disponibles environ 9 jours à l’avance.',
+      'Rafales estimées à partir du vent moyen quand le modèle ne les donne pas.',
+      'Source : MET Norway (Institut météorologique norvégien), licence CC BY 4.0.',
+    ],
+    motsCles: ['pluie', 'vent', 'rafales', 'orage', 'gel', 'verglas', 'chaleur', 'prévisions', 'temps'],
+  },
+  {
+    id: 'carburant',
+    theme: 'carte',
+    emoji: '⛽',
+    titre: 'Stations et prix des carburants',
+    but: 'Trouver la station la moins chère et ne jamais tomber en panne sèche.',
+    etapes: [
+      'Sur la carte, zoome : les stations-service apparaissent (icône verte). Touche-en une : prix SP95-E10, SP98, Gazole…, date de mise à jour, ouverte ou fermée, et « Y aller ».',
+      'Choisis le carburant de ta moto dans Profil › Garage et entretien : son prix est mis en avant.',
+      'Aperçu d’itinéraire : les stations à moins de 2 km du trajet, la moins chère en plus gros sur la carte, et « Ajouter la moins chère en étape ».',
+      'En navigation : « ⛽ Prochaine station dans 35 km » dans le panneau du bas.',
+      'Autonomie renseignée dans le Garage : sur les longues portions sans station (montagne), la voix te dit « Pense à faire le plein » avant la dernière station.',
+      'Barre de recherche › ⛽ Station : les plus proches avec leurs prix.',
+    ],
+    astuces: ['Masquer les stations : bouton des filtres de la carte › Stations-service.'],
+    limites: [
+      'France uniquement (prix officiels publiés par les stations, mis à jour toutes les 30 minutes). Ailleurs : stations OpenStreetMap, sans prix.',
+      'Source : data.economie.gouv.fr, Licence Ouverte Etalab.',
+    ],
+    motsCles: ['essence', 'carburant', 'prix', 'sp98', 'e10', 'gazole', 'station', 'plein', 'autonomie'],
+  },
+  {
     id: 'garage',
     theme: 'compte',
     emoji: '🔧',
@@ -1086,6 +1133,7 @@ export const FICHES: Fiche[] = [
     etapes: [
       'Profil › Garage et entretien › choisis ta moto.',
       'Compteur et carburant : kilométrage actuel, réservoir et consommation, ou directement l’autonomie d’un plein en km.',
+      'Carburant de ta moto (SP95-E10, SP98…) : son prix est mis en avant sur la carte et sur ton trajet.',
       'Au départ d’une navigation (à l’arrêt) : « Plein fait ? » ou niveau approximatif (3/4, 1/2, 1/4).',
       '« + Noter un entretien » : vidange, pneus, chaîne, révision… avec date, km et coût.',
       'Rappels d’entretien : tous les X km et/ou X mois.',
@@ -1175,6 +1223,14 @@ export const FICHES: Fiche[] = [
 ];
 
 export const FAQ: Question[] = [
+  {
+    id: 'gratuit',
+    q: 'PasseRyder est-il gratuit ?',
+    r: [
+      'Oui. Plus tard, des options avancées seront proposées en premium pour faire vivre l’appli. Tout ce qui est gratuit aujourd’hui le restera, et la sécurité sera toujours gratuite.',
+      'Aucun paiement n’est demandé dans l’appli aujourd’hui. Les inscrits d’avant le lancement des options premium ont le badge « Membre fondateur » sur leur profil.',
+    ],
+  },
   {
     id: 'iphone',
     q: 'Quand sort l’appli iPhone ?',

@@ -25,7 +25,7 @@
   <main class="wrap">
     <article>
       <h1>Politique de confidentialité</h1>
-      <p class="meta">Application PasseRyder — dernière mise à jour : 20 octobre 2026</p>
+      <p class="meta">Application PasseRyder — dernière mise à jour : 21 octobre 2026</p>
 
       <p>
         Cette politique explique quelles données l'application mobile <strong>PasseRyder</strong> collecte,
@@ -143,6 +143,8 @@
           jamais tes trajets.</li>
         <li>Liste des cols franchis (nom, position du col, date) : <strong>visible uniquement par toi</strong>. Pour les trouver,
           la trace du trajet qui vient de se terminer est comparée aux cols d'OpenStreetMap (voir « Services tiers »).</li>
+        <li>Badge « Membre fondateur » (visible par les membres connectés) : attribué aux comptes créés avant le lancement des options premium,
+          d'après la date de création du profil.</li>
       </ul>
 
       <h3>Points de bon comportement (uniquement si tu les actives)</h3>
@@ -165,7 +167,7 @@
       <h3>Garage et entretien (visible uniquement par toi)</h3>
       <ul>
         <li>Pour chaque moto, si tu les renseignes : kilométrage, capacité du réservoir, consommation ou autonomie d'un plein,
-          date, kilométrage et niveau (plein, 3/4…) du dernier plein, entretiens réalisés (type, date, kilométrage, coût, notes) et rappels d'entretien.</li>
+          carburant de la moto (SP95-E10, SP98…), date, kilométrage et niveau (plein, 3/4…) du dernier plein, entretiens réalisés (type, date, kilométrage, coût, notes) et rappels d'entretien.</li>
         <li>Le kilométrage de ta moto principale augmente de la distance de chaque navigation terminée (la distance seule,
           jamais le trajet).</li>
       </ul>
@@ -321,8 +323,14 @@
         <li><strong>Recherches « autour de moi »</strong> (station, café / resto, parking moto, garage moto) : Photon (komoot, Allemagne) —
           ta position arrondie à environ 1 km, sans aucune information sur toi (résultats gardés 24 h sur ton téléphone). La ville de
           ton profil peut être envoyée à la Géoplateforme de l'IGN pour centrer la carte quand ta position est inconnue.</li>
-        <li><strong>Météo sur le trajet et dénivelé des sorties</strong> : Open-Meteo (Suisse) — quelques points de l'itinéraire, de la balade ou de la sortie
-          (arrondis à environ 10 m), sans aucune information sur toi.</li>
+        <li><strong>Météo</strong> (trajet, balade, boucle, météo de la carte) : quelques points de l'itinéraire ou ta position sont envoyés à <strong>notre serveur</strong>,
+          qui demande les prévisions à MET Norway (Institut météorologique norvégien) pour des cases arrondies d'environ 10 km, sans aucune information sur toi.
+          Ces cases sont gardées en cache sur notre serveur jusqu'à la prévision suivante, sans lien avec ton compte. Le nom de la commune où la pluie est attendue
+          est demandé à Photon (komoot, Allemagne) avec un point arrondi à environ 1 km. La veille d'une balade, notre serveur vérifie la météo de son tracé
+          pour prévenir les inscrits (réglable dans Paramètres › Notifications).</li>
+        <li><strong>Dénivelé des sorties</strong> : Open-Meteo (Suisse) — quelques points de la sortie (arrondis à environ 10 m), sans aucune information sur toi.</li>
+        <li><strong>Prix des carburants</strong> : données publiques du ministère de l'Économie (data.economie.gouv.fr), copiées sur notre serveur toutes les 30 minutes.
+          L'appli demande à notre serveur les stations de la zone affichée, de ton trajet ou proches de toi : rien n'est enregistré sur toi.</li>
         <li><strong>Recherche d'adresse et de lieux</strong> : Photon (komoot, Allemagne), Géoplateforme de l'IGN (France) et Nominatim (OpenStreetMap, UE) —
           texte recherché, point sur la carte, et ta position arrondie pour classer les résultats du plus proche au plus loin.</li>
         <li><strong>Notifications push</strong> : Expo Push (650 Industries, États-Unis) et Firebase Cloud Messaging (Google) —

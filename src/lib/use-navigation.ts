@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { canUse } from '@/lib/features';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { defaultRouteOptions, type MotoCategory, type RouteOptions } from '@/lib/moto';
 import {
@@ -130,6 +131,9 @@ export function alreadySpoken(list: Spoken[], step: { location: LatLng; icon: st
 const ACTIVE_KEY = 'moto.activeNav';
 /** Étapes au plus (en plus de l'arrivée) */
 export const MAX_STOPS = 12;
+/** Sans « Étapes illimitées » (seulement une fois le premium actif ; aujourd'hui tout le monde a MAX_STOPS) */
+export const FREE_STOPS = 3;
+const maxStops = () => (canUse('unlimited_stops') ? MAX_STOPS : FREE_STOPS);
 
 type SavedNav = {
   destination: SearchResult;
@@ -383,7 +387,7 @@ export function useNavigation(
   });
 
   const addStop = (place: SearchResult) => {
-    if (!destination || stops.length >= MAX_STOPS) return;
+    if (!destination || stops.length >= maxStops()) return;
     const next = insertStop(route, stops, place);
     setStops(next);
     if (phase === 'preview') computeChoices(destination, next, options, variant);

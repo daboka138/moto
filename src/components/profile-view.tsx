@@ -8,6 +8,7 @@ import { PhotoViewer } from '@/components/photo-viewer';
 import { Chip } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { AVAILABILITIES, categoryInfo, inferCategory, paceInfo } from '@/lib/moto';
+import { useIsFounder } from '@/lib/premium';
 import { photoUrl, RIDING_STYLES, type Motorcycle, type Profile } from '@/lib/profile';
 import type { ProfileStats, WallPhoto } from '@/lib/wall';
 
@@ -72,6 +73,8 @@ export function ProfileView({
   const tile = (width - GRID_GAP * 2) / 3;
   const coverHeight = COVER_HEIGHT + (underStatusBar ? insets.top : 0);
   const mainMoto = profile.motorcycles[0];
+  // Inscrit avant le lancement du premium : badge public « Membre fondateur »
+  const founder = useIsFounder(profile.id);
 
   return (
     <View style={styles.screen}>
@@ -113,6 +116,12 @@ export function ProfileView({
         <View style={styles.identity}>
           <Image source={{ uri: resolvePhoto(profile.avatar_path) }} style={styles.avatar} contentFit="cover" />
           <Text style={styles.username}>@{profile.username}</Text>
+          {founder && (
+            <View style={styles.founder}>
+              <Ionicons name="ribbon" size={14} color={Colors.accent} />
+              <Text style={styles.founderText}>Membre fondateur</Text>
+            </View>
+          )}
           <View style={styles.metaRow}>
             {!!profile.city && <Meta icon="location-sharp" text={profile.city} />}
             {mainMoto && <Meta icon="motorbike" text={`${mainMoto.brand} ${mainMoto.model}`} community />}
@@ -372,6 +381,17 @@ const useStyles = makeStyles((Colors) => ({
   },
   username: { fontSize: Type.title, fontWeight: '900', color: Colors.text, marginTop: 4 },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16 },
+  founder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  founderText: { fontSize: Type.small, fontWeight: '700', color: Colors.accent },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: Type.body, color: Colors.textMuted, fontWeight: '600' },
   bio: { fontSize: Type.body, lineHeight: 21, color: Colors.text, textAlign: 'center', marginTop: 4 },

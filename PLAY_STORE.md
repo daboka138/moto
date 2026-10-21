@@ -407,6 +407,7 @@ pages `passeryder.fr/email-confirme` et `passeryder.fr/lien-expire`, modèles fr
 Déjà prêt (sans paiement) : table `app_features` (gratuit / premium / désactivé, console › Fonctions), plan du membre
 (`user_entitlements` : premium à vie ou jusqu'à une date, offert depuis console › Inscrits › ★), `canUse('clé')` dans l'app,
 écran « PasseRyder Premium » caché (fonction `premium_offer` désactivée). Bêta : tout est gratuit.
+**Étapes précises du paiement (RevenueCat, build 1.3.0) : § 7.1.**
 
 Ce qu'il faudra pour vendre :
 - **Google Play Billing obligatoire** pour vendre des fonctions numériques dans une app installée depuis Google Play
@@ -440,3 +441,61 @@ passe entièrement par `eas update`. Ce qui suit demande un build, par ordre de 
 | **Android Auto** | Module natif maison (Car App Library, catégorie Navigation) via un config plugin, écrans dédiés limités par Google, validation spécifique de Google pour les apps de navigation. | 4 à 6 semaines | **Pas maintenant** : peu de motos ont un écran Android Auto, le guidage passe par l'intercom. À revoir s'il y a de la demande. |
 
 Rappel : pas de localisation en arrière-plan ni de service de premier plan sans cette déclaration Google (voir CLAUDE.md).
+### 7.1 Premium : paiement dans l'app (RevenueCat) — à faire au build 1.3.0, PAS avant
+Déjà prêt côté serveur et app (note 33, tout désactivé) : interrupteur `app_settings.premium_active` (off), catalogue
+`app_features.premium_planned`, tarifs `premium_config` (3,99 €/mois, 29,99 €/an, -50 % la 1re année pour les
+fondateurs), `founding_members` (badge), `canUse()` / `feature_allowed()` (premium off = tout pour tous), écran
+`premium.tsx` en aperçu admin (Console › Fonctions › Premium › Aperçu). Règles : premium = UNIQUEMENT de nouvelles
+fonctions avancées, la sécurité (SOS, dangers, chute, « Je rentre ») toujours gratuite.
+
+**1. Comptes et produits (avant le build)**
+- Play Console › Paramètres › Profil de paiement : compte marchand (IBAN, TVA de l'EI) ; Comptes de test des licences :
+  ajouter les 2 comptes de test.
+- Play Console › Monétiser › Produits › **Abonnements** : un abonnement `premium` avec 2 forfaits de base :
+  `premium-mensuel` (P1M, 3,99 €, renouvellement auto) et `premium-annuel` (P1Y, 29,99 €).
+  Offre de lancement sur `premium-annuel` : `fondateur-1re-annee` (prix réduit -50 % pendant 1 période, éligibilité
+  « développeur » : seuls les fondateurs la reçoivent, voir 4).
+- App Store Connect (quand l'iPhone sort) : groupe d'abonnements « PasseRyder Premium », mêmes ids
+  (`passeryder_premium_monthly`, `passeryder_premium_yearly`) ; offre « Offer Code » ou « Promotional Offer » pour les fondateurs.
+- RevenueCat (gratuit jusqu'à ~2 500 $/mois de revenus, tarif à revérifier) : projet « PasseRyder », app Google Play
+  (`com.passeryder.app` + clé JSON d'un compte de service avec accès « Données financières » / gestion des commandes,
+  le même que `google-service-account.json` peut suffire si on lui ajoute ces droits), app App Store plus tard.
+  Entitlement `premium`, Offering `default` avec les packages `$rc_monthly` / `$rc_annual`.
+  Webhook → `https://yfewldnhnnrzzscmfjsd.supabase.co/functions/v1/revenuecat-webhook` avec un en-tête secret
+  (`Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>`, secret Supabase).
+
+**2. Modules (nouveau build, pas d'eas update)**
+- `npx expo install expo-dev-client react-native-purchases react-native-purchases-ui` (SDK Expo de RevenueCat ; pas de
+  config plugin obligatoire sur Android, la permission `com.android.vending.BILLING` vient du SDK — vérifier le manifeste
+  fusionné et la doc RevenueCat le jour J).
+- Augmenter `version` dans app.json (1.3.0), EAS env : `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` (clé publique « goog_… »,
+  pas un secret), plus tard `EXPO_PUBLIC_REVENUECAT_IOS_KEY` (« appl_… »).
+
+**3. Code app (petit)**
+- `src/lib/purchases.ts` (+ `.web.ts` qui ne fait rien) : `Purchases.configure({ apiKey, appUserID: session.user.id })`
+  à la connexion, `Purchases.logOut()` à la déconnexion ; `getOfferings()`, `purchasePackage()`, `restorePurchases()`.
+  Le module est chargé seulement s'il existe (comme `voice-recorder.ts`), pour que l'APK 1.2 ne plante pas.
+- `premium.tsx` : boutons « Mensuel / Annuel » (prix lus dans RevenueCat, pas dans `premium_config`), « Restaurer mes
+  achats », lien « Gérer mon abonnement » (Play Store). Rien ne s'affiche tant que `premium_active` = off.
+- Après un achat : `refreshFeatures()` (le plan vient du serveur, jamais de l'app).
+
+**4. Serveur**
+- Edge Function `revenuecat-webhook` (verify_jwt = false, secret vérifié) : `INITIAL_PURCHASE`, `RENEWAL`,
+  `PRODUCT_CHANGE`, `UNCANCELLATION` → `user_entitlements.premium_until = expiration_at_ms` ; `EXPIRATION` → fin ;
+  `CANCELLATION` (garde l'accès jusqu'à l'échéance) ; `BILLING_ISSUE` → notification. `app_user_id` = id du membre.
+  Journal `purchase_events` (RLS propriétaire, `on delete cascade`, ajouté à `delete-account` si besoin).
+- Offre fondateur : la décision « éligible » vient de `founding_members` (RPC `is_founder`) ; l'app ne propose l'offre
+  `fondateur-1re-annee` qu'aux fondateurs.
+- Activation : Console › Fonctions › Premium › « Premium actif » (fige la liste des fondateurs), puis passer au statut
+  « Premium » les fonctions voulues. JAMAIS une fonction de sécurité.
+
+**5. Test**
+- Build `preview` (APK) installé depuis le **test interne** Google Play (les achats ne marchent que si l'app vient du
+  Play Store), compte de test des licences → carte « Test, toujours approuvée » ; abonnements accélérés (1 mois = 5 min).
+- Vérifier : achat mensuel / annuel, renouvellement, annulation (accès jusqu'à l'échéance), expiration, restauration sur
+  un 2e appareil, offre fondateur seulement pour un fondateur, webhook reçu (journal Supabase) et `premium_until` à jour.
+- Avant la production : CGU (conditions de vente, résiliation, droit de rétractation pour le numérique), politique de
+  confidentialité (achats : identifiant RevenueCat, historique), Sécurité des données (« Historique des achats »),
+  fiche Play « Contient des achats intégrés ».
+- Web (app.passeryder.fr) : Stripe plus tard (Checkout + webhook → même `premium_until`), pas nécessaire au départ.
+

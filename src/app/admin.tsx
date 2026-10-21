@@ -8,6 +8,7 @@ import { showActionSheet } from '@/components/action-sheet';
 import { HistoryAdmin } from '@/components/admin/history-admin';
 import { NewsAdmin } from '@/components/admin/news-admin';
 import { AboutAdmin } from '@/components/admin/about-admin';
+import { PremiumAdmin } from '@/components/admin/premium-admin';
 import { StoreLaunchAdmin } from '@/components/admin/store-launch-admin';
 import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
@@ -46,6 +47,7 @@ import { FEATURE_STATUS_LABELS, refreshFeatures, setFeatureStatus, setUserPremiu
 import { deletePartnerLink, fetchPartnerLinks, savePartnerLink, type PartnerLink, type PartnerLinkDraft } from '@/lib/partners';
 import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
+import { setFeaturePlanned } from '@/lib/premium';
 import { useSession } from '@/lib/session';
 
 type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
@@ -560,10 +562,24 @@ function Features() {
     }
   };
 
+  const plan = async (key: string, planned: boolean) => {
+    setBusy(key);
+    try {
+      await setFeaturePlanned(key, planned);
+    } catch (e) {
+      Alert.alert('Oups', e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <Text style={styles.section}>Premium (préparation, aucun paiement)</Text>
+      <PremiumAdmin />
+      <Text style={styles.section}>Fonctions</Text>
       <Text style={styles.small}>
-        Gratuit = pour tous ; Premium = membres premium seulement ; Désactivé = masqué pour tous. Bêta : tout reste gratuit.
+        Gratuit = pour tous ; Premium = membres premium seulement, une fois le premium actif ; Désactivé = masqué pour tous. Bêta : tout reste gratuit.
         Aucun paiement n’existe encore (voir PLAY_STORE.md). « Écran PasseRyder Premium » : Gratuit = bouton visible dans Paramètres.
       </Text>
       {!features ? (
@@ -580,6 +596,9 @@ function Features() {
                 {STATUSES.map((st) => (
                   <Chip key={st} label={FEATURE_STATUS_LABELS[st]} selected={f.status === st} onPress={() => f.status !== st && change(f.key, st)} />
                 ))}
+                {f.key !== 'premium_offer' && (
+                  <Chip label="Prévue en premium" icon="star-outline" selected={!!f.premium_planned} onPress={() => plan(f.key, !f.premium_planned)} />
+                )}
               </View>
             )}
           </View>

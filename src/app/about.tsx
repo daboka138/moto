@@ -84,7 +84,13 @@ function DataCredits() {
       </Text>
       <Text style={styles.creditsText}>
         Cartes, routes, feux tricolores, parkings moto et limitations de vitesse : © contributeurs OpenStreetMap (ODbL),
-        fonds de carte MapTiler. Itinéraires : OSRM et Valhalla (FOSSGIS). Météo : Open-Meteo.
+        fonds de carte MapTiler. Itinéraires : OSRM et Valhalla (FOSSGIS).
+      </Text>
+      <Text style={styles.creditsText}>
+        Météo : MET Norway (Institut météorologique norvégien), licences CC BY 4.0 et NLOD 2.0. Dénivelé : Open-Meteo.
+      </Text>
+      <Text style={styles.creditsText}>
+        Prix des carburants : flux instantané du ministère de l’Économie (data.economie.gouv.fr) — Licence Ouverte Etalab 2.0.
       </Text>
     </View>
   );
