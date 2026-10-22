@@ -76,8 +76,8 @@ import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { recordNavEngine, setNavEnginePref, useNavEnginePref } from '@/lib/nav-engine';
 import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
-import { useCompass } from '@/lib/use-compass';
-import { initialHeadingFilter, stepHeadingFilter } from '@/lib/heading-filter';
+import { useCompassBeam } from '@/lib/use-compass';
+import { initialHeadingFilter, STILL_KMH, stepHeadingFilter } from '@/lib/heading-filter';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useFriends } from '@/lib/use-friends';
 import { useLiveRiders } from '@/lib/use-live-riders';
@@ -263,14 +263,14 @@ export default function MapScreen() {
     if (navigating && enginePref === '2d') recordNavEngine('2d', 'vue 2D choisie dans le menu ⋯');
   }, [navigating, enginePref]);
   // Navigation sans cap connu (départ à l'arrêt) : sens de l'itinéraire, la carte est déjà dans le bon sens
-  const compass = useCompass(!navigating && heading === null);
+  // À l'arrêt : faisceau de la boussole autour de ma position (la flèche et la carte ne tournent pas)
+  const beam = useCompassBeam(status === 'ready' && kmh < STILL_KMH);
   const startBearing =
     position && navigating && position.heading == null && nav.route
       ? routeBearingAt(nav.route.points, nav.route.cumulative, nav.progress?.alongM ?? 0)
       : null;
-  const fallbackHeading = navigating ? startBearing : compass;
   const mapPosition: MapPosition | null =
-    position && position.heading == null && fallbackHeading !== null ? { ...position, heading: fallbackHeading } : position;
+    position && position.heading == null && startBearing !== null ? { ...position, heading: startBearing } : position;
   // Carte déplacée à la main en navigation : mode conduite de nouveau après 10 s sans toucher
   useEffect(() => {
     if (!navigating || follow || overview) return;
@@ -1385,6 +1385,7 @@ export default function MapScreen() {
         follow={follow && nav.phase !== 'preview' && !glShown}
         onUserPan={onMapPan}
         overviewKey={overviewKey.leaflet}
+        beam={beam}
         onBearingChange={glShown ? undefined : setMapBearing}
         northUpKey={northUpKey}
         orientation={navOrientation}
@@ -1420,6 +1421,7 @@ export default function MapScreen() {
             follow={follow}
             onUserPan={onMapPan}
             overviewKey={overviewKey.gl}
+            beam={beam}
             onBearingChange={glShown ? setMapBearing : undefined}
             northUpKey={northUpKey}
             orientation={navOrientation}

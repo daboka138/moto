@@ -49,6 +49,7 @@ export function LeafletFrameMap({
   orientation = 'heading',
   navZoom,
   overviewKey = 0,
+  beam = null,
 }: MapProps) {
   const webRef = useRef<MapFrameHandle>(null);
   const { colors } = useTheme();
@@ -99,6 +100,10 @@ export function LeafletFrameMap({
     if (!pageLoads || !navZoom) return;
     webRef.current?.injectJavaScript(`window.setNavZoom && window.setNavZoom(${navZoom}); true;`);
   }, [pageLoads, navZoom]);
+
+  useEffect(() => {
+    if (pageLoads) webRef.current?.injectJavaScript(`window.setBeam && window.setBeam(${JSON.stringify(beam)}); true;`);
+  }, [pageLoads, beam]);
 
   useEffect(() => {
     if (pageLoads && overviewKey) webRef.current?.injectJavaScript('window.overview && window.overview(); true;');

@@ -81,6 +81,8 @@ export type MapProps = {
   defaultView?: (LatLng & { zoom: number }) | null;
   /** Navigation : ma direction en haut (par défaut) ou nord en haut (bouton boussole) */
   orientation?: 'heading' | 'north';
+  /** Faisceau de la boussole autour de ma position (à l'arrêt), en degrés ; null = masqué */
+  beam?: number | null;
   /** Incrémenter pour « Voir tout le trajet » : itinéraire entier, vue du dessus (le suivi s'arrête) */
   overviewKey?: number;
   /** Navigation : zoom voulu selon la vitesse (lib/nav-view.ts), appliqué tant que la carte suit */

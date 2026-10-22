@@ -232,6 +232,7 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     var el = document.createElement('div');
     el.className = 'me nohead';
     el.innerHTML =
+      '<div class="beam"><svg viewBox="0 0 120 120"><defs><radialGradient id="beamGrad" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${Colors.me}" stop-opacity="0.55"/><stop offset="1" stop-color="${Colors.me}" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L31 9.8 A58 58 0 0 1 89 9.8 Z" fill="url(#beamGrad)"/></svg></div>' +
       '<svg class="arrow" viewBox="0 0 40 40"><path d="M20 3 L34 35 L20 27 L6 35 Z" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3" stroke-linejoin="round"/></svg>' +
       '<svg class="dot" viewBox="0 0 40 40"><circle cx="20" cy="20" r="9" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3"/></svg>';
     return L.divIcon({ className: 'me-wrap', html: el, iconSize: [40, 40], iconAnchor: [20, 20] });
@@ -288,7 +289,9 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     if (me.el) {
       var noHead = me.heading === null;
       if (me.el.classList.contains('nohead') !== noHead) me.el.classList.toggle('nohead', noHead);
-      if (!noHead) me.el.style.transform = 'rotate(' + (me.heading + mapBearing()) + 'deg)';
+      var arrowRot = noHead ? 0 : me.heading;
+      me.el.style.transform = 'rotate(' + (arrowRot + mapBearing()) + 'deg)';
+      updateBeam(arrowRot);
     }
 
     // Caméra : suit la flèche (au centre, ou en bas de l'écran en navigation)
@@ -327,6 +330,24 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     }
   }
 
+  /** Faisceau de la boussole (à l'arrêt) : tourné par rapport à la flèche, qui garde le cap de déplacement */
+  function updateBeam(arrowRot) {
+    if (!me.beamEl) return;
+    var on = typeof me.beamDeg === 'number';
+    if (me.beamEl.classList.contains('on') !== on) me.beamEl.classList.toggle('on', on);
+    if (!on) return;
+    var target = me.beamDeg - arrowRot;
+    me.beamRot = typeof me.beamRot === 'number' ? me.beamRot + angleDelta(me.beamRot, target) : target;
+    if (me.beamShown === undefined || Math.abs(me.beamRot - me.beamShown) > 0.5) {
+      me.beamShown = me.beamRot;
+      me.beamEl.style.transform = 'rotate(' + me.beamRot + 'deg)';
+    }
+  }
+  window.setBeam = function (deg) {
+    me.beamDeg = typeof deg === 'number' ? deg : null;
+    if (me.marker) wake();
+  };
+
   function wake() {
     if (!frame) { lastFrameAt = Date.now(); frame = requestAnimationFrame(animate); }
   }
@@ -345,6 +366,7 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
       me.marker = L.marker(ll, { icon: meIcon(), interactive: false, keyboard: false, zIndexOffset: 3000 }).addTo(map);
       var wrap = me.marker.getElement();
       me.el = wrap && wrap.firstChild;
+      me.beamEl = me.el && me.el.querySelector('.beam');
     }
 
     if (!me.to || !ll.equals(me.to)) {

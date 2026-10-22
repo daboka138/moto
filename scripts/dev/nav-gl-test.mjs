@@ -86,6 +86,11 @@ async function run(name, w, h, styleUrl, opts = {}) {
   const state = await page.evaluate(() => ({ pitch: Math.round(map.getPitch()), bearing: Math.round(map.getBearing()), zoom: +map.getZoom().toFixed(2) }));
   console.log(`  ${Math.round(fps)} images/s (WebGL logiciel, sans GPU), caméra :`, state);
   await page.screenshot({ path: join(OUT, `${name}.png`) });
+  // À l'arrêt : faisceau de la boussole vers l'est (la flèche garde son cap)
+  await page.evaluate(() => window.setBeam(90));
+  await new Promise((r) => setTimeout(r, 800));
+  await page.screenshot({ path: join(OUT, `${name}-faisceau.png`) });
+  await page.evaluate(() => window.setBeam(null));
   // Glisser au doigt PENDANT que les positions GPS arrivent : la carte doit bouger et le suivi s'arrêter
   const cdp = await page.createCDPSession();
   const before = await page.evaluate(() => map.getCenter());

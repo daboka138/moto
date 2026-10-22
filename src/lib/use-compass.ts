@@ -2,53 +2,44 @@ import * as Location from 'expo-location';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { angleDelta } from '@/lib/heading-filter';
-
-/** En dessous de cet écart (degrés), on ne rafraîchit pas l'écran (bruit du magnétomètre) */
-const MIN_CHANGE_DEG = 8;
-/** Au plus 4 rafraîchissements par seconde : chaque changement redessine tout l'écran de la carte */
-const MIN_INTERVAL_MS = 250;
-/** Part de chaque nouvelle mesure dans le cap lissé */
-const SMOOTHING = 0.3;
+import { initialCompass, stepCompass } from '@/lib/compass-filter';
 
 /**
- * Boussole du téléphone (cap vrai si disponible, sinon magnétique), lissée, active seulement quand
- * l'écran est affiché et `enabled`. Sert à orienter ma flèche à l'arrêt quand aucun cap GPS fiable
- * n'est connu (hors navigation : dans une voiture, elle est faussée, lib/heading-filter.ts).
+ * Faisceau de la boussole (où pointe le téléphone), active seulement quand l'écran est affiché et
+ * `enabled` (à l'arrêt). Très lissé, null si la boussole est peu fiable ou absente
+ * (lib/compass-filter.ts). Ne tourne jamais la flèche ni la carte : la flèche garde le cap de
+ * déplacement (lib/heading-filter.ts).
  */
-export function useCompass(enabled = true): number | null {
-  const [heading, setHeading] = useState<number | null>(null);
+export function useCompassBeam(enabled: boolean): number | null {
+  const [beam, setBeam] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!enabled) return;
       let subscription: Location.LocationSubscription | undefined;
       let cancelled = false;
-      let lastAt = 0;
-      let smooth: number | null = null;
+      let state = initialCompass();
       Location.watchHeadingAsync((h) => {
         const value = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
         if (value < 0) return;
-        smooth = smooth === null ? value : (smooth + angleDelta(smooth, value) * SMOOTHING + 360) % 360;
-        const now = Date.now();
-        if (now - lastAt < MIN_INTERVAL_MS) return;
-        lastAt = now;
-        const next = smooth;
-        setHeading((prev) => (prev !== null && Math.abs(angleDelta(prev, next)) < MIN_CHANGE_DEG ? prev : next));
+        const prev = state.shown;
+        state = stepCompass(state, { value, accuracy: h.accuracy, time: Date.now() });
+        if (state.shown !== prev) setBeam(state.shown);
       })
         .then((s) => {
           if (cancelled) s.remove();
           else subscription = s;
         })
         .catch(() => {
-          // Pas de boussole sur ce téléphone : la flèche suit le cap GPS seulement
+          // Pas de boussole sur ce téléphone : pas de faisceau
         });
       return () => {
         cancelled = true;
         subscription?.remove();
+        setBeam(null);
       };
     }, [enabled]),
   );
 
-  return enabled ? heading : null;
+  return enabled ? beam : null;
 }

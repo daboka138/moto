@@ -13,7 +13,7 @@ export const GL_STYLES = {
   light: 'https://api.maptiler.com/maps/streets-v2/style.json?key=',
   dark: 'https://api.maptiler.com/maps/streets-v2-dark/style.json?key=',
 };
-/** Inclinaison de la vue de navigation (degrés) : « derrière la flèche », horizon en haut */
+/** Inclinaison de la vue de navigation (degrés) : « derrière la flèche », la route file vers le haut */
 export const NAV_PITCH = 55;
 /**
  * Zoom MapLibre = zoom Leaflet - 1 (tuiles de 512 px). Vue inclinée : la flèche, en bas de l'écran,
@@ -36,7 +36,9 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
   ${mapCss(Colors)}
   .maplibregl-marker { will-change: transform; }
   /* Flèche posée à plat sur la carte inclinée : un peu plus grande pour rester bien visible */
-  .me.gl, .me.gl svg { width: 56px; height: 56px; }
+  .me.gl, .me.gl .arrow, .me.gl .dot { width: 56px; height: 56px; }
+  .me.gl .beam { left: -52px; top: -52px; width: 160px; height: 160px; }
+  .me.gl .beam svg { width: 160px; height: 160px; }
 </style>
 </head>
 <body>
@@ -166,6 +168,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       var el = document.createElement('div');
       el.className = 'me gl nohead';
       el.innerHTML =
+        '<div class="beam"><svg viewBox="0 0 120 120"><defs><radialGradient id="beamGrad" cx="60" cy="60" r="58" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${Colors.me}" stop-opacity="0.55"/><stop offset="1" stop-color="${Colors.me}" stop-opacity="0"/></radialGradient></defs><path d="M60 60 L31 9.8 A58 58 0 0 1 89 9.8 Z" fill="url(#beamGrad)"/></svg></div>' +
         '<svg class="arrow" viewBox="0 0 40 40"><path d="M20 3 L34 35 L20 27 L6 35 Z" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3" stroke-linejoin="round"/></svg>' +
         '<svg class="dot" viewBox="0 0 40 40"><circle cx="20" cy="20" r="9" fill="${Colors.me}" stroke="${Colors.white}" stroke-width="3"/></svg>';
       return el;
@@ -205,7 +208,9 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
         me.marker.setLngLat(pos);
         var noHead = me.heading === null;
         if (me.el.classList.contains('nohead') !== noHead) me.el.classList.toggle('nohead', noHead);
-        if (!noHead) me.marker.setRotation(me.heading);
+        var arrowRot = noHead ? 0 : me.heading;
+        me.marker.setRotation(arrowRot);
+        updateBeam(arrowRot);
       }
 
       // Caméra : suit la flèche, cap en haut (ou nord), inclinée, zoom de conduite ; tout en douceur
@@ -235,6 +240,24 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       if (me.nav && me.follow) busy = true;
       if (busy) frame = requestAnimationFrame(animate);
     }
+    /** Faisceau de la boussole (à l'arrêt) : tourné par rapport à la flèche, qui garde le cap de déplacement */
+    function updateBeam(arrowRot) {
+      if (!me.beamEl) return;
+      var on = typeof me.beamDeg === 'number';
+      if (me.beamEl.classList.contains('on') !== on) me.beamEl.classList.toggle('on', on);
+      if (!on) return;
+      var target = me.beamDeg - arrowRot;
+      me.beamRot = typeof me.beamRot === 'number' ? me.beamRot + angleDelta(me.beamRot, target) : target;
+      if (me.beamShown === undefined || Math.abs(me.beamRot - me.beamShown) > 0.5) {
+        me.beamShown = me.beamRot;
+        me.beamEl.style.transform = 'rotate(' + me.beamRot + 'deg)';
+      }
+    }
+    window.setBeam = function (deg) {
+      me.beamDeg = typeof deg === 'number' ? deg : null;
+      if (me.marker) wake();
+    };
+
     function wake() {
       if (!frame) { lastFrameAt = Date.now(); frame = requestAnimationFrame(animate); }
     }
@@ -248,6 +271,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       if (me.targetHeading === null) me.heading = null;
       if (!me.marker) {
         me.el = meElement();
+        me.beamEl = me.el.querySelector('.beam');
         me.marker = new maplibregl.Marker({ element: me.el, rotationAlignment: 'map', pitchAlignment: 'map' }).setLngLat(ll).addTo(map);
       }
       if (!me.to || me.to.lng !== ll.lng || me.to.lat !== ll.lat) {
