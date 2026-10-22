@@ -188,6 +188,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
     function anchorPadding() { return { top: Math.round(map.getContainer().clientHeight * (2 * NAV_ANCHOR_Y - 1)), bottom: 0, left: 0, right: 0 }; }
 
     function animate() {
+      var t0 = perf ? performance.now() : 0;
       frame = null;
       var now = Date.now();
       var dt = Math.min(100, now - (lastFrameAt || now));
@@ -195,67 +196,115 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       var pos = interpolated(now);
       var busy = !!(pos && me.dur && now - me.t0 < me.dur);
 
-      // Cap lissé (constante de temps 250 ms), comme la carte Leaflet
-      if (me.targetHeading !== null) {
-        if (me.heading === null) me.heading = me.targetHeading;
-        else {
-          var dh = angleDelta(me.heading, me.targetHeading);
-          me.heading = (me.heading + dh * (1 - Math.exp(-dt / 250)) + 360) % 360;
-          if (Math.abs(dh) > 0.5) busy = true;
-        }
-      }
+      if (stepHeadings(dt)) busy = true;
       if (pos && me.marker) {
         me.marker.setLngLat(pos);
         var noHead = me.heading === null;
         if (me.el.classList.contains('nohead') !== noHead) me.el.classList.toggle('nohead', noHead);
         var arrowRot = noHead ? 0 : me.heading;
-        me.marker.setRotation(arrowRot);
-        updateBeam(arrowRot);
+        // Rotation « alignée sur la carte » : MapLibre retire lui-même l'orientation de la carte
+        if (me.rot === undefined || Math.abs(angleDelta(me.rot, arrowRot)) > 0.05) { me.rot = arrowRot; me.marker.setRotation(arrowRot); }
+        drawBeam(arrowRot);
       }
 
       // Caméra : suit la flèche, cap en haut (ou nord), inclinée, zoom de conduite ; tout en douceur
       if (pos && me.follow && !touches && !overviewing) {
-        var cam = {};
+        // Seulement ce qui change : à l'arrêt, plus aucun redessin de la carte
+        var cam = {}, changed = false;
         var c = map.getCenter();
         var far = distanceM({ lat: c.lat, lng: c.lng }, pos);
-        var k = far > 30 ? 1 - Math.exp(-dt / 150) : 1;
-        cam.center = [c.lng + (pos.lng - c.lng) * k, c.lat + (pos.lat - c.lat) * k];
-        if (k < 1) busy = true;
-        var targetBearing = mapOrientation === 'heading' && me.nav && me.heading !== null ? me.heading : (mapOrientation === 'north' || resetNorth ? 0 : null);
+        if (far > 0.05) {
+          var k = far > 30 ? 1 - Math.exp(-dt / 150) : 1;
+          cam.center = [c.lng + (pos.lng - c.lng) * k, c.lat + (pos.lat - c.lat) * k];
+          changed = true;
+          if (k < 1) busy = true;
+        }
+        // Cap en haut : cap de DÉPLACEMENT (jamais la boussole : la carte ne tremble pas à l'arrêt)
+        var targetBearing = mapOrientation === 'heading' && me.nav && me.course !== null ? me.course : (mapOrientation === 'north' || resetNorth ? 0 : null);
         if (targetBearing !== null) {
           var b = map.getBearing();
           var db = angleDelta(b, targetBearing);
-          cam.bearing = Math.abs(db) > 0.2 ? b + db * (1 - Math.exp(-dt / 350)) : targetBearing;
-          if (Math.abs(db) > 0.2) busy = true;
+          if (Math.abs(db) > 0.05) {
+            cam.bearing = Math.abs(db) > 0.2 ? b + db * (1 - Math.exp(-dt / 350)) : targetBearing;
+            changed = true;
+            busy = true;
+          }
         }
         var zTarget = navZoom + ZOOM_OFFSET;
         var dz = zTarget - map.getZoom();
-        cam.zoom = Math.abs(dz) > 0.01 ? map.getZoom() + dz * (1 - Math.exp(-dt / 700)) : zTarget;
-        if (Math.abs(dz) > 0.01) busy = true;
+        if (Math.abs(dz) > 0.005) {
+          cam.zoom = Math.abs(dz) > 0.01 ? map.getZoom() + dz * (1 - Math.exp(-dt / 700)) : zTarget;
+          changed = true;
+          busy = true;
+        }
         var dp = PITCH - map.getPitch();
-        if (Math.abs(dp) > 0.2) { cam.pitch = map.getPitch() + dp * (1 - Math.exp(-dt / 300)); busy = true; }
-        else if (dp !== 0) cam.pitch = PITCH;
-        map.jumpTo(cam);
+        if (Math.abs(dp) > 0.05) {
+          cam.pitch = Math.abs(dp) > 0.2 ? map.getPitch() + dp * (1 - Math.exp(-dt / 300)) : PITCH;
+          changed = true;
+          busy = true;
+        }
+        if (changed) map.jumpTo(cam);
       }
-      if (me.nav && me.follow) busy = true;
+      if (perf) perf.work += performance.now() - t0;
       if (busy) frame = requestAnimationFrame(animate);
     }
-    /** Faisceau de la boussole (à l'arrêt) : tourné par rapport à la flèche, qui garde le cap de déplacement */
-    function updateBeam(arrowRot) {
+    /** Rapproche un angle d'une cible par le plus court chemin (359° → 0° compris), constante de temps tau */
+    function ease(cur, target, dt, tau) { return (cur + angleDelta(cur, target) * (1 - Math.exp(-dt / tau)) + 360) % 360; }
+    /**
+     * Caps animés à chaque image : course = cap de déplacement GPS (caméra « cap en haut », jamais la
+     * boussole) ; heading = flèche (boussole en navigation à l'arrêt, sinon le cap de déplacement) ;
+     * beam = faisceau de la boussole (hors navigation, à l'arrêt). Renvoie true si l'un bouge encore.
+     */
+    function stepHeadings(dt) {
+      var busy = false;
+      if (me.targetHeading === null) me.course = null;
+      else if (me.course === null || me.course === undefined) me.course = me.targetHeading;
+      else { if (Math.abs(angleDelta(me.course, me.targetHeading)) > 0.3) busy = true; me.course = ease(me.course, me.targetHeading, dt, 250); }
+      var compass = typeof me.compassDeg === 'number' ? me.compassDeg : null;
+      var arrowTarget = me.compassMode === 'arrow' && compass !== null ? compass : me.targetHeading;
+      if (arrowTarget === null) me.heading = null;
+      else if (me.heading === null || me.heading === undefined) me.heading = arrowTarget;
+      else { if (Math.abs(angleDelta(me.heading, arrowTarget)) > 0.3) busy = true; me.heading = ease(me.heading, arrowTarget, dt, me.compassMode === 'arrow' ? 90 : 250); }
+      var beamTarget = me.compassMode === 'beam' ? compass : null;
+      if (beamTarget === null) me.beam = null;
+      else if (me.beam === null || me.beam === undefined) me.beam = beamTarget;
+      else { if (Math.abs(angleDelta(me.beam, beamTarget)) > 0.3) busy = true; me.beam = ease(me.beam, beamTarget, dt, 90); }
+      return busy;
+    }
+    /** Faisceau dessiné par rapport à la flèche (dans le même élément) */
+    function drawBeam(arrowRot) {
       if (!me.beamEl) return;
-      var on = typeof me.beamDeg === 'number';
+      var on = typeof me.beam === 'number';
       if (me.beamEl.classList.contains('on') !== on) me.beamEl.classList.toggle('on', on);
       if (!on) return;
-      var target = me.beamDeg - arrowRot;
-      me.beamRot = typeof me.beamRot === 'number' ? me.beamRot + angleDelta(me.beamRot, target) : target;
-      if (me.beamShown === undefined || Math.abs(me.beamRot - me.beamShown) > 0.5) {
-        me.beamShown = me.beamRot;
-        me.beamEl.style.transform = 'rotate(' + me.beamRot + 'deg)';
-      }
+      var t = 'rotate(' + (me.beam - arrowRot).toFixed(1) + 'deg)';
+      if (me.beamEl.style.transform !== t) me.beamEl.style.transform = t;
     }
-    window.setBeam = function (deg) {
-      me.beamDeg = typeof deg === 'number' ? deg : null;
+    /** Boussole lissée envoyée par l'app (lib/compass-stream.ts) : 'beam' = faisceau, 'arrow' = flèche */
+    window.setCompass = function (deg, mode) {
+      me.compassDeg = typeof deg === 'number' ? deg : null;
+      me.compassMode = mode || null;
       if (me.marker) wake();
+    };
+    // Mesures de fluidité (admin) : images/s, temps de calcul par image, toutes les 2 s
+    var perf = null;
+    window.setPerf = function (on) {
+      if (!on) { perf = null; return; }
+      if (perf) return;
+      perf = { frames: 0, work: 0, worst: 0, last: 0, since: Date.now() };
+      (function tick() {
+        if (!perf) return;
+        var now = performance.now();
+        if (perf.last) { var gap = now - perf.last; if (gap > perf.worst) perf.worst = gap; }
+        perf.last = now;
+        perf.frames++;
+        if (Date.now() - perf.since >= 2000) {
+          var s = (Date.now() - perf.since) / 1000;
+          post({ type: 'perf', fps: Math.round(perf.frames / s), workMs: +(perf.work / Math.max(1, perf.frames)).toFixed(2), worstMs: Math.round(perf.worst) });
+          perf.frames = 0; perf.work = 0; perf.worst = 0; perf.since = Date.now();
+        }
+        requestAnimationFrame(tick);
+      })();
     };
 
     function wake() {
@@ -268,7 +317,6 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       var wasFollowing = me.follow;
       me.follow = !!follow && now - lastDragAt > 600;
       me.targetHeading = typeof p.heading === 'number' ? p.heading : null;
-      if (me.targetHeading === null) me.heading = null;
       if (!me.marker) {
         me.el = meElement();
         me.beamEl = me.el.querySelector('.beam');
@@ -304,7 +352,6 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
     };
     window.setHeading = function (heading) {
       me.targetHeading = typeof heading === 'number' ? heading : null;
-      if (me.targetHeading === null) me.heading = null;
       if (me.marker) wake();
     };
     window.setNavZoom = function (z) { if (typeof z === 'number' && z > 0) navZoom = z; wake(); };

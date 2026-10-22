@@ -76,7 +76,6 @@ import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { recordNavEngine, setNavEnginePref, useNavEnginePref } from '@/lib/nav-engine';
 import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
-import { useCompassBeam } from '@/lib/use-compass';
 import { initialHeadingFilter, STILL_KMH, stepHeadingFilter } from '@/lib/heading-filter';
 import { dangerAhead, useDangerAnnouncements } from '@/lib/use-danger-alerts';
 import { useFriends } from '@/lib/use-friends';
@@ -263,8 +262,9 @@ export default function MapScreen() {
     if (navigating && enginePref === '2d') recordNavEngine('2d', 'vue 2D choisie dans le menu ⋯');
   }, [navigating, enginePref]);
   // Navigation sans cap connu (départ à l'arrêt) : sens de l'itinéraire, la carte est déjà dans le bon sens
-  // À l'arrêt : faisceau de la boussole autour de ma position (la flèche et la carte ne tournent pas)
-  const beam = useCompassBeam(status === 'ready' && kmh < STILL_KMH);
+  // À l'arrêt : boussole (lib/compass-stream.ts, envoyée directement à la carte) — faisceau hors
+  // navigation, flèche en navigation ; la carte, elle, ne tourne jamais avec la boussole
+  const compassMode = status === 'ready' && kmh < STILL_KMH ? (navigating ? 'arrow' : 'beam') : null;
   const startBearing =
     position && navigating && position.heading == null && nav.route
       ? routeBearingAt(nav.route.points, nav.route.cumulative, nav.progress?.alongM ?? 0)
@@ -1385,7 +1385,7 @@ export default function MapScreen() {
         follow={follow && nav.phase !== 'preview' && !glShown}
         onUserPan={onMapPan}
         overviewKey={overviewKey.leaflet}
-        beam={beam}
+        compass={glShown ? null : compassMode}
         onBearingChange={glShown ? undefined : setMapBearing}
         northUpKey={northUpKey}
         orientation={navOrientation}
@@ -1421,7 +1421,7 @@ export default function MapScreen() {
             follow={follow}
             onUserPan={onMapPan}
             overviewKey={overviewKey.gl}
-            beam={beam}
+            compass={compassMode}
             onBearingChange={glShown ? setMapBearing : undefined}
             northUpKey={northUpKey}
             orientation={navOrientation}

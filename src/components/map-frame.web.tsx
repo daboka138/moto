@@ -1,6 +1,7 @@
 import { createElement, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 
 import type { MapFrameHandle, MapFrameProps } from '@/components/map-frame-types';
+import { countMapMessage } from '@/lib/perf-meter';
 
 // Variante web de MapFrame : la même page de carte dans une iframe (srcdoc). La page appelle
 // window.ReactNativeWebView.postMessage comme dans l'app ; ici, ses messages remontent par
@@ -31,6 +32,7 @@ export const MapFrame = forwardRef<MapFrameHandle, MapFrameProps>(function MapFr
 
   useImperativeHandle(ref, () => ({
     injectJavaScript: (code: string) => {
+      countMapMessage();
       const win = frame.current?.contentWindow as (Window & { eval: (c: string) => unknown }) | null | undefined;
       try {
         win?.eval(code);

@@ -88,8 +88,7 @@ export function mapCss(Colors: Palette) {
   /* Faisceau de la boussole (à l'arrêt) : cône clair sous la flèche, masqué si la boussole est peu fiable */
   .me { position: relative; }
   .me .arrow, .me .dot { position: relative; z-index: 1; }
-  .me .beam { position: absolute; left: -40px; top: -40px; width: 120px; height: 120px; display: none; pointer-events: none;
-    transition: transform .35s ease-out; }
+  .me .beam { position: absolute; left: -40px; top: -40px; width: 120px; height: 120px; display: none; pointer-events: none; }
   .me .beam.on { display: block; }
   .me .beam svg { width: 120px; height: 120px; filter: none; }
   .me.nohead .arrow { display: none; }

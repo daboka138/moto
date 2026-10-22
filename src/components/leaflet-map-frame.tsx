@@ -5,6 +5,8 @@ import { MapFrame } from '@/components/map-frame';
 import type { MapFrameHandle } from '@/components/map-frame-types';
 import type { MapProps } from '@/components/map-types';
 import { useTheme } from '@/constants/theme';
+import { subscribeCompass } from '@/lib/compass-stream';
+import { reportMapPerf, usePerfEnabled } from '@/lib/perf-meter';
 import { useMapDark } from '@/lib/use-map-dark';
 
 // Carte Leaflet de l'app dans une page HTML (WebView ; iframe sur le web, pour l'aperçu de l'écran de
@@ -22,6 +24,7 @@ type WebMessage =
   | { type: 'markers'; count: number }
   | { type: 'beep'; ok: boolean }
   | { type: 'view'; latitude: number; longitude: number; zoom: number }
+  | { type: 'perf'; fps: number; workMs: number; worstMs: number }
   | { type: 'error'; message: string };
 
 export function LeafletFrameMap({
@@ -49,7 +52,7 @@ export function LeafletFrameMap({
   orientation = 'heading',
   navZoom,
   overviewKey = 0,
-  beam = null,
+  compass = null,
 }: MapProps) {
   const webRef = useRef<MapFrameHandle>(null);
   const { colors } = useTheme();
@@ -59,8 +62,9 @@ export function LeafletFrameMap({
   // Incrémenté à chaque chargement de la page : après un rechargement, tout l'état est renvoyé
   const [pageLoads, setPageLoads] = useState(0);
 
-  // Position et cap envoyés séparément : la boussole change souvent, sans nouvelle position GPS
+  // Nouvelle position : position et cap dans UN message ; cap seul : petit message à part
   const heading = position?.heading ?? null;
+  const sentHeading = useRef<number | null | undefined>(undefined);
   const positionJson = position
     ? JSON.stringify({ latitude: position.latitude, longitude: position.longitude, accuracy: position.accuracy, heading })
     : null;
@@ -68,12 +72,14 @@ export function LeafletFrameMap({
   useEffect(() => {
     if (!pageLoads || !positionJson) return;
     webRef.current?.injectJavaScript(`window.setPosition && window.setPosition(${positionJson}, ${follow}, ${navigating}); true;`);
+    sentHeading.current = heading;
     // Le cap est dans positionJson au moment de l'envoi ; ses changements seuls passent par setHeading
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageLoads, position?.latitude, position?.longitude, position?.accuracy, follow, navigating]);
 
   useEffect(() => {
-    if (!pageLoads) return;
+    if (!pageLoads || heading === sentHeading.current) return;
+    sentHeading.current = heading;
     webRef.current?.injectJavaScript(`window.setHeading && window.setHeading(${JSON.stringify(heading)}); true;`);
   }, [pageLoads, heading]);
 
@@ -101,9 +107,20 @@ export function LeafletFrameMap({
     webRef.current?.injectJavaScript(`window.setNavZoom && window.setNavZoom(${navZoom}); true;`);
   }, [pageLoads, navZoom]);
 
+  // Boussole : valeurs envoyées directement à la page (≈ 15/s au plus), jamais par l'état React
   useEffect(() => {
-    if (pageLoads) webRef.current?.injectJavaScript(`window.setBeam && window.setBeam(${JSON.stringify(beam)}); true;`);
-  }, [pageLoads, beam]);
+    if (!pageLoads) return;
+    const send = (deg: number | null) => webRef.current?.injectJavaScript(`window.setCompass && window.setCompass(${deg === null ? 'null' : deg.toFixed(1)}, ${JSON.stringify(compass)}); true;`);
+    if (!compass) {
+      send(null);
+      return;
+    }
+    return subscribeCompass(send);
+  }, [pageLoads, compass]);
+  const perfOn = usePerfEnabled();
+  useEffect(() => {
+    if (pageLoads) webRef.current?.injectJavaScript(`window.setPerf && window.setPerf(${perfOn}); true;`);
+  }, [pageLoads, perfOn]);
 
   useEffect(() => {
     if (pageLoads && overviewKey) webRef.current?.injectJavaScript('window.overview && window.overview(); true;');
@@ -163,6 +180,7 @@ export function LeafletFrameMap({
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
     else if (msg.type === 'beep' && !msg.ok) onBeepFailed?.();
     else if (msg.type === 'view') onViewChange?.({ latitude: msg.latitude, longitude: msg.longitude }, msg.zoom);
+    else if (msg.type === 'perf') reportMapPerf(msg);
     else if (msg.type === 'error') console.warn('[carte]', msg.message);
   };
 

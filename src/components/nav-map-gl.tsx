@@ -5,6 +5,8 @@ import type { MapFrameHandle } from '@/components/map-frame-types';
 import type { MapProps } from '@/components/map-types';
 import { buildNavGlHtml } from '@/components/nav-map-gl-html';
 import { useTheme } from '@/constants/theme';
+import { subscribeCompass } from '@/lib/compass-stream';
+import { reportMapPerf, usePerfEnabled } from '@/lib/perf-meter';
 import { useMapDark } from '@/lib/use-map-dark';
 
 type WebMessage =
@@ -18,6 +20,7 @@ type WebMessage =
   | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
   | { type: 'view'; latitude: number; longitude: number; zoom: number }
+  | { type: 'perf'; fps: number; workMs: number; worstMs: number }
   | { type: 'error'; message: string };
 
 export type NavGlInfo = { version: number; renderer: string } | null;
@@ -45,7 +48,7 @@ export function NavMapGL({
   orientation = 'heading',
   navZoom,
   overviewKey = 0,
-  beam = null,
+  compass = null,
   onPainted,
   onReady,
   onFallback,
@@ -57,17 +60,22 @@ export function NavMapGL({
   const [pageLoads, setPageLoads] = useState(0);
   const run = (code: string) => webRef.current?.injectJavaScript(`${code}; true;`);
 
+  // Nouvelle position : position et cap dans UN message ; cap seul : petit message à part
   const heading = position?.heading ?? null;
+  const sentHeading = useRef<number | null | undefined>(undefined);
   const positionJson = position
     ? JSON.stringify({ latitude: position.latitude, longitude: position.longitude, accuracy: position.accuracy, heading })
     : null;
   useEffect(() => {
     if (!pageLoads || !positionJson) return;
     run(`window.setPosition && window.setPosition(${positionJson}, ${follow}, ${navigating})`);
+    sentHeading.current = heading;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageLoads, position?.latitude, position?.longitude, position?.accuracy, follow, navigating]);
   useEffect(() => {
-    if (pageLoads) run(`window.setHeading && window.setHeading(${JSON.stringify(heading)})`);
+    if (!pageLoads || heading === sentHeading.current) return;
+    sentHeading.current = heading;
+    run(`window.setHeading && window.setHeading(${JSON.stringify(heading)})`);
   }, [pageLoads, heading]);
   useEffect(() => {
     if (pageLoads && northUpKey) run('window.northUp && window.northUp()');
@@ -78,9 +86,20 @@ export function NavMapGL({
   useEffect(() => {
     if (pageLoads && navZoom) run(`window.setNavZoom && window.setNavZoom(${navZoom})`);
   }, [pageLoads, navZoom]);
+  // Boussole : valeurs envoyées directement à la page (≈ 15/s au plus), jamais par l'état React
   useEffect(() => {
-    if (pageLoads) run(`window.setBeam && window.setBeam(${JSON.stringify(beam)})`);
-  }, [pageLoads, beam]);
+    if (!pageLoads) return;
+    const send = (deg: number | null) => webRef.current?.injectJavaScript(`window.setCompass && window.setCompass(${deg === null ? 'null' : deg.toFixed(1)}, ${JSON.stringify(compass)}); true;`);
+    if (!compass) {
+      send(null);
+      return;
+    }
+    return subscribeCompass(send);
+  }, [pageLoads, compass]);
+  const perfOn = usePerfEnabled();
+  useEffect(() => {
+    if (pageLoads) webRef.current?.injectJavaScript(`window.setPerf && window.setPerf(${perfOn}); true;`);
+  }, [pageLoads, perfOn]);
   useEffect(() => {
     if (pageLoads && overviewKey) run('window.overview && window.overview()');
   }, [pageLoads, overviewKey]);
@@ -115,6 +134,7 @@ export function NavMapGL({
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);
     else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'view') onViewChange?.({ latitude: msg.latitude, longitude: msg.longitude }, msg.zoom);
+    else if (msg.type === 'perf') reportMapPerf(msg);
     else if (msg.type === 'error') console.warn('[carte 3D]', msg.message);
   };
 

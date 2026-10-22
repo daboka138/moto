@@ -196,7 +196,8 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     if (me.nav && me.follow && touches > 1) userMoved();
   });
   map.on('zoomend', function () {
-    setTimeout(function () { container.classList.remove('zooming'); }, 50);
+    // Puis une image de suivi (zoom de conduite, caméra) : la boucle ne tourne que si quelque chose bouge
+    setTimeout(function () { container.classList.remove('zooming'); if (me.marker) wake(); }, 50);
   });
   var rotatingTimer = null;
   function markRotating() {
@@ -246,6 +247,7 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
   }
 
   function animate() {
+    var t0 = perf ? performance.now() : 0;
     frame = null;
     var now = Date.now();
     var dt = Math.min(100, now - (lastFrameAt || now));
@@ -255,20 +257,12 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     // Pas pendant un zoom ni tant qu'un doigt est posé (pincement, rotation)
     var touching = pointers > 0 || touches > 0 || container.classList.contains('zooming');
 
-    // Cap lissé (constante de temps 250 ms)
-    if (me.targetHeading !== null) {
-      if (me.heading === null) me.heading = me.targetHeading;
-      else {
-        var dh = angleDelta(me.heading, me.targetHeading);
-        me.heading = (me.heading + dh * (1 - Math.exp(-dt / 250)) + 360) % 360;
-        if (Math.abs(dh) > 0.5) busy = true;
-      }
-    }
+    if (stepHeadings(dt)) busy = true;
 
     // Navigation suivie : ma direction en haut. Nord en haut sur demande. Sinon, l'orientation
     // choisie au doigt est gardée.
     var targetBearing = null;
-    if (me.nav && me.follow && mapOrientation === 'heading' && me.heading !== null) targetBearing = (360 - me.heading) % 360;
+    if (me.nav && me.follow && mapOrientation === 'heading' && me.course !== null) targetBearing = (360 - me.course) % 360;
     else if (resetNorth || (me.nav && me.follow && mapOrientation === 'north')) targetBearing = 0;
     if (map.setBearing && targetBearing !== null && !touching) {
       var bearing = mapBearing();
@@ -282,7 +276,10 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
         if (targetBearing === 0) resetNorth = false;
       }
     }
-    if (!pos) return busy ? (frame = requestAnimationFrame(animate)) : undefined;
+    if (!pos) {
+      if (perf) perf.work += performance.now() - t0;
+      return busy ? (frame = requestAnimationFrame(animate)) : undefined;
+    }
 
     me.marker.setLatLng(pos);
     me.halo.setLatLng(pos).setRadius(me.accuracy);
@@ -290,8 +287,9 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
       var noHead = me.heading === null;
       if (me.el.classList.contains('nohead') !== noHead) me.el.classList.toggle('nohead', noHead);
       var arrowRot = noHead ? 0 : me.heading;
-      me.el.style.transform = 'rotate(' + (arrowRot + mapBearing()) + 'deg)';
-      updateBeam(arrowRot);
+      var rot = 'rotate(' + (arrowRot + mapBearing()).toFixed(1) + 'deg)';
+      if (me.el.style.transform !== rot) me.el.style.transform = rot;
+      drawBeam(arrowRot);
     }
 
     // Caméra : suit la flèche (au centre, ou en bas de l'écran en navigation)
@@ -306,14 +304,13 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
         if (far > 40) busy = true;
       }
     }
-    if (me.nav && me.follow) busy = true;
-
     // Navigation suivie : zoom adapté à la vitesse, animé autour de ma flèche (elle reste à sa place)
     if (me.nav && me.follow && !touching && !map._animatingZoom && Math.abs(map.getZoom() - navZoom) > 0.05 && now - lastZoomAt > 1500) {
       lastZoomAt = now;
       zoomTo(navZoom, map.latLngToContainerPoint(pos), true);
     }
 
+    if (perf) perf.work += performance.now() - t0;
     if (busy) frame = requestAnimationFrame(animate);
   }
 
@@ -330,22 +327,63 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     }
   }
 
-  /** Faisceau de la boussole (à l'arrêt) : tourné par rapport à la flèche, qui garde le cap de déplacement */
-  function updateBeam(arrowRot) {
+  /** Rapproche un angle d'une cible par le plus court chemin (359° → 0° compris), constante de temps tau */
+  function ease(cur, target, dt, tau) { return (cur + angleDelta(cur, target) * (1 - Math.exp(-dt / tau)) + 360) % 360; }
+  /**
+   * Caps animés à chaque image : course = cap de déplacement GPS (caméra « cap en haut », jamais la
+   * boussole) ; heading = flèche (boussole en navigation à l'arrêt, sinon le cap de déplacement) ;
+   * beam = faisceau de la boussole (hors navigation, à l'arrêt). Renvoie true si l'un bouge encore.
+   */
+  function stepHeadings(dt) {
+    var busy = false;
+    if (me.targetHeading === null) me.course = null;
+    else if (me.course === null || me.course === undefined) me.course = me.targetHeading;
+    else { if (Math.abs(angleDelta(me.course, me.targetHeading)) > 0.3) busy = true; me.course = ease(me.course, me.targetHeading, dt, 250); }
+    var compass = typeof me.compassDeg === 'number' ? me.compassDeg : null;
+    var arrowTarget = me.compassMode === 'arrow' && compass !== null ? compass : me.targetHeading;
+    if (arrowTarget === null) me.heading = null;
+    else if (me.heading === null || me.heading === undefined) me.heading = arrowTarget;
+    else { if (Math.abs(angleDelta(me.heading, arrowTarget)) > 0.3) busy = true; me.heading = ease(me.heading, arrowTarget, dt, me.compassMode === 'arrow' ? 90 : 250); }
+    var beamTarget = me.compassMode === 'beam' ? compass : null;
+    if (beamTarget === null) me.beam = null;
+    else if (me.beam === null || me.beam === undefined) me.beam = beamTarget;
+    else { if (Math.abs(angleDelta(me.beam, beamTarget)) > 0.3) busy = true; me.beam = ease(me.beam, beamTarget, dt, 90); }
+    return busy;
+  }
+  /** Faisceau dessiné par rapport à la flèche (dans le même élément) */
+  function drawBeam(arrowRot) {
     if (!me.beamEl) return;
-    var on = typeof me.beamDeg === 'number';
+    var on = typeof me.beam === 'number';
     if (me.beamEl.classList.contains('on') !== on) me.beamEl.classList.toggle('on', on);
     if (!on) return;
-    var target = me.beamDeg - arrowRot;
-    me.beamRot = typeof me.beamRot === 'number' ? me.beamRot + angleDelta(me.beamRot, target) : target;
-    if (me.beamShown === undefined || Math.abs(me.beamRot - me.beamShown) > 0.5) {
-      me.beamShown = me.beamRot;
-      me.beamEl.style.transform = 'rotate(' + me.beamRot + 'deg)';
-    }
+    var t = 'rotate(' + (me.beam - arrowRot).toFixed(1) + 'deg)';
+    if (me.beamEl.style.transform !== t) me.beamEl.style.transform = t;
   }
-  window.setBeam = function (deg) {
-    me.beamDeg = typeof deg === 'number' ? deg : null;
+  /** Boussole lissée envoyée par l'app (lib/compass-stream.ts) : 'beam' = faisceau, 'arrow' = flèche */
+  window.setCompass = function (deg, mode) {
+    me.compassDeg = typeof deg === 'number' ? deg : null;
+    me.compassMode = mode || null;
     if (me.marker) wake();
+  };
+  // Mesures de fluidité (admin) : images/s, temps de calcul par image, toutes les 2 s
+  var perf = null;
+  window.setPerf = function (on) {
+    if (!on) { perf = null; return; }
+    if (perf) return;
+    perf = { frames: 0, work: 0, worst: 0, last: 0, since: Date.now() };
+    (function tick() {
+      if (!perf) return;
+      var now = performance.now();
+      if (perf.last) { var gap = now - perf.last; if (gap > perf.worst) perf.worst = gap; }
+      perf.last = now;
+      perf.frames++;
+      if (Date.now() - perf.since >= 2000) {
+        var s = (Date.now() - perf.since) / 1000;
+        post({ type: 'perf', fps: Math.round(perf.frames / s), workMs: +(perf.work / Math.max(1, perf.frames)).toFixed(2), worstMs: Math.round(perf.worst) });
+        perf.frames = 0; perf.work = 0; perf.worst = 0; perf.since = Date.now();
+      }
+      requestAnimationFrame(tick);
+    })();
   };
 
   function wake() {
@@ -359,7 +397,6 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     me.follow = !!follow && now - lastDragAt > 600;
     me.accuracy = p.accuracy || 0;
     me.targetHeading = typeof p.heading === 'number' ? p.heading : null;
-    if (me.targetHeading === null) me.heading = null;
 
     if (!me.marker) {
       me.halo = L.circle(ll, { radius: me.accuracy, stroke: false, fillColor: '${Colors.me}', fillOpacity: 0.1, interactive: false }).addTo(map);
@@ -418,7 +455,6 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
 
   window.setHeading = function (heading) {
     me.targetHeading = typeof heading === 'number' ? heading : null;
-    if (me.targetHeading === null) me.heading = null;
     if (me.marker) wake();
   };
 
