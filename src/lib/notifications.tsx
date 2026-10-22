@@ -36,7 +36,9 @@ export type NotificationType =
   | 'group_added'
   | 'passenger'
   | 'store_launch'
-  | 'weather';
+  | 'weather'
+  | 'badge'
+  | 'event_review';
 
 export type AppNotification = {
   id: string;
@@ -74,6 +76,8 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   passenger: '🏍️',
   store_launch: '📱',
   weather: '🌦️',
+  badge: '🏅',
+  event_review: '📅',
 };
 
 type Row = {

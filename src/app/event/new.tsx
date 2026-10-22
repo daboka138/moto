@@ -7,7 +7,7 @@ import { DateTimeField, PlaceField } from '@/components/form-fields';
 import { PhotoPicker } from '@/components/photo-picker';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, Type, useColors } from '@/constants/theme';
-import { createEvent, EVENT_KINDS, type EventKind } from '@/lib/events';
+import { createEvent, EVENT_KINDS, normalizeLink, type EventKind, type PriceKind } from '@/lib/events';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
 import type { PhotoValue } from '@/lib/profile';
@@ -50,6 +50,10 @@ export default function NewEventScreen() {
   const [end, setEnd] = useState(() => new Date(defaultStart().getTime() + 4 * 3600 * 1000));
   const [max, setMax] = useState('');
   const [photo, setPhoto] = useState<PhotoValue>({ path: null, localUri: null });
+  const [organizer, setOrganizer] = useState('');
+  const [link, setLink] = useState('');
+  const [price, setPrice] = useState<PriceKind | null>(null);
+  const [priceText, setPriceText] = useState('');
   const [saving, setSaving] = useState(false);
 
   if (!session) return null;
@@ -63,6 +67,11 @@ export default function NewEventScreen() {
     if (hasEnd && end.getTime() < start.getTime()) errors.push('La fin doit être après le début.');
     if (hasEnd && end.getTime() - start.getTime() > 14 * 24 * 3600 * 1000) errors.push('Un événement dure 14 jours au plus.');
     if (maxAttendees !== null && (!Number.isInteger(maxAttendees) || maxAttendees < 2)) errors.push('Nombre de places : 2 au moins.');
+    try {
+      normalizeLink(link);
+    } catch (e) {
+      errors.push((e as Error).message);
+    }
     if (errors.length) {
       Alert.alert('À compléter', errors.join('\n'));
       return;
@@ -79,6 +88,10 @@ export default function NewEventScreen() {
         maxAttendees,
         photo,
         clubId,
+        linkUrl: link,
+        priceKind: price,
+        priceText,
+        organizerLabel: organizer,
       });
       router.replace({ pathname: '/event/[id]', params: { id } });
     } catch (e) {
@@ -142,9 +155,30 @@ export default function NewEventScreen() {
           placeholder="Horaires, animations, tarif, équipement…"
           style={styles.description}
         />
+        <Field label="Organisateur" value={organizer} onChangeText={setOrganizer} maxLength={80} placeholder="ex. Moto Club du Var (sinon ton pseudo)" />
+        <Field
+          label="Lien (site, billetterie, page de l’événement)"
+          value={link}
+          onChangeText={setLink}
+          maxLength={300}
+          autoCapitalize="none"
+          keyboardType="url"
+          placeholder="https://"
+        />
+        <Section title="Entrée (pour info)">
+          <View style={styles.chips}>
+            <Chip label="Non précisé" selected={price === null} onPress={() => setPrice(null)} />
+            <Chip label="Gratuit" selected={price === 'free'} onPress={() => setPrice('free')} />
+            <Chip label="Payant" selected={price === 'paid'} onPress={() => setPrice('paid')} />
+          </View>
+          {price === 'paid' && <Field label="Tarif" value={priceText} onChangeText={setPriceText} maxLength={60} placeholder="ex. 10 € l’entrée, gratuit pour les passagers" />}
+        </Section>
         <Field label="Nombre de places" value={max} onChangeText={setMax} keyboardType="number-pad" maxLength={6} placeholder="Illimité" />
         <PhotoPicker shape="wide" label="Affiche ou photo (facultatif)" value={photo} onChange={setPhoto} />
-        <Text style={styles.hint}>Visible par tous les membres, sur la carte et dans l’onglet Sorties. Supprimé 30 jours après la fin.</Text>
+        <Text style={styles.hint}>
+          Visible par tous les membres, sur la carte et dans l’Agenda. Pour ton premier événement, l’équipe jette un œil avant
+          (en attendant, tes amis le voient déjà). Gardé dans les archives 1 an après la fin.
+        </Text>
         <Button title="Créer l’événement" loading={saving} onPress={submit} />
       </ScrollView>
     </KeyboardAvoidingView>

@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
+import { EventPhotos } from '@/components/event-photos';
 import { ExpandableMap } from '@/components/expandable-map';
 import { Card } from '@/components/profile-view';
+import { EventSocial } from '@/components/ride-social';
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { goToPlace } from '@/lib/app-link';
@@ -16,6 +18,7 @@ import {
   eventShareUrl,
   fetchEvent,
   formatEventDates,
+  hasEventStarted,
   isEventOver,
   setAttendance,
   type AttendStatus,
@@ -23,6 +26,7 @@ import {
 } from '@/lib/events';
 import { askReport } from '@/lib/moderation';
 import { useSession } from '@/lib/session';
+import { useFriends } from '@/lib/use-friends';
 
 /** Fiche d'un événement : infos, carte, inscription (j'y vais / intéressé), participants. */
 export default function EventScreen() {
@@ -33,6 +37,7 @@ export default function EventScreen() {
   const userId = session?.user.id;
   const [loaded, setLoaded] = useState<MotoEvent | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const { state: friendsState } = useFriends();
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -73,6 +78,12 @@ export default function EventScreen() {
   const full = event.maxAttendees !== null && event.going >= event.maxAttendees && event.myStatus !== 'going';
   const going = event.attendees.filter((a) => a.status === 'going');
   const interested = event.attendees.filter((a) => a.status === 'interested');
+  // Mes amis inscrits, en premier
+  const friendIds = new Set((friendsState?.friends ?? []).map((f) => f.id));
+  const friendsGoing = event.attendees.filter((a) => friendIds.has(a.id));
+  const started = hasEventStarted(event);
+  const price =
+    event.priceKind === 'free' ? 'Gratuit' : event.priceKind === 'paid' ? `Payant${event.priceText ? ` · ${event.priceText}` : ''}` : null;
 
   const attend = async (status: AttendStatus | null) => {
     setBusy(true);
@@ -160,10 +171,50 @@ export default function EventScreen() {
           icon="people"
           text={`${event.going} participant${event.going > 1 ? 's' : ''}${event.maxAttendees ? ` / ${event.maxAttendees} places` : ''}${event.interested ? ` · ${event.interested} intéressé${event.interested > 1 ? 's' : ''}` : ''}`}
         />
-        <Info icon="person" text={`Organisé par @${event.organizerName}`} />
+        <Info icon="person" text={event.organizerLabel ? `Organisé par ${event.organizerLabel} · @${event.organizerName}` : `Organisé par @${event.organizerName}`} />
+        {price && <Info icon="pricetag" text={price} />}
+        {!!event.linkUrl && (
+          <Pressable onPress={() => Linking.openURL(event.linkUrl!)} accessibilityRole="link">
+            <View style={styles.info}>
+              <Ionicons name="link" size={18} color={Colors.accent} />
+              <Text style={[styles.infoText, styles.link]} numberOfLines={1}>
+                {event.linkUrl.replace(/^https?:\/\//, '')}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+        {friendsGoing.length > 0 && (
+          <Text style={styles.friends}>
+            {friendsGoing
+              .slice(0, 3)
+              .map((f) => `@${f.username}`)
+              .join(', ')}
+            {friendsGoing.length > 3 ? ` et ${friendsGoing.length - 3} autre${friendsGoing.length > 4 ? 's' : ''}` : ''}
+            {friendsGoing.length > 1 ? ' (tes amis) y sont inscrits' : ' (ton ami) y est inscrit'}
+          </Text>
+        )}
+
+        {event.reviewStatus === 'pending' && (
+          <View style={styles.banner}>
+            <Ionicons name="time-outline" size={18} color={Colors.text} />
+            <Text style={styles.bannerText}>
+              {isOrganizer
+                ? 'En attente d’un petit coup d’œil de l’équipe avant d’être visible par tous. Tes amis, les invités et les membres du club le voient déjà.'
+                : 'Pas encore validé par l’équipe : visible seulement des amis de l’organisateur et des invités.'}
+            </Text>
+          </View>
+        )}
+        {event.reviewStatus === 'rejected' && (
+          <View style={styles.banner}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.danger} />
+            <Text style={styles.bannerText}>
+              Pas validé par l’équipe : visible par toi seul.{event.reviewNote ? ` « ${event.reviewNote} »` : ''}
+            </Text>
+          </View>
+        )}
 
         {ended ? (
-          <Text style={styles.muted}>Cet événement est terminé.</Text>
+          <Text style={styles.muted}>Cet événement est terminé (archivé 1 an). Partage tes photos plus bas !</Text>
         ) : (
           <View style={styles.buttons}>
             {event.myStatus === 'going' ? (
@@ -180,6 +231,7 @@ export default function EventScreen() {
             )}
           </View>
         )}
+        {!ended && event.myStatus && <Text style={styles.small}>On te le rappelle la veille par une notification.</Text>}
         <Button title="Y aller" variant="ghost" onPress={() => goToPlace(event.place)} />
         <View style={styles.buttons}>
           <Button title="Partager le lien" variant="secondary" onPress={share} />
@@ -208,7 +260,7 @@ export default function EventScreen() {
         )}
 
         <Card title={`Participants (${going.length})`}>
-          <People list={going} onPress={openPerson} />
+          <People list={[...going].sort((x, y) => Number(friendIds.has(y.id)) - Number(friendIds.has(x.id)))} onPress={openPerson} />
           {interested.length > 0 && (
             <>
               <Text style={styles.subtle}>Intéressés</Text>
@@ -216,6 +268,10 @@ export default function EventScreen() {
             </>
           )}
         </Card>
+
+        <EventPhotos eventId={event.id} meId={userId} isOrganizer={isOrganizer} canAdd={started && (isOrganizer || !!event.myStatus)} />
+
+        <EventSocial eventId={event.id} meId={userId} isOrganizer={isOrganizer} />
       </View>
     </ScrollView>
   );
@@ -268,4 +324,9 @@ const useStyles = makeStyles((Colors) => ({
   person: { alignItems: 'center', width: 64, gap: 4 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
   username: { fontSize: Type.small, color: Colors.text, maxWidth: 64 },
+  link: { color: Colors.accent, fontWeight: '700' },
+  friends: { fontSize: Type.small, fontWeight: '700', color: Colors.accent },
+  small: { fontSize: Type.small, color: Colors.textMuted },
+  banner: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 12, borderRadius: Radius.md, backgroundColor: Colors.accentSoft },
+  bannerText: { flex: 1, fontSize: Type.small, color: Colors.text, lineHeight: 18 },
 }));

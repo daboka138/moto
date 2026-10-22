@@ -121,6 +121,9 @@ export function EventCard({
           {event.place.label}
           {distanceM != null ? ` · à ${formatDistance(distanceM)}` : ''}
         </Text>
+        {event.reviewStatus !== 'approved' && (
+          <Text style={[styles.meta, { fontFamily: Fonts.bold }]}>{event.reviewStatus === 'pending' ? 'En attente de validation' : 'Non validé'}</Text>
+        )}
         <Text style={[styles.meta, event.myStatus && { color: Colors.accent, fontFamily: Fonts.bold }]}>
           {event.myStatus === 'going' ? '✓ J’y vais · ' : event.myStatus === 'interested' ? '☆ Intéressé · ' : ''}
           {event.going} participant{event.going > 1 ? 's' : ''}

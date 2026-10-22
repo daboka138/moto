@@ -2,7 +2,7 @@ import { openDirectConversation, sendMessage } from '@/lib/messages';
 import { photoUrl } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
-// « J'aime » et commentaires des balades, « J'aime » des stories et réponses en message privé.
+// « J'aime » et commentaires des balades et des événements, « J'aime » des stories et réponses en message privé.
 // Lecture filtrée par le serveur (RLS) : balades visibles seulement, rien entre membres bloqués.
 
 export type Comment = {
@@ -35,41 +35,52 @@ const toComment = (r: CommentRow): Comment => ({
   createdAt: r.created_at,
 });
 
-// ---------- Balades ----------
+// ---------- Balades et événements (mêmes tables, même composant) ----------
 
-export async function fetchRideLikes(rideId: string, userId: string): Promise<LikeSummary> {
-  const { data, error } = await supabase.from('ride_likes').select('user_id').eq('ride_id', rideId);
+export type SocialKind = 'ride' | 'event';
+
+const SOCIAL = {
+  ride: { likes: 'ride_likes', comments: 'ride_comments', key: 'ride_id', what: 'cette balade' },
+  event: { likes: 'event_likes', comments: 'event_comments', key: 'event_id', what: 'cet événement' },
+} as const;
+
+export async function fetchLikes(kind: SocialKind, id: string, userId: string): Promise<LikeSummary> {
+  const t = SOCIAL[kind];
+  const { data, error } = await supabase.from(t.likes).select('user_id').eq(t.key, id);
   if (error) throw error;
   return { likes: data.length, likedByMe: data.some((l) => l.user_id === userId) };
 }
 
-export async function setRideLike(rideId: string, userId: string, liked: boolean) {
+export async function setLike(kind: SocialKind, id: string, userId: string, liked: boolean) {
+  const t = SOCIAL[kind];
   const { error } = liked
-    ? await supabase.from('ride_likes').insert({ ride_id: rideId, user_id: userId })
-    : await supabase.from('ride_likes').delete().eq('ride_id', rideId).eq('user_id', userId);
+    ? await supabase.from(t.likes).insert({ [t.key]: id, user_id: userId })
+    : await supabase.from(t.likes).delete().eq(t.key, id).eq('user_id', userId);
   if (error && error.code !== '23505') throw error;
 }
 
-export async function fetchRideComments(rideId: string): Promise<Comment[]> {
+export async function fetchComments(kind: SocialKind, id: string): Promise<Comment[]> {
+  const t = SOCIAL[kind];
   const { data, error } = await supabase
-    .from('ride_comments')
+    .from(t.comments)
     .select('id, author_id, body, created_at, author:profiles(username, avatar_path)')
-    .eq('ride_id', rideId)
+    .eq(t.key, id)
     .order('created_at')
     .limit(200);
   if (error) throw error;
   return ((data ?? []) as unknown as CommentRow[]).map(toComment);
 }
 
-export async function addRideComment(rideId: string, userId: string, body: string) {
+export async function addComment(kind: SocialKind, id: string, userId: string, body: string) {
+  const t = SOCIAL[kind];
   const text = body.trim().slice(0, COMMENT_MAX);
   if (!text) return;
-  const { error } = await supabase.from('ride_comments').insert({ ride_id: rideId, author_id: userId, body: text });
-  if (error) throw new Error(error.message.includes('row-level security') ? 'Tu ne peux pas commenter cette balade.' : error.message);
+  const { error } = await supabase.from(t.comments).insert({ [t.key]: id, author_id: userId, body: text });
+  if (error) throw new Error(error.message.includes('row-level security') ? `Tu ne peux pas commenter ${t.what}.` : error.message);
 }
 
-export async function deleteRideComment(id: string) {
-  const { error } = await supabase.from('ride_comments').delete().eq('id', id);
+export async function deleteComment(kind: SocialKind, commentId: string) {
+  const { error } = await supabase.from(SOCIAL[kind].comments).delete().eq('id', commentId);
   if (error) throw error;
 }
 

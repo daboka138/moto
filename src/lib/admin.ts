@@ -124,6 +124,8 @@ export const REPORT_TYPE_LABELS: Record<string, string> = {
   photo: 'Photo du mur',
   comment: 'Commentaire de photo',
   ride_comment: 'Commentaire de balade',
+  event_comment: 'Commentaire d’un événement',
+  event_photo: 'Photo d’un événement',
   news_comment: 'Commentaire d’une actu',
   story: 'Story',
   user: 'Compte',
@@ -403,4 +405,50 @@ export function usageCsv(s: UsageStats): string {
   out.push('', line(['Fonction', '7 jours', '30 jours', `${s.days} jours`]));
   for (const f of s.features) out.push(line([usageLabel(f.feature), f.n7 ?? 0, f.n30 ?? 0, f.period ?? 0]));
   return '﻿' + out.join('\r\n');
+}
+
+// ---------- Agenda : événements publics à valider ----------
+
+export type PendingEvent = {
+  id: string;
+  kind: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  placeLabel: string;
+  photoPath: string | null;
+  linkUrl: string | null;
+  organizerLabel: string | null;
+  createdAt: string;
+  createdBy: string;
+  username: string;
+  creatorEvents: number;
+};
+
+export async function fetchPendingEvents(): Promise<PendingEvent[]> {
+  const { data, error } = await supabase.rpc('admin_event_queue');
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Record<string, string | number | null>[]).map((r) => ({
+    id: r.id as string,
+    kind: r.kind as string,
+    title: r.title as string,
+    description: r.description as string | null,
+    startsAt: r.starts_at as string,
+    endsAt: r.ends_at as string | null,
+    placeLabel: r.place_label as string,
+    photoPath: r.photo_path as string | null,
+    linkUrl: r.link_url as string | null,
+    organizerLabel: r.organizer_label as string | null,
+    createdAt: r.created_at as string,
+    createdBy: r.created_by as string,
+    username: r.username as string,
+    creatorEvents: Number(r.creator_events),
+  }));
+}
+
+/** Valider (visible par tous) ou refuser (visible du créateur seulement), avec un mot facultatif */
+export async function reviewEvent(id: string, approve: boolean, note?: string) {
+  const { error } = await supabase.rpc('admin_review_event', { p_id: id, p_approve: approve, p_note: note ?? null });
+  if (error) throw new Error(error.message);
 }

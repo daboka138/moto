@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, SectionList, Text, View } from 'react-native';
 
 import { EventCard, PlaceCard } from '@/components/community-cards';
+import { LeafletMap } from '@/components/leaflet-map';
 import { PlaceIcon } from '@/components/map-icon';
 import { Chip } from '@/components/ui';
 import { makeStyles, Type, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
-import { EVENT_KINDS, type EventKind, type MotoEvent } from '@/lib/events';
+import { eventKindInfo, EVENT_KINDS, fetchPastEvents, groupByDay, type EventKind, type MotoEvent } from '@/lib/events';
+import { useSession } from '@/lib/session';
 import { fetchTopRoads, PLACE_KINDS, type CommunityPlace, type PlaceKind, type RoadNearby } from '@/lib/places';
 import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 
@@ -38,17 +40,37 @@ function writeRadius(km: number | null) {
   }
 }
 
-/** Événements et rassemblements à venir (onglet Sorties) */
+/** Agenda moto (onglet Sorties) : à venir par date ou sur la carte, filtres type / distance, passés */
 export function EventsList({ me }: { me: LatLng | null }) {
   const Colors = useColors();
   const styles = useStyles();
+  const { session } = useSession();
+  const userId = session?.user.id;
   const { events, error, refreshing, refresh } = useEvents();
   const [kinds, setKinds] = useState<EventKind[]>([]);
   const [mine, setMine] = useState(false);
   const [radiusKm, setRadiusKm] = useState(readRadius);
+  const [view, setView] = useState<'list' | 'map'>('list');
+  const [past, setPast] = useState(false);
+  const [pastEvents, setPastEvents] = useState<MotoEvent[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Archives : chargées à la première demande
+  useEffect(() => {
+    if (!past || pastEvents || !userId) return;
+    let cancelled = false;
+    fetchPastEvents(userId)
+      .then((l) => !cancelled && setPastEvents(l))
+      .catch(() => !cancelled && setPastEvents([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [past, pastEvents, userId]);
+
   // Sans position connue, pas de filtre de distance
   const radius = me ? radiusKm : null;
-  const filtered = events?.filter(
+  const source = past ? pastEvents : events;
+  const filtered = source?.filter(
     (e) =>
       (!kinds.length || kinds.includes(e.kind)) &&
       (!mine || e.myStatus) &&
@@ -58,12 +80,32 @@ export function EventsList({ me }: { me: LatLng | null }) {
     setRadiusKm(km);
     writeRadius(km);
   };
+  const selectedEvent = filtered?.find((e) => e.id === selected) ?? null;
+
+  const empty = (
+    <View style={styles.empty}>
+      <Ionicons name="calendar-outline" size={40} color={Colors.textMuted} />
+      <Text style={styles.muted}>
+        {past
+          ? 'Aucun événement passé avec ces filtres.'
+          : radius !== null
+            ? `Aucun événement à moins de ${radius} km. Élargis le rayon ou crée le premier rasso !`
+            : 'Aucun événement à venir. Crée le premier rasso !'}
+      </Text>
+      {!past && <Chip label="Créer un événement" icon="add" selected onPress={() => router.push('/event/new')} />}
+    </View>
+  );
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} style={styles.filterBar}>
-        <Chip label="Mes inscriptions" selected={mine} onPress={() => setMine(!mine)} />
+        <Chip label="Liste" icon="list" selected={view === 'list'} onPress={() => setView('list')} />
+        <Chip label="Carte" icon="map-outline" selected={view === 'map'} onPress={() => setView('map')} />
         <View style={styles.separator} />
+        <Chip label="Mes inscriptions" selected={mine} onPress={() => setMine(!mine)} />
+        <Chip label="Passés" icon="archive-outline" selected={past} onPress={() => setPast(!past)} />
+      </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} style={styles.filterBar}>
         {EVENT_KINDS.map((k) => (
           <Chip
             key={k.value}
@@ -84,24 +126,47 @@ export function EventsList({ me }: { me: LatLng | null }) {
       )}
       {!filtered ? (
         <View style={styles.center}>
-          {error ? <Text style={styles.muted}>Oups, les événements n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
+          {error && !past ? <Text style={styles.muted}>Oups, les événements n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
+        </View>
+      ) : view === 'map' ? (
+        <View style={{ flex: 1 }}>
+          <LeafletMap
+            position={me ? { ...me, accuracy: null } : null}
+            pins={filtered.map((e) => ({
+              id: e.id,
+              kind: 'event' as const,
+              cluster: true,
+              label: `${eventKindInfo(e.kind).emoji} ${new Date(e.startsAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`,
+              latitude: e.place.latitude,
+              longitude: e.place.longitude,
+            }))}
+            onPinPress={setSelected}
+            onMapPress={() => setSelected(null)}
+            fitPoints={filtered.length ? filtered.map((e) => e.place) : undefined}
+          />
+          {selectedEvent ? (
+            <View style={styles.mapCard}>
+              <EventCard
+                event={selectedEvent}
+                distanceM={me ? distanceM(me, selectedEvent.place) : null}
+                onPress={() => openEvent(selectedEvent)}
+                onClose={() => setSelected(null)}
+              />
+            </View>
+          ) : (
+            filtered.length === 0 && <View style={styles.mapCard}>{empty}</View>
+          )}
         </View>
       ) : (
-        <FlatList
-          data={filtered}
+        <SectionList
+          sections={past ? [{ title: 'Événements passés', data: filtered }] : groupByDay(filtered)}
           keyExtractor={(e) => e.id}
           contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} colors={[Colors.accent]} />}
+          renderSectionHeader={({ section }) => <Text style={styles.dayTitle}>{section.title}</Text>}
           renderItem={({ item }) => <EventCard event={item} distanceM={me ? distanceM(me, item.place) : null} onPress={() => openEvent(item)} />}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="calendar-outline" size={40} color={Colors.textMuted} />
-              <Text style={styles.muted}>
-                {radius !== null ? `Aucun événement à moins de ${radius} km. Élargis le rayon ou crée le premier rasso !` : 'Aucun événement à venir. Crée le premier rasso !'}
-              </Text>
-              <Chip label="Créer un événement" icon="add" selected onPress={() => router.push('/event/new')} />
-            </View>
-          }
+          ListEmptyComponent={empty}
         />
       )}
     </View>
@@ -286,6 +351,8 @@ export function RoadsList({ me }: { me: LatLng | null }) {
 
 const useStyles = makeStyles((Colors) => ({
   note: { fontSize: Type.small, color: Colors.textMuted, marginBottom: 4 },
+  dayTitle: { fontSize: Type.body, fontWeight: '800', color: Colors.text, marginTop: 8, textTransform: 'capitalize' },
+  mapCard: { position: 'absolute', left: 12, right: 12, bottom: 12 },
   filterBar: { flexGrow: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
   radiusLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },

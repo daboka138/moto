@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { router, useFocusEffect, type Href } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
+import { AgendaAdmin } from '@/components/admin/agenda-admin';
 import { HistoryAdmin } from '@/components/admin/history-admin';
 import { NewsAdmin } from '@/components/admin/news-admin';
 import { AboutAdmin } from '@/components/admin/about-admin';
@@ -50,7 +51,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'stats' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
+type Tab = 'overview' | 'stats' | 'users' | 'moderation' | 'agenda' | 'features' | 'stores' | 'history' | 'news' | 'about';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -63,7 +64,9 @@ export default function AdminScreen() {
   const styles = useStyles();
   const { session } = useSession();
   const admin = useIsAdmin(session?.user.id);
-  const [tab, setTab] = useState<Tab>('overview');
+  // ?tab=agenda : notification « événement à valider »
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(params.tab === 'agenda' ? 'agenda' : 'overview');
 
   if (!admin) {
     return (
@@ -81,6 +84,7 @@ export default function AdminScreen() {
         <Chip label="Statistiques" selected={tab === 'stats'} onPress={() => setTab('stats')} />
         <Chip label="Inscrits" selected={tab === 'users'} onPress={() => setTab('users')} />
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
+        <Chip label="Agenda" selected={tab === 'agenda'} onPress={() => setTab('agenda')} />
         <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
         <Chip label="Sorties stores" selected={tab === 'stores'} onPress={() => setTab('stores')} />
         <Chip label="Histoire" selected={tab === 'history'} onPress={() => setTab('history')} />
@@ -95,6 +99,10 @@ export default function AdminScreen() {
         <Users />
       ) : tab === 'moderation' ? (
         <Moderation />
+      ) : tab === 'agenda' ? (
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <AgendaAdmin />
+        </ScrollView>
       ) : tab === 'about' ? (
         <ScrollView contentContainerStyle={styles.content}>
           <AboutAdmin userId={session?.user.id ?? ''} />

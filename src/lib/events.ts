@@ -2,20 +2,38 @@ import type { Place } from '@/lib/geocoding';
 import { photoUrl, uploadPhoto, type PhotoValue } from '@/lib/profile';
 import { supabase } from '@/lib/supabase';
 
-// Événements et rassemblements motards : ouverts à tous les membres, inscription « J'y vais »
-// ou « Intéressé ». Supprimés automatiquement 30 jours après leur fin (purge_old_events).
+// Agenda moto : événements ouverts aux membres, inscription « J'y vais » ou « Intéressé »,
+// rappel la veille, discussion, photos après. Validation légère par l'admin (review_status) :
+// publié tout de suite pour un membre qui a déjà un événement validé, sinon visible de ses amis,
+// invités et membres du club en attendant. Archivés 1 an après la fin (purge_old_events).
 
-export type EventKind = 'rassemblement' | 'sortie' | 'balade' | 'salon' | 'circuit' | 'concert' | 'autre';
+export type EventKind =
+  | 'rassemblement'
+  | 'salon'
+  | 'caritative'
+  | 'circuit'
+  | 'bourse'
+  | 'sortie'
+  | 'cafe'
+  | 'balade'
+  | 'concert'
+  | 'autre';
 
 export const EVENT_KINDS: { value: EventKind; label: string; emoji: string }[] = [
   { value: 'rassemblement', label: 'Rasso', emoji: '🏍️' },
+  { value: 'salon', label: 'Salon', emoji: '🎪' },
+  { value: 'caritative', label: 'Balade caritative', emoji: '💛' },
+  { value: 'circuit', label: 'Journée circuit', emoji: '🏁' },
+  { value: 'bourse', label: 'Bourse / expo', emoji: '🔩' },
   { value: 'sortie', label: 'Sortie club', emoji: '🚩' },
+  { value: 'cafe', label: 'Café moto', emoji: '☕' },
   { value: 'balade', label: 'Balade', emoji: '🛣️' },
-  { value: 'salon', label: 'Expo / salon', emoji: '🎪' },
-  { value: 'circuit', label: 'Sortie piste', emoji: '🏁' },
   { value: 'concert', label: 'Concert / soirée', emoji: '🎸' },
   { value: 'autre', label: 'Autre', emoji: '📍' },
 ];
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+export type PriceKind = 'free' | 'paid';
 
 /** Lien de partage : ouvre la version web (app.passeryder.fr), qui propose d'ouvrir l'app */
 export const eventShareUrl = (id: string) => `https://app.passeryder.fr/event/${id}`;
@@ -44,6 +62,14 @@ export type MotoEvent = {
   interested: number;
   /** Mon inscription */
   myStatus: AttendStatus | null;
+  linkUrl: string | null;
+  priceKind: PriceKind | null;
+  priceText: string | null;
+  /** Organisateur affiché (club, association) ; sinon le pseudo du créateur */
+  organizerLabel: string | null;
+  clubId: string | null;
+  reviewStatus: ReviewStatus;
+  reviewNote: string | null;
 };
 
 type Row = {
@@ -59,11 +85,19 @@ type Row = {
   photo_path: string | null;
   max_attendees: number | null;
   created_by: string;
+  link_url: string | null;
+  price_kind: PriceKind | null;
+  price_text: string | null;
+  organizer_label: string | null;
+  club_id: string | null;
+  review_status: ReviewStatus;
+  review_note: string | null;
   organizer: { username: string } | null;
   attendees: { user_id: string; status: AttendStatus; profile: { username: string; avatar_path: string } | null }[];
 };
 
 const FIELDS = `id, kind, title, description, starts_at, ends_at, place_label, latitude, longitude, photo_path, max_attendees, created_by,
+  link_url, price_kind, price_text, organizer_label, club_id, review_status, review_note,
   organizer:profiles!events_created_by_fkey(username),
   attendees:event_attendees(user_id, status, profile:profiles(username, avatar_path))`;
 
@@ -91,6 +125,13 @@ function toEvent(r: Row, userId: string): MotoEvent {
     going: attendees.filter((a) => a.status === 'going').length,
     interested: attendees.filter((a) => a.status === 'interested').length,
     myStatus: attendees.find((a) => a.id === userId)?.status ?? null,
+    linkUrl: r.link_url,
+    priceKind: r.price_kind,
+    priceText: r.price_text,
+    organizerLabel: r.organizer_label,
+    clubId: r.club_id,
+    reviewStatus: r.review_status,
+    reviewNote: r.review_note,
   };
 }
 
@@ -100,6 +141,9 @@ export const eventEnd = (e: Pick<MotoEvent, 'startsAt' | 'endsAt'>) =>
 
 /** Événement terminé (hors rendu : Date.now) */
 export const isEventOver = (e: Pick<MotoEvent, 'startsAt' | 'endsAt'>) => eventEnd(e).getTime() < Date.now();
+
+/** Événement commencé (photos partagées à partir du début) */
+export const hasEventStarted = (e: Pick<MotoEvent, 'startsAt'>) => new Date(e.startsAt).getTime() <= Date.now();
 
 /** Événements à venir ou en cours */
 export async function fetchUpcomingEvents(userId: string): Promise<MotoEvent[]> {
@@ -118,6 +162,20 @@ export async function fetchUpcomingEvents(userId: string): Promise<MotoEvent[]> 
   return [...((running ?? []) as unknown as Row[]), ...((data ?? []) as unknown as Row[])]
     .map((r) => toEvent(r, userId))
     .filter((e) => eventEnd(e).getTime() > now);
+}
+
+/** Événements passés (archives : 1 an), les plus récents d'abord */
+export async function fetchPastEvents(userId: string): Promise<MotoEvent[]> {
+  const now = new Date();
+  const { data, error } = await supabase
+    .from('events')
+    .select(FIELDS)
+    .lt('starts_at', now.toISOString())
+    .gte('starts_at', new Date(now.getTime() - 365 * 24 * 3600 * 1000).toISOString())
+    .order('starts_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return ((data ?? []) as unknown as Row[]).map((r) => toEvent(r, userId)).filter((e) => isEventOver(e));
 }
 
 /** Événements par identifiants (résultats de recherche), dans l'ordre donné */
@@ -145,7 +203,20 @@ export type EventDraft = {
   maxAttendees: number | null;
   photo: PhotoValue;
   clubId?: string | null;
+  linkUrl: string;
+  priceKind: PriceKind | null;
+  priceText: string;
+  organizerLabel: string;
 };
+
+/** Lien saisi : https:// ajouté si besoin ; null si vide ; erreur si ce n'est pas une adresse web */
+export function normalizeLink(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+  if (!/^https?:\/\/[^\s/]+\.[^\s]{2,}/i.test(url) || url.length > 300) throw new Error('Le lien ne ressemble pas à une adresse web.');
+  return url;
+}
 
 export async function createEvent(userId: string, d: EventDraft): Promise<string> {
   const photoPath = d.photo.localUri ? await uploadPhoto(userId, 'event', d.photo) : null;
@@ -165,6 +236,10 @@ export async function createEvent(userId: string, d: EventDraft): Promise<string
       photo_path: photoPath,
       // Au nom d'un club : ses membres sont invités par le serveur
       club_id: d.clubId ?? null,
+      link_url: normalizeLink(d.linkUrl),
+      price_kind: d.priceKind,
+      price_text: d.priceKind === 'paid' ? d.priceText.trim().slice(0, 60) || null : null,
+      organizer_label: d.organizerLabel.trim().slice(0, 80) || null,
     })
     .select('id')
     .single();
@@ -205,6 +280,41 @@ export async function declineEventInvite(eventId: string, userId: string) {
   if (error) throw new Error(error.message);
 }
 
+// ---------- Discussion et photos ----------
+
+export type EventPhoto = { id: string; authorId: string; username: string; path: string; url: string; createdAt: string };
+
+export async function fetchEventPhotos(eventId: string): Promise<EventPhoto[]> {
+  const { data, error } = await supabase
+    .from('event_photos')
+    .select('id, author_id, photo_path, created_at, author:profiles(username)')
+    .eq('event_id', eventId)
+    .order('created_at')
+    .limit(300);
+  if (error) throw error;
+  return ((data ?? []) as unknown as { id: string; author_id: string; photo_path: string; created_at: string; author: { username: string } | null }[]).map(
+    (r) => ({ id: r.id, authorId: r.author_id, username: r.author?.username ?? 'motard', path: r.photo_path, url: photoUrl(r.photo_path), createdAt: r.created_at }),
+  );
+}
+
+/** Partage mes photos de l'événement (à partir de son début ; 12 par membre) */
+export async function addEventPhotos(eventId: string, userId: string, photos: PhotoValue[]) {
+  for (const p of photos) {
+    const path = await uploadPhoto(userId, 'event', p);
+    const { error } = await supabase.from('event_photos').insert({ event_id: eventId, author_id: userId, photo_path: path });
+    if (error) {
+      await supabase.storage.from('photos').remove([path]);
+      throw new Error(error.message);
+    }
+  }
+}
+
+export async function deleteEventPhoto(photo: EventPhoto, userId: string) {
+  const { error } = await supabase.from('event_photos').delete().eq('id', photo.id);
+  if (error) throw new Error(error.message);
+  if (photo.authorId === userId) await supabase.storage.from('photos').remove([photo.path]);
+}
+
 export async function deleteEvent(e: MotoEvent) {
   const { error } = await supabase.from('events').delete().eq('id', e.id);
   if (error) throw error;
@@ -219,4 +329,28 @@ export function formatEventDates(e: Pick<MotoEvent, 'startsAt' | 'endsAt'>) {
   if (!e.endsAt) return `${day(s)} · ${time(s)}`;
   const end = new Date(e.endsAt);
   return s.toDateString() === end.toDateString() ? `${day(s)} · ${time(s)} – ${time(end)}` : `${day(s)} ${time(s)} → ${day(end)}`;
+}
+
+/** Titre d'une journée de l'agenda : « Aujourd'hui », « Demain », « samedi 25 octobre » */
+export function agendaDayTitle(day: Date, now = new Date()) {
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((start(day) - start(now)) / (24 * 3600 * 1000));
+  if (diff === 0) return 'Aujourd’hui';
+  if (diff === 1) return 'Demain';
+  return day.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', ...(day.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
+}
+
+/** Agenda : événements groupés par jour de début (déjà commencés : « En cours ») */
+export function groupByDay(events: MotoEvent[], now = new Date()): { title: string; data: MotoEvent[] }[] {
+  const sections: { title: string; data: MotoEvent[] }[] = [];
+  const running = events.filter((e) => new Date(e.startsAt).getTime() < now.getTime() && !isEventOver(e));
+  if (running.length) sections.push({ title: 'En cours', data: running });
+  for (const e of events) {
+    if (running.includes(e)) continue;
+    const title = agendaDayTitle(new Date(e.startsAt), now);
+    const last = sections[sections.length - 1];
+    if (last && last.title === title) last.data.push(e);
+    else sections.push({ title, data: [e] });
+  }
+  return sections;
 }
