@@ -547,7 +547,19 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     redrawPending = false;
     setTimeout(function () { if (touches < 2 && !map._animatingZoom) routeRenderer._update(); }, 350);
   }
+  // « Voir tout le trajet » : nord en haut, tout l'itinéraire ; Recentrer pour revenir
+  var mainRoute = null;
+  window.overview = function () {
+    if (!mainRoute || mainRoute.length < 2) return;
+    me.follow = false;
+    lastDragAt = Date.now();
+    if (map.setBearing) map.setBearing(0);
+    var h = map.getSize().y;
+    map.fitBounds(mainRoute, { paddingTopLeft: [40, Math.round(h * 0.2)], paddingBottomRight: [70, Math.round(h * 0.3)], maxZoom: 16 });
+  };
   window.setRoutes = function (list) {
+    var main = list.filter(function (r) { return !r.muted && !r.zone; })[0];
+    mainRoute = main ? main.points : null;
     routeLayer.clearLayers();
     // Alternatives d'abord : l'itinéraire choisi est dessiné par-dessus
     // Zones de danger : surlignage large et transparent, sous l'itinéraire

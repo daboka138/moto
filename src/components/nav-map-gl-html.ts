@@ -1,5 +1,5 @@
 import { mapCss, MAPTILER_KEY } from '@/components/map-style';
-import { DarkColors, LightColors, type Palette } from '@/constants/theme';
+import { DarkColors, LightColors, MapSkyColors, type Palette } from '@/constants/theme';
 
 // Page de la carte de NAVIGATION en vue inclinée (MapLibre GL JS, WebGL) : nav-map-gl.tsx.
 // Même interface que la page Leaflet (setPosition, setRoutes, setPins…), mêmes messages vers l'app.
@@ -24,6 +24,7 @@ export const GL_ZOOM_OFFSET = -1;
 export function buildNavGlHtml(Colors: Palette, dark: boolean) {
   const styleUrl = MAPTILER_KEY ? (dark ? GL_STYLES.dark : GL_STYLES.light) + encodeURIComponent(MAPTILER_KEY) : '';
   Colors = { ...Colors, mapBackground: dark ? DarkColors.mapBackground : LightColors.mapBackground };
+  const sky = dark ? MapSkyColors.dark : MapSkyColors.light;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -84,10 +85,8 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       center: [2.4, 46.6],
       zoom: 5,
       pitch: PITCH,
-      maxPitch: 60,
+      maxPitch: 75,
       attributionControl: false,
-      touchPitch: false,
-      pitchWithRotate: false,
       fadeDuration: 0
     });
     var container = map.getContainer();
@@ -108,10 +107,21 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       resetNorth = false;
       post({ type: 'pan' });
     }
-    ['dragstart', 'zoomstart', 'rotatestart'].forEach(function (ev) {
+    ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'].forEach(function (ev) {
       map.on(ev, function (e) { if (e && e.originalEvent) userMoved(); });
     });
-    container.addEventListener('touchstart', function () { if (me.nav && !me.follow) post({ type: 'pan' }); }, true);
+    // Doigts posés : la caméra de suivi ne bouge plus (jumpTo arrête net tout geste en cours, la carte
+    // devenait impossible à déplacer) ; un simple toucher sans mouvement laisse le suivi continuer
+    var touches = 0;
+    function onTouches(e) { touches = e.touches ? e.touches.length : 0; if (!touches) wake(); }
+    container.addEventListener('touchstart', function (e) {
+      onTouches(e);
+      if (me.nav && !me.follow) post({ type: 'pan' });
+    }, true);
+    container.addEventListener('touchend', onTouches, true);
+    container.addEventListener('touchcancel', onTouches, true);
+    container.addEventListener('mousedown', function () { touches = 1; }, true);
+    window.addEventListener('mouseup', function () { touches = 0; wake(); }, true);
     map.on('click', function (e) {
       var hit = map.getLayer('pins') ? map.queryRenderedFeatures(e.point, { layers: ['pins'] }) : [];
       var f = hit.filter(function (h) { return h.properties.tap; })[0];
@@ -199,7 +209,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       }
 
       // Caméra : suit la flèche, cap en haut (ou nord), inclinée, zoom de conduite ; tout en douceur
-      if (pos && me.follow) {
+      if (pos && me.follow && !touches && !overviewing) {
         var cam = {};
         var c = map.getCenter();
         var far = distanceM({ lat: c.lat, lng: c.lng }, pos);
@@ -252,7 +262,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
       if (!nav && me.nav) resetNorth = true;
       me.nav = !!nav;
       // Suivi (re)pris : la flèche redescend à 72 % de la hauteur
-      if (me.follow && !wasFollowing) map.setPadding(anchorPadding());
+      if (me.follow && !wasFollowing) { overviewing = false; map.setPadding(anchorPadding()); }
       if (!me.centered) {
         map.jumpTo({ center: ll, zoom: navZoom + ZOOM_OFFSET, pitch: PITCH, bearing: me.targetHeading || 0, padding: anchorPadding() });
         me.centered = true;
@@ -381,7 +391,26 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
     };
 
     // ---------- Tracés ----------
+    // « Voir tout le trajet » : vue du dessus, nord en haut, tout l'itinéraire ; Recentrer pour revenir
+    var routeBounds = null, overviewing = false;
+    window.overview = function () {
+      if (!routeBounds) return;
+      me.follow = false;
+      overviewing = true;
+      lastDragAt = Date.now();
+      map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+      var h = map.getContainer().clientHeight;
+      map.fitBounds(routeBounds, {
+        padding: { top: Math.round(h * 0.2), bottom: Math.round(h * 0.3), left: 40, right: 70 },
+        bearing: 0, pitch: 0, maxZoom: 16, duration: 900
+      });
+    };
     window.setRoutes = function (list) {
+      var main = list.filter(function (r) { return !r.muted && !r.zone; })[0];
+      if (main && main.points.length) {
+        routeBounds = new maplibregl.LngLatBounds();
+        main.points.forEach(function (p) { routeBounds.extend([p[1], p[0]]); });
+      } else routeBounds = null;
       var features = list.map(function (r) {
         return {
           type: 'Feature',

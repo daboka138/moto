@@ -44,6 +44,7 @@ export function NavMapGL({
   onViewChange,
   orientation = 'heading',
   navZoom,
+  overviewKey = 0,
   onPainted,
   onReady,
   onFallback,
@@ -76,6 +77,9 @@ export function NavMapGL({
   useEffect(() => {
     if (pageLoads && navZoom) run(`window.setNavZoom && window.setNavZoom(${navZoom})`);
   }, [pageLoads, navZoom]);
+  useEffect(() => {
+    if (pageLoads && overviewKey) run('window.overview && window.overview()');
+  }, [pageLoads, overviewKey]);
   const markersJson = JSON.stringify(markers);
   useEffect(() => {
     if (pageLoads) run(`window.setMarkers && window.setMarkers(${markersJson}, ${JSON.stringify(selectedMarkerId ?? null)})`);

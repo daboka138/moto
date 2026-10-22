@@ -20,8 +20,8 @@ const C = { me: '#1D9BF0', white: '#ffffff', accent: '#1D9BF0', mapBackground: '
 const Colors = new Proxy(C, { get: (t, k) => t[k] ?? '#888888' });
 const key = process.env.EXPO_PUBLIC_MAPTILER_KEY;
 const html = (styleUrl) =>
-  new Function('Colors', 'styleUrl', 'mapCss', 'MAPLIBRE', 'NAV_PITCH', 'GL_ZOOM_OFFSET', 'return `' + tpl + '`')(
-    Colors, styleUrl, mapCss, `https://unpkg.com/maplibre-gl@${consts.MAPLIBRE_VERSION}/dist/maplibre-gl`, consts.NAV_PITCH, consts.GL_ZOOM_OFFSET,
+  new Function('Colors', 'styleUrl', 'sky', 'mapCss', 'MAPLIBRE', 'NAV_PITCH', 'GL_ZOOM_OFFSET', 'return `' + tpl + '`')(
+    Colors, styleUrl, { sky: '#BFE3FF', horizon: '#EAF6FF' }, mapCss, `https://unpkg.com/maplibre-gl@${consts.MAPLIBRE_VERSION}/dist/maplibre-gl`, consts.NAV_PITCH, consts.GL_ZOOM_OFFSET,
   );
 
 // Trajet : une route sinueuse au nord de Marseille
@@ -86,6 +86,33 @@ async function run(name, w, h, styleUrl, opts = {}) {
   const state = await page.evaluate(() => ({ pitch: Math.round(map.getPitch()), bearing: Math.round(map.getBearing()), zoom: +map.getZoom().toFixed(2) }));
   console.log(`  ${Math.round(fps)} images/s (WebGL logiciel, sans GPU), caméra :`, state);
   await page.screenshot({ path: join(OUT, `${name}.png`) });
+  // Glisser au doigt PENDANT que les positions GPS arrivent : la carte doit bouger et le suivi s'arrêter
+  const cdp = await page.createCDPSession();
+  const before = await page.evaluate(() => map.getCenter());
+  const sending = (async () => {
+    for (let i = 0; i < 6; i++) {
+      const k = 70 + i * 2;
+      // comme l'app : suivi demandé tant que la carte n'a pas signalé de geste
+      await page.evaluate((p, f) => window.setPosition({ latitude: p[0], longitude: p[1], accuracy: 5, heading: 0 }, f, true), route[k], !msgs.some((m) => m.type === 'pan'));
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  })();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: w / 2, y: h / 2 }] });
+  for (let i = 1; i <= 15; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: w / 2 + i * 6, y: h / 2 + i * 10 }] });
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await sending;
+  const after = await page.evaluate(() => map.getCenter());
+  const moved = Math.round(Math.hypot(after.lat - before.lat, after.lng - before.lng) * 111000);
+  console.log(`  glisser au doigt : carte déplacée de ~${moved} m, message « pan » : ${msgs.some((m) => m.type === 'pan') ? 'oui' : 'NON'}`);
+  // Voir tout le trajet
+  await page.evaluate(() => window.overview());
+  await new Promise((r) => setTimeout(r, 1500));
+  const ov = await page.evaluate(() => ({ pitch: Math.round(map.getPitch()), bearing: Math.round(map.getBearing()), zoom: +map.getZoom().toFixed(1) }));
+  console.log('  vue d’ensemble :', ov);
+  await page.screenshot({ path: join(OUT, `${name}-ensemble.png`) });
   await page.close();
 }
 

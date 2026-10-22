@@ -139,6 +139,19 @@ export default function MapScreen() {
   const [follow, setFollow] = useState(true);
   // Dernier toucher de la carte (navigation : retour automatique au mode conduite 10 s après)
   const [panAt, setPanAt] = useState(0);
+  // « Voir tout le trajet » : pas de retour automatique tant qu'on ne touche pas la carte
+  const [overview, setOverview] = useState(false);
+  // Un compteur par carte : seule la carte affichée reçoit la demande
+  const [overviewKey, setOverviewKey] = useState({ gl: 0, leaflet: 0 });
+  const onMapPan = () => {
+    setFollow(false);
+    setOverview(false);
+    setPanAt(Date.now());
+  };
+  const recenter = () => {
+    setOverview(false);
+    setFollow(true);
+  };
   const [northUpKey, setNorthUpKey] = useState(0);
   // Navigation : ma direction en haut (par défaut) ou nord en haut, au bouton boussole (mémorisé)
   const [navOrientation, setNavOrientation] = useState<'heading' | 'north'>(() => {
@@ -260,10 +273,10 @@ export default function MapScreen() {
     position && position.heading == null && fallbackHeading !== null ? { ...position, heading: fallbackHeading } : position;
   // Carte déplacée à la main en navigation : mode conduite de nouveau après 10 s sans toucher
   useEffect(() => {
-    if (!navigating || follow) return;
+    if (!navigating || follow || overview) return;
     const t = setTimeout(() => setFollow(true), AUTO_RECENTER_MS);
     return () => clearTimeout(t);
-  }, [navigating, follow, panAt]);
+  }, [navigating, follow, overview, panAt]);
   useSimulatedLocation(simulating, nav.route, (loc) => {
     setLocation(loc);
     if (loc.coords.heading != null) setHeading(loc.coords.heading);
@@ -747,6 +760,15 @@ export default function MapScreen() {
           label: nav.shares.length ? 'Partage du trajet' : 'Partager mon trajet en direct',
           icon: 'share-social-outline',
           onPress: () => setShareSheet(true),
+        },
+        {
+          label: 'Voir tout le trajet',
+          icon: 'expand-outline',
+          onPress: () => {
+            setFollow(false);
+            setOverview(true);
+            setOverviewKey((k) => (glShown ? { ...k, gl: k.gl + 1 } : { ...k, leaflet: k.leaflet + 1 }));
+          },
         },
         { label: 'Ajouter un arrêt', icon: 'add-circle-outline', onPress: () => setStopPicker({ kind: null }) },
         { label: 'Station essence sur mon trajet', icon: 'speedometer-outline', onPress: () => setStopPicker({ kind: 'fuel' }) },
@@ -1361,10 +1383,8 @@ export default function MapScreen() {
         navigating={navigating && !glShown}
         navZoom={navZoom}
         follow={follow && nav.phase !== 'preview' && !glShown}
-        onUserPan={() => {
-          setFollow(false);
-          setPanAt(Date.now());
-        }}
+        onUserPan={onMapPan}
+        overviewKey={overviewKey.leaflet}
         onBearingChange={glShown ? undefined : setMapBearing}
         northUpKey={northUpKey}
         orientation={navOrientation}
@@ -1398,10 +1418,8 @@ export default function MapScreen() {
             navigating
             navZoom={navZoom}
             follow={follow}
-            onUserPan={() => {
-              setFollow(false);
-              setPanAt(Date.now());
-            }}
+            onUserPan={onMapPan}
+            overviewKey={overviewKey.gl}
             onBearingChange={glShown ? setMapBearing : undefined}
             northUpKey={northUpKey}
             orientation={navOrientation}
@@ -1497,7 +1515,7 @@ export default function MapScreen() {
               />
             </View>
           }
-          onRecenter={follow ? null : () => setFollow(true)}
+          onRecenter={follow ? null : recenter}
           bottom={
             <>
               {undo && <UndoReportBar type={undo.type} seconds={undoSecondsLeft} onUndo={() => setUndo(null)} />}
