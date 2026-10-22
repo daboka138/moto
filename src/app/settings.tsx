@@ -38,6 +38,7 @@ import { privacyLabel } from '@/lib/privacy';
 import { usePrivacy } from '@/lib/privacy-context';
 import { REPORT_TYPES } from '@/lib/reports';
 import { setSimulation, SIMULATION_SPEEDS, useSimulation } from '@/lib/simulation';
+import { setPerfEnabled, usePerfEnabled } from '@/lib/perf-meter';
 import { startupReport } from '@/lib/startup';
 import { fetchInSuggestions, setInSuggestions } from '@/lib/suggestions';
 import { BREAK_OPTIONS, testVoice, updateVoiceSettings, useVoiceSettings, VOICE_RATES, VOICE_VOLUMES } from '@/lib/voice';
@@ -173,6 +174,7 @@ export default function SettingsScreen() {
         </LinkGroup>
       )}
       {isAdmin && !IS_WEB && <SimulationSection />}
+      {isAdmin && !IS_WEB && <PerfSection />}
       {isAdmin && (
         <LinkGroup>
           <LinkRow icon="speedometer-outline" label="Mesures du démarrage" onPress={showStartupReport} />
@@ -241,6 +243,22 @@ function showStartupReport() {
   Alert.alert(
     'Démarrage (ce lancement)',
     `${lines.join('\n')}\n\nBlocages du fil JS (${stalls.length}, les plus longs) :\n${blocks.join('\n') || 'aucun'}`,
+  );
+}
+
+/** Admin : images/s, temps de calcul par image et messages/s de la carte, affichés en navigation */
+function PerfSection() {
+  const styles = useStyles();
+  const on = usePerfEnabled();
+  return (
+    <View style={styles.card}>
+      <SwitchRow
+        label="Mesures de fluidité (navigation)"
+        description="Affiche en haut de la navigation : images/s, temps de calcul par image, pire image et messages/s vers la carte."
+        value={on}
+        onChange={setPerfEnabled}
+      />
+    </View>
   );
 }
 

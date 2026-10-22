@@ -31,6 +31,7 @@ import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
 import { HudStatusIcon, NAV_RAIL_BUTTON, NavHud, type HudAlert } from '@/components/nav/nav-hud';
+import { PerfBadge } from '@/components/nav/perf-badge';
 import { NavMapGL } from '@/components/nav-map-gl';
 import { shortDistance } from '@/lib/navigation';
 import { TipBubble } from '@/components/guide/tip-bubble';
@@ -1455,6 +1456,7 @@ export default function MapScreen() {
           alerts={navAlerts}
           topExtra={
             <>
+              <PerfBadge />
               {convoy && (
                 <ConvoyPanel
                   convoy={convoy}
