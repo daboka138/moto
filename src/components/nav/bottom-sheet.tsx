@@ -16,6 +16,8 @@ type Props = {
   maxBodyRatio?: number;
   /** Glissé vers le bas alors que le panneau est déjà replié (navigation : réduit en fine barre) */
   onCollapse?: () => void;
+  /** Marges réduites (navigation) */
+  compact?: boolean;
 };
 
 /**
@@ -23,7 +25,7 @@ type Props = {
  * l'en-tête (ou un appui sur la poignée). La carte reste utilisable au-dessus. L'en-tête et le
  * pied restent toujours affichés ; le milieu se replie et défile.
  */
-export function BottomSheet({ header, children, footer, initiallyExpanded = true, maxBodyRatio = 0.42, onCollapse }: Props) {
+export function BottomSheet({ header, children, footer, initiallyExpanded = true, maxBodyRatio = 0.42, onCollapse, compact }: Props) {
   const styles = useStyles();
   const { height: windowH } = useWindowDimensions();
   const [contentH, setContentH] = useState(0);
@@ -66,17 +68,17 @@ export function BottomSheet({ header, children, footer, initiallyExpanded = true
   }, [height, openH, onCollapse]);
 
   return (
-    <View style={styles.sheet}>
+    <View style={[styles.sheet, compact && styles.sheetCompact]}>
       <View {...pan.panHandlers}>
         <Pressable
-          style={styles.handleZone}
+          style={[styles.handleZone, compact && styles.handleZoneCompact]}
           onPress={() => setExpanded((e) => !e)}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={expanded ? 'Réduire le panneau' : 'Agrandir le panneau'}>
           <View style={styles.handle} />
         </Pressable>
-        <View style={styles.header}>{header}</View>
+        <View style={[styles.header, compact && styles.headerCompact]}>{header}</View>
       </View>
       <Animated.View style={{ height, overflow: 'hidden' }}>
         <ScrollView
@@ -105,6 +107,10 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: -2 },
   },
   handleZone: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
+  // Navigation : volet plus bas (la carte d'abord)
+  sheetCompact: { paddingHorizontal: 12, paddingBottom: 10 },
+  handleZoneCompact: { paddingTop: 6, paddingBottom: 4 },
+  headerCompact: { paddingBottom: 2 },
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: Colors.textFaint },
   header: { gap: 8, paddingBottom: 8 },
   body: { gap: 12, paddingTop: 8, paddingBottom: 8 },

@@ -22,8 +22,7 @@ import { StopPicker } from '@/components/nav/stop-picker';
 import { TripSummaryModal } from '@/components/trip-summary';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { MapWeather } from '@/components/map-weather';
-import { NavWeatherChip } from '@/components/weather-strip';
-import { BreakBanner, FuelCheckBanner, MotoAlertChip } from '@/components/nav/moto-alerts';
+import { BreakBanner, FuelCheckBanner } from '@/components/nav/moto-alerts';
 import { useBreakReminder, useCurveAlerts, useSunAlerts } from '@/lib/moto-alerts';
 import { getSimulation, useSimulatedLocation, useSimulation } from '@/lib/simulation';
 import { motoLabel, PersonCard } from '@/components/person-card';
@@ -31,7 +30,9 @@ import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
+import { HudStatusIcon, NAV_RAIL_BUTTON, NavHud, type HudAlert } from '@/components/nav/nav-hud';
 import { NavMapGL } from '@/components/nav-map-gl';
+import { shortDistance } from '@/lib/navigation';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { DANGER_ZONE_ROUTE, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
@@ -115,8 +116,6 @@ const KEEP_AWAKE_TAG = 'navigation';
 // v2 : l'ancienne clé gardait souvent « nord en haut » choisi par erreur (1er appui sur la boussole) ;
 // tout le monde repart en mode conduite, puis le choix est de nouveau mémorisé
 const NAV_ORIENTATION_KEY = 'moto.nav.orientation.v2';
-/** Boutons de la colonne de navigation (boussole, son, ⋯, SOS) */
-const NAV_RAIL_BUTTON = 44;
 /** « Je rentre » : position envoyée toutes les minutes, arrivée détectée à 150 m */
 const HOMECOMING_POSITION_MS = 60_000;
 const HOMECOMING_ARRIVED_M = 150;
@@ -1159,6 +1158,184 @@ export default function MapScreen() {
     );
   }
 
+
+  // Navigation : manœuvre d'après si elle suit de près (« puis ↱ »), alertes de la pastille
+  const nextManeuver = nav.progress?.next ?? null;
+  const afterNext = nextManeuver && nav.route ? (nav.route.steps[nextManeuver.index + 1] ?? null) : null;
+  const thenStep = afterNext && nextManeuver && afterNext.alongM - nextManeuver.step.alongM < 300 ? afterNext : null;
+  const navAlerts: HudAlert[] = [];
+  if (navigating) {
+    if (danger)
+      navAlerts.push({
+        id: `report:${danger.report.id}`,
+        icon: <ReportIcon type={danger.report.type} size={18} />,
+        text: `${reportInfo(danger.report.type).label} dans ${shortDistance(danger.distanceM)}`,
+        tone: 'danger',
+      });
+    if (zoneNow?.official) navAlerts.push({ id: 'zone', icon: <ZoneIcon size={18} />, text: 'Zone de danger, prudence', tone: 'danger' });
+    if (curveAlert) navAlerts.push({ id: `curve:${curveAlert.side}`, icon: curveAlert.side === 'left' ? '↰' : '↱', text: curveAlert.text });
+    if (navWeather) navAlerts.push({ id: `weather:${navWeather.hazard}`, icon: navWeather.emoji, text: navWeather.text });
+    if (sunAlert) navAlerts.push({ id: 'sun', icon: '🌇', text: sunAlert.text, tone: 'night' });
+    if (sparseReminder) navAlerts.push({ id: 'fuel', icon: '⛽', text: sparseReminder });
+  }
+
+  // Fiches du repère touché (balade, spot, station, ami…) : sur la carte et en navigation
+  const selectedCards = (
+    <>
+  {selectedRide && (
+    <View style={styles.card}>
+      <RideCard
+        ride={selectedRide}
+        distanceFromMeM={position ? distanceM(position, selectedRide.meeting) : null}
+        onPress={() => openRide(selectedRide)}
+      />
+      <Pressable style={styles.rideClose} onPress={() => setSelectedId(null)} hitSlop={10} accessibilityLabel="Fermer">
+        <Ionicons name="close" size={20} color={Colors.textMuted} />
+      </Pressable>
+    </View>
+  )}
+  {selectedPlace && (
+    <View style={styles.card}>
+      <PlaceCard
+        place={selectedPlace}
+        distanceM={position ? distanceM(position, selectedPlace) : null}
+        onPress={() => openPlace(selectedPlace)}
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+  {selectedStation && (
+    <View style={styles.card}>
+      <FuelStationCard
+        station={selectedStation}
+        myFuel={myGarage?.fuelType ?? null}
+        distanceM={position ? distanceM(position, selectedStation) : null}
+        onGo={() => {
+          const place = { label: `⛽ ${stationTitle(selectedStation)}`, latitude: selectedStation.latitude, longitude: selectedStation.longitude, source: 'lieu' as const };
+          setSelectedId(null);
+          // Aperçu en cours : la station devient une étape ; sinon c'est la destination
+          if (nav.phase === 'preview') nav.addStop(place);
+          else chooseDestination(place);
+        }}
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+  {selectedParking && (
+    <View style={styles.card}>
+      <ParkingCard
+        parking={selectedParking}
+        distanceM={position ? distanceM(position, selectedParking) : null}
+        onGo={() =>
+          chooseDestination({
+            label: `🅿️ ${parkingTitle(selectedParking)}`,
+            latitude: selectedParking.latitude,
+            longitude: selectedParking.longitude,
+            source: 'lieu',
+          })
+        }
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+  {selectedEvent && (
+    <View style={styles.card}>
+      <EventCard
+        event={selectedEvent}
+        distanceM={position ? distanceM(position, selectedEvent.place) : null}
+        onPress={() => openEvent(selectedEvent)}
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+  {selectedReport && (
+    <View style={styles.card}>
+      <ReportCard
+        report={selectedReport}
+        distanceM={position ? distanceM(position, selectedReport) : null}
+        mine={selectedReport.authorId === userId || selectedReport.authorId === 'me'}
+        alreadyVoted={votedIds.includes(selectedReport.id)}
+        onVote={(v) => vote(selectedReport.id, v).catch((e) => Alert.alert('Vote impossible', String(e)))}
+        onDelete={() => removeMine(selectedReport.id)}
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+  {selectedReal && (
+    <View style={styles.card}>
+      <PersonCard
+        photoUrl={photoUrl(selectedReal.avatarPath)}
+        username={selectedReal.username}
+        motoLabel={motoLabel(selectedReal.moto)}
+        speedKmh={selectedReal.speedKmh}
+        distanceM={position ? distanceM(position, selectedReal) : null}
+        onViewProfile={() => router.push({ pathname: '/user/[id]', params: { id: selectedReal.userId } })}
+        onClose={() => setSelectedId(null)}
+      />
+    </View>
+  )}
+    </>
+  );
+  // Navigation : cartes d'alerte moto (plein, pause, autonomie) puis le volet
+  const navCards = (
+    <>
+  {navigating && fuelCheck && (
+    <View style={styles.card}>
+      <FuelCheckBanner leftKm={fuelLeftKm} onPick={pickFuelLevel} onClose={() => setFuelCheck(false)} />
+    </View>
+  )}
+  {navigating && breakReminder.reminder && (
+    <View style={styles.card}>
+      <BreakBanner
+        reminder={breakReminder.reminder}
+        stopped={kmh <= DRIVING_LOCK_SPEED_KMH}
+        onAdd={() => {
+          const spot = breakReminder.reminder?.suggestion;
+          if (spot) nav.addStop(spot);
+          breakReminder.dismiss();
+        }}
+        onClose={breakReminder.dismiss}
+      />
+    </View>
+  )}
+  {navigating && fuelAlert.suggestion && (
+    <View style={styles.card}>
+      <FuelSuggestionCard
+        suggestion={fuelAlert.suggestion}
+        onAdd={() => {
+          const station = fuelAlert.suggestion?.station;
+          if (station) nav.addStop(station);
+          fuelAlert.dismiss();
+        }}
+        onSearch={() => {
+          fuelAlert.dismiss();
+          setStopPicker({ kind: 'fuel' });
+        }}
+        onClose={fuelAlert.dismiss}
+      />
+    </View>
+  )}
+  {navigating && (
+    <View style={styles.card}>
+      <NavSheet
+        progress={nav.progress}
+        stops={nav.stops}
+        sharedWith={nav.shares.map((x) => x.username)}
+        onStop={stopNavigation}
+        onFuel={() => setStopPicker({ kind: 'fuel' })}
+        onAddStop={() => setStopPicker({ kind: null })}
+        onShare={() => setShareSheet(true)}
+        onRemoveStop={nav.removeStop}
+        fuelLeftKm={fuelLeftKm}
+        onFilled={fuelRange(myGarage) ? fuelFilled : undefined}
+        nextStation={nextStationText}
+      />
+    </View>
+  )}
+    </>
+  );
+
+
   return (
     <View style={styles.container} onTouchStart={onDrivingTouch}>
       <TipBubble id="carte" enabled={!navigating && status === 'ready'} />
@@ -1251,108 +1428,149 @@ export default function MapScreen() {
           />
         </View>
       )}
+      {/* Navigation : habillage rangé en zones (components/nav/nav-hud.tsx) */}
+      {navigating && (
+        <NavHud
+          banner={<NavBanner progress={nav.progress} then={thenStep} rerouting={nav.loading} />}
+          alerts={navAlerts}
+          topExtra={
+            <>
+              {convoy && (
+                <ConvoyPanel
+                  convoy={convoy}
+                  compact
+                  position={position}
+                  onGoTo={goToConvoyPoint}
+                  onOpenRide={() => router.push({ pathname: '/ride/[id]', params: { id: convoy.ride.id } })}
+                />
+              )}
+              {toast && (
+                <View style={styles.toast}>
+                  <Text style={styles.toastText}>{toast}</Text>
+                </View>
+              )}
+            </>
+          }
+          speed={<Speedometer compact kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />}
+          status={
+            ghost || homecoming || simulating ? (
+              <>
+                {ghost && (
+                  <HudStatusIcon
+                    icon="ghost"
+                    family="mci"
+                    color={Colors.ghost}
+                    label="Mode fantôme : tu es masqué"
+                    onPress={() => showToast('Mode fantôme : tu es masqué (menu ⋯ pour le quitter)')}
+                  />
+                )}
+                {homecoming && <HudStatusIcon icon="home" color={Colors.accent} label="Je rentre" onPress={() => router.push('/homecoming')} />}
+                {simulating && (
+                  <HudStatusIcon
+                    icon="flask"
+                    color={Colors.accentDark}
+                    label="Simulation de trajet"
+                    onPress={() => showToast('Simulation de trajet : position non publiée')}
+                  />
+                )}
+              </>
+            ) : null
+          }
+          compass={<MapCompass navigating orientation={navOrientation} onPress={toggleNavOrientation} size={NAV_RAIL_BUTTON} />}
+          muted={voice.muted}
+          onMute={() => updateVoiceSettings({ muted: !voice.muted })}
+          onMore={navMoreMenu}
+          sos={
+            <SosButton
+              size={52}
+              onTrigger={() => setSosKind('manual')}
+              onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
+            />
+          }
+          danger={
+            <View style={styles.dangerColumn} pointerEvents="box-none">
+              {/* Interrupteur dans ⋯, rappelé ici seulement quand il est activé */}
+              {passenger && <PassengerToggle on={passenger} onChange={setPassenger} />}
+              <DangerButton
+                riding={riding && !passenger}
+                onPress={() => (riding && !passenger ? markDangerWhileRiding() : setQuickSheet(true))}
+              />
+            </View>
+          }
+          onRecenter={follow ? null : () => setFollow(true)}
+          bottom={
+            <>
+              {undo && <UndoReportBar type={undo.type} seconds={undoSecondsLeft} onUndo={() => setUndo(null)} />}
+              {selectedCards}
+              {navCards}
+            </>
+          }
+          attribution={`${glShown ? 'MapLibre' : 'Leaflet'} · © MapTiler © OpenStreetMap`}
+        />
+      )}
       {/* Couche des commandes : couvre tout l'écran au-dessus de la carte, recherche en haut, + en bas */}
+      {!navigating && (
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <View style={styles.header} pointerEvents="box-none">
-          {navigating ? (
-            <>
-              <NavBanner progress={nav.progress} danger={danger} rerouting={nav.loading} />
-              <NavWeatherChip ahead={navWeather} />
-              {zoneNow?.official && <MotoAlertChip icon={<ZoneIcon size={22} />} text="Zone de danger, prudence" tone="danger" />}
-              {curveAlert && <MotoAlertChip icon={curveAlert.side === 'left' ? '↰' : '↱'} text={curveAlert.text} />}
-              {sunAlert && <MotoAlertChip icon="🌇" text={sunAlert.text} tone="night" />}
-              {sparseReminder && <MotoAlertChip icon="⛽" text={sparseReminder} />}
-              {simulating && <MotoAlertChip icon="🧪" text="Simulation de trajet : position non publiée" tone="night" />}
-            </>
-          ) : (
-            <SearchBar
-              near={position}
-              onSelect={chooseDestination}
-              below={nav.phase === 'idle' ? <QuickPlaces near={position} onSelect={chooseDestination} /> : null}
-              categories={nav.phase === 'idle'}
-            />
-          )}
+          <SearchBar
+            near={position}
+            onSelect={chooseDestination}
+            below={nav.phase === 'idle' ? <QuickPlaces near={position} onSelect={chooseDestination} /> : null}
+            categories={nav.phase === 'idle'}
+          />
 
           <View style={styles.top} pointerEvents="box-none">
             <View style={styles.left} pointerEvents="box-none">
               <Speedometer kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />
-              {!navigating && (
-                <>
-                  <Pressable
-                    style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
-                    onPress={onGhostPress}
-                    disabled={!settings || togglingGhost}
-                    accessibilityLabel={ghost ? 'Quitter le mode fantôme' : 'Passer en mode fantôme'}>
-                    {togglingGhost ? (
-                      <ActivityIndicator color={ghost ? Colors.white : Colors.ghost} />
-                    ) : (
-                      <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
-                    )}
-                  </Pressable>
-                  <SosButton
-                    onTrigger={() => setSosKind('manual')}
-                    onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
-                  />
-                  <MapCompass navigating={false} orientation={navOrientation} onPress={() => setNorthUpKey((k) => k + 1)} />
-                </>
-              )}
-            </View>
-            {navigating ? (
-              // Navigation : une colonne fine sur le bord (boussole, son, ⋯, SOS) ; le reste est dans ⋯
-              <View style={styles.navRail}>
-                <MapCompass navigating orientation={navOrientation} onPress={toggleNavOrientation} size={NAV_RAIL_BUTTON} />
-                {/* Muet rapide : coupe toutes les annonces vocales (mémorisé) */}
-                <Pressable
-                  style={[styles.railButton, voice.muted && styles.muteOn]}
-                  onPress={() => updateVoiceSettings({ muted: !voice.muted })}
-                  hitSlop={6}
-                  accessibilityLabel={voice.muted ? 'Réactiver la voix' : 'Couper la voix'}>
-                  <Ionicons name={voice.muted ? 'volume-mute' : 'volume-high'} size={22} color={voice.muted ? Colors.white : Colors.accent} />
-                </Pressable>
-                <Pressable style={styles.railButton} onPress={navMoreMenu} hitSlop={6} accessibilityLabel="Plus d’options">
-                  <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text} />
-                  {ghost && <View style={styles.railDot} />}
-                </Pressable>
-                <SosButton
-                  size={NAV_RAIL_BUTTON}
-                  onTrigger={() => setSosKind('manual')}
-                  onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
-                />
-              </View>
-            ) : (
-              <View style={styles.right} pointerEvents="box-none">
-                {/* Afficher / masquer les calques (choix mémorisé) */}
-                <LayerButton
-                  active={layers.showReports}
-                  icon="warning"
-                  label={layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements'}
-                  onPress={() => layers.setShowReports(!layers.showReports)}
-                />
-                {!homecoming && (
-                  <Pressable
-                    style={styles.layerButton}
-                    onPress={() => router.push('/homecoming')}
-                    hitSlop={6}
-                    accessibilityLabel="Je rentre : prévenir mes contacts si je n'arrive pas">
-                    <Ionicons name="home-outline" size={24} color={Colors.accent} />
-                  </Pressable>
+              <Pressable
+                style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
+                onPress={onGhostPress}
+                disabled={!settings || togglingGhost}
+                accessibilityLabel={ghost ? 'Quitter le mode fantôme' : 'Passer en mode fantôme'}>
+                {togglingGhost ? (
+                  <ActivityIndicator color={ghost ? Colors.white : Colors.ghost} />
+                ) : (
+                  <MaterialCommunityIcons name="ghost" size={28} color={ghost ? Colors.white : Colors.ghost} />
                 )}
-                <LayerButton
-                  active={layers.showRides}
-                  icon="flag"
-                  label={layers.showRides ? 'Masquer les balades et événements' : 'Afficher les balades et événements'}
-                  onPress={() => layers.setShowRides(!layers.showRides)}
-                />
-                <LayerButton
-                  active={layers.showPlaces}
-                  icon="cafe"
-                  label="Filtres de la carte : spots"
-                  onPress={() => setPlaceFilter(true)}
-                />
-                {/* Météo actuelle de l'endroit (toucher = 12 h), après le démarrage */}
-                {startupDone && nav.phase === 'idle' && <MapWeather at={position ?? mapView?.center ?? null} />}
-              </View>
-            )}
+              </Pressable>
+              <SosButton
+                onTrigger={() => setSosKind('manual')}
+                onHint={() => showToast('SOS : garde le bouton appuyé 2 secondes pour alerter tes contacts d’urgence')}
+              />
+              <MapCompass navigating={false} orientation={navOrientation} onPress={() => setNorthUpKey((k) => k + 1)} />
+            </View>
+            <View style={styles.right} pointerEvents="box-none">
+              {/* Afficher / masquer les calques (choix mémorisé) */}
+              <LayerButton
+                active={layers.showReports}
+                icon="warning"
+                label={layers.showReports ? 'Masquer les signalements' : 'Afficher les signalements'}
+                onPress={() => layers.setShowReports(!layers.showReports)}
+              />
+              {!homecoming && (
+                <Pressable
+                  style={styles.layerButton}
+                  onPress={() => router.push('/homecoming')}
+                  hitSlop={6}
+                  accessibilityLabel="Je rentre : prévenir mes contacts si je n'arrive pas">
+                  <Ionicons name="home-outline" size={24} color={Colors.accent} />
+                </Pressable>
+              )}
+              <LayerButton
+                active={layers.showRides}
+                icon="flag"
+                label={layers.showRides ? 'Masquer les balades et événements' : 'Afficher les balades et événements'}
+                onPress={() => layers.setShowRides(!layers.showRides)}
+              />
+              <LayerButton
+                active={layers.showPlaces}
+                icon="cafe"
+                label="Filtres de la carte : spots"
+                onPress={() => setPlaceFilter(true)}
+              />
+              {/* Météo actuelle de l'endroit (toucher = 12 h), après le démarrage */}
+              {startupDone && nav.phase === 'idle' && <MapWeather at={position ?? mapView?.center ?? null} />}
+            </View>
           </View>
 
           {ghost && (
@@ -1410,17 +1628,16 @@ export default function MapScreen() {
         <View style={styles.bottom} pointerEvents="box-none">
           <View style={styles.bottomRow} pointerEvents="box-none">
             {!follow && nav.phase !== 'preview' ? (
-              <Pressable style={[styles.button, styles.recenter, navigating && styles.recenterNav]} onPress={() => setFollow(true)}>
-                <Ionicons name="navigate" size={navigating ? 26 : 20} color={Colors.white} />
-                <Text style={[styles.buttonText, navigating && styles.recenterNavText]}>Recentrer</Text>
+              <Pressable style={[styles.button, styles.recenter]} onPress={() => setFollow(true)}>
+                <Ionicons name="navigate" size={20} color={Colors.white} />
+                <Text style={styles.buttonText}>Recentrer</Text>
               </Pressable>
             ) : (
               <View />
             )}
-            {navigating || riding ? (
+            {riding ? (
               <View style={styles.dangerColumn} pointerEvents="box-none">
-                {/* En navigation : interrupteur dans ⋯, rappelé ici seulement quand il est activé */}
-                {(!navigating || passenger) && <PassengerToggle on={passenger} onChange={setPassenger} />}
+                <PassengerToggle on={passenger} onChange={setPassenger} />
                 <DangerButton
                   riding={riding && !passenger}
                   onPress={() => (riding && !passenger ? markDangerWhileRiding() : setQuickSheet(true))}
@@ -1432,7 +1649,7 @@ export default function MapScreen() {
           </View>
           {undo && <UndoReportBar type={undo.type} seconds={undoSecondsLeft} onUndo={() => setUndo(null)} />}
 
-          {dropped && !navigating && (
+          {dropped && (
             <View style={styles.card}>
               <DroppedPinCard
                 place={dropped.place}
@@ -1456,99 +1673,7 @@ export default function MapScreen() {
               />
             </View>
           )}
-          {selectedRide && (
-            <View style={styles.card}>
-              <RideCard
-                ride={selectedRide}
-                distanceFromMeM={position ? distanceM(position, selectedRide.meeting) : null}
-                onPress={() => openRide(selectedRide)}
-              />
-              <Pressable style={styles.rideClose} onPress={() => setSelectedId(null)} hitSlop={10} accessibilityLabel="Fermer">
-                <Ionicons name="close" size={20} color={Colors.textMuted} />
-              </Pressable>
-            </View>
-          )}
-          {selectedPlace && (
-            <View style={styles.card}>
-              <PlaceCard
-                place={selectedPlace}
-                distanceM={position ? distanceM(position, selectedPlace) : null}
-                onPress={() => openPlace(selectedPlace)}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedStation && (
-            <View style={styles.card}>
-              <FuelStationCard
-                station={selectedStation}
-                myFuel={myGarage?.fuelType ?? null}
-                distanceM={position ? distanceM(position, selectedStation) : null}
-                onGo={() => {
-                  const place = { label: `⛽ ${stationTitle(selectedStation)}`, latitude: selectedStation.latitude, longitude: selectedStation.longitude, source: 'lieu' as const };
-                  setSelectedId(null);
-                  // Aperçu en cours : la station devient une étape ; sinon c'est la destination
-                  if (nav.phase === 'preview') nav.addStop(place);
-                  else chooseDestination(place);
-                }}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedParking && (
-            <View style={styles.card}>
-              <ParkingCard
-                parking={selectedParking}
-                distanceM={position ? distanceM(position, selectedParking) : null}
-                onGo={() =>
-                  chooseDestination({
-                    label: `🅿️ ${parkingTitle(selectedParking)}`,
-                    latitude: selectedParking.latitude,
-                    longitude: selectedParking.longitude,
-                    source: 'lieu',
-                  })
-                }
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedEvent && (
-            <View style={styles.card}>
-              <EventCard
-                event={selectedEvent}
-                distanceM={position ? distanceM(position, selectedEvent.place) : null}
-                onPress={() => openEvent(selectedEvent)}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedReport && (
-            <View style={styles.card}>
-              <ReportCard
-                report={selectedReport}
-                distanceM={position ? distanceM(position, selectedReport) : null}
-                mine={selectedReport.authorId === userId || selectedReport.authorId === 'me'}
-                alreadyVoted={votedIds.includes(selectedReport.id)}
-                onVote={(v) => vote(selectedReport.id, v).catch((e) => Alert.alert('Vote impossible', String(e)))}
-                onDelete={() => removeMine(selectedReport.id)}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-          {selectedReal && (
-            <View style={styles.card}>
-              <PersonCard
-                photoUrl={photoUrl(selectedReal.avatarPath)}
-                username={selectedReal.username}
-                motoLabel={motoLabel(selectedReal.moto)}
-                speedKmh={selectedReal.speedKmh}
-                distanceM={position ? distanceM(position, selectedReal) : null}
-                onViewProfile={() => router.push({ pathname: '/user/[id]', params: { id: selectedReal.userId } })}
-                onClose={() => setSelectedId(null)}
-              />
-            </View>
-          )}
-
+          {selectedCards}
           {nav.phase === 'preview' && nav.destination && (
             <View style={styles.card}>
               <RoutePreviewSheet
@@ -1588,61 +1713,9 @@ export default function MapScreen() {
               />
             </View>
           )}
-          {navigating && fuelCheck && (
-            <View style={styles.card}>
-              <FuelCheckBanner leftKm={fuelLeftKm} onPick={pickFuelLevel} onClose={() => setFuelCheck(false)} />
-            </View>
-          )}
-          {navigating && breakReminder.reminder && (
-            <View style={styles.card}>
-              <BreakBanner
-                reminder={breakReminder.reminder}
-                stopped={kmh <= DRIVING_LOCK_SPEED_KMH}
-                onAdd={() => {
-                  const spot = breakReminder.reminder?.suggestion;
-                  if (spot) nav.addStop(spot);
-                  breakReminder.dismiss();
-                }}
-                onClose={breakReminder.dismiss}
-              />
-            </View>
-          )}
-          {navigating && fuelAlert.suggestion && (
-            <View style={styles.card}>
-              <FuelSuggestionCard
-                suggestion={fuelAlert.suggestion}
-                onAdd={() => {
-                  const station = fuelAlert.suggestion?.station;
-                  if (station) nav.addStop(station);
-                  fuelAlert.dismiss();
-                }}
-                onSearch={() => {
-                  fuelAlert.dismiss();
-                  setStopPicker({ kind: 'fuel' });
-                }}
-                onClose={fuelAlert.dismiss}
-              />
-            </View>
-          )}
-          {navigating && (
-            <View style={styles.card}>
-              <NavSheet
-                progress={nav.progress}
-                stops={nav.stops}
-                sharedWith={nav.shares.map((x) => x.username)}
-                onStop={stopNavigation}
-                onFuel={() => setStopPicker({ kind: 'fuel' })}
-                onAddStop={() => setStopPicker({ kind: null })}
-                onShare={() => setShareSheet(true)}
-                onRemoveStop={nav.removeStop}
-                fuelLeftKm={fuelLeftKm}
-                onFilled={fuelRange(myGarage) ? fuelFilled : undefined}
-                nextStation={nextStationText}
-              />
-            </View>
-          )}
         </View>
       </View>
+      )}
 
       {stopPicker && (
         <StopPicker
@@ -1823,28 +1896,6 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   layerButtonOn: { backgroundColor: Colors.accent },
-  // Navigation : colonne fine sur le bord droit, fond semi-transparent
-  navRail: {
-    gap: 8,
-    padding: 4,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.surfaceGlass,
-    alignItems: 'center',
-  },
-  railButton: {
-    width: NAV_RAIL_BUTTON,
-    height: NAV_RAIL_BUTTON,
-    borderRadius: NAV_RAIL_BUTTON / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    elevation: 2,
-    shadowColor: Colors.shadow,
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  railDot: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.ghost },
   layerStrike: {
     position: 'absolute',
     width: 34,
@@ -1869,10 +1920,7 @@ const useStyles = makeStyles((Colors) => ({
     shadowOffset: { width: 0, height: 2 },
   },
   ghostButtonOn: { backgroundColor: Colors.ghost },
-  muteOn: { backgroundColor: Colors.danger, borderColor: Colors.danger },
   recenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  recenterNav: { minHeight: 64, paddingHorizontal: 24, borderRadius: 32 },
-  recenterNavText: { fontSize: Type.large, fontWeight: '800' },
   ghostBanner: {
     alignSelf: 'center',
     flexDirection: 'row',

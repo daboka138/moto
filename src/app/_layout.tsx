@@ -239,6 +239,7 @@ function RootNavigator() {
           <Stack.Screen name="club/[id]" options={{ headerShown: true, title: '' }} />
           <Stack.Screen name="search" />
           <Stack.Screen name="admin" options={{ headerShown: true, title: 'Console développeur' }} />
+          <Stack.Screen name="nav-preview" />
           <Stack.Screen name="loop" options={{ headerShown: true, title: 'Fais-moi une boucle' }} />
           <Stack.Screen name="pick-place" options={{ headerShown: true, title: 'Choisir un lieu' }} />
           <Stack.Screen name="welcome" options={{ animation: 'fade' }} />

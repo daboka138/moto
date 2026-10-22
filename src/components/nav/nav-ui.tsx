@@ -8,17 +8,14 @@ import { Fonts, makeStyles, MapIconColors, Radius, Type, useColors } from '@/con
 import type { RouteOptions } from '@/lib/moto';
 import { needsValhalla, shortDistance, variantInfo, variantOptions, type ManeuverIcon, type RouteVariant } from '@/lib/navigation';
 import { poiInfo } from '@/lib/pois';
-import { reportInfo } from '@/lib/reports';
 import { formatDuration } from '@/lib/routing';
 import { countSignalsOnRoute } from '@/lib/traffic-signals';
 import type { LatLng } from '@/lib/geo';
 import type { SearchResult } from '@/lib/search';
 import type { FuelSuggestion } from '@/lib/fuel';
-import type { DangerAhead } from '@/lib/use-danger-alerts';
 import { etaFrom, type NavProgress, type RouteChoice } from '@/lib/use-navigation';
 import type { RouteWeather } from '@/lib/weather';
 import { FUEL_CREDIT, formatPrice, type FuelType, type RouteStation } from '@/lib/fuel-prices';
-import { ReportIcon } from '@/components/map-icon';
 
 /** « 🚦 3 feux » sur l'itinéraire (trajets de moins de 60 km ; rien si inconnu ou aucun) */
 function SignalCount({ route }: { route: { points: LatLng[]; distanceM: number } }) {
@@ -416,52 +413,56 @@ function OptionChip({
   );
 }
 
-/** Bandeau du haut : prochaine manœuvre en gros, alerte danger en dessous. */
+/**
+ * Bandeau du haut, compact : prochaine manœuvre (distance + action sur une ligne, route en petit) et,
+ * si elle suit de près, la manœuvre d'après (« puis à droite »). Les alertes sont dans la pastille de
+ * NavHud, plus ici.
+ */
 export function NavBanner({
   progress,
-  danger,
+  then,
   rerouting,
 }: {
   progress: NavProgress | null;
-  danger: DangerAhead | null;
+  /** Manœuvre suivante si elle arrive juste après (< 300 m) */
+  then?: { icon: ManeuverIcon; action: string } | null;
   rerouting: boolean;
 }) {
   const Colors = useColors();
   const styles = useStyles();
   const next = progress?.next;
+  const recalc = progress?.offRoute || (rerouting && !!progress);
   return (
-    <View style={styles.bannerWrap}>
-      <View style={styles.banner}>
-        {next ? (
-          <>
-            <MaterialCommunityIcons name={ICONS[next.step.icon]} size={56} color={Colors.white} />
-            <View style={styles.bannerText}>
+    <View style={styles.banner}>
+      {next ? (
+        <>
+          <MaterialCommunityIcons name={ICONS[next.step.icon]} size={40} color={Colors.white} />
+          <View style={styles.bannerText}>
+            <Text style={styles.bannerLine} numberOfLines={1}>
               <Text style={styles.bannerDistance}>{shortDistance(next.distanceM)}</Text>
-              <Text style={styles.bannerAction} numberOfLines={2}>
-                {next.step.action}
-              </Text>
-              {!!next.step.road && (
+              {'  '}
+              <Text style={styles.bannerAction}>{next.step.action}</Text>
+            </Text>
+            {recalc ? (
+              <Text style={styles.bannerRoad}>Recalcul de l’itinéraire…</Text>
+            ) : (
+              !!next.step.road && (
                 <Text style={styles.bannerRoad} numberOfLines={1}>
                   {next.step.road}
                 </Text>
-              )}
-            </View>
-          </>
-        ) : (
-          <Text style={styles.bannerAction}>{progress ? 'Suivez l’itinéraire' : 'Calcul de l’itinéraire…'}</Text>
-        )}
-      </View>
-      {(progress?.offRoute || (rerouting && !!progress)) && (
-        <View style={[styles.chip, { backgroundColor: Colors.ghost }]}>
-          <Text style={styles.chipText}>Recalcul de l’itinéraire…</Text>
-        </View>
+              )
+            )}
+          </View>
+        </>
+      ) : (
+        <Text style={styles.bannerAction}>
+          {recalc ? 'Recalcul de l’itinéraire…' : progress ? 'Suis l’itinéraire' : 'Calcul de l’itinéraire…'}
+        </Text>
       )}
-      {danger && (
-        <View style={[styles.chip, { backgroundColor: Colors.danger }, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-          <ReportIcon type={danger.report.type} size={22} />
-          <Text style={styles.chipText}>
-            {reportInfo(danger.report.type).label} dans {shortDistance(danger.distanceM)}
-          </Text>
+      {next && then && (
+        <View style={styles.bannerThen}>
+          <Text style={styles.bannerThenText}>puis</Text>
+          <MaterialCommunityIcons name={ICONS[then.icon]} size={20} color={Colors.white} />
         </View>
       )}
     </View>
@@ -556,6 +557,7 @@ export function NavSheet({
 
   return (
     <BottomSheet
+      compact
       initiallyExpanded={false}
       onCollapse={minimize}
       header={
@@ -679,18 +681,20 @@ function ActionButton({
 }
 
 /** Compteur de vitesse et panneau de limitation ; rouge si je dépasse. */
-export function Speedometer({ kmh, limit, over }: { kmh: number; limit: number | null; over: boolean }) {
+export function Speedometer({ kmh, limit, over, compact }: { kmh: number; limit: number | null; over: boolean; compact?: boolean }) {
   const styles = useStyles();
   return (
     <View style={styles.speedRow}>
-      <View style={[styles.speed, over && styles.speedOver]}>
-        <Text style={styles.speedValue}>{kmh}</Text>
+      <View style={[styles.speed, compact && styles.speedCompact, over && styles.speedOver]}>
+        <Text style={[styles.speedValue, compact && styles.speedValueCompact]}>{kmh}</Text>
         <Text style={styles.speedUnit}>km/h</Text>
       </View>
       {limit !== null && (
-        <View style={styles.limitRim} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
-          <View style={styles.limit}>
-            <Text style={[styles.limitText, limit >= 100 && styles.limitText3]}>{limit}</Text>
+        <View style={[styles.limitRim, compact && styles.limitRimCompact]} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
+          <View style={[styles.limit, compact && styles.limitCompact]}>
+            <Text style={[styles.limitText, limit >= 100 && styles.limitText3, compact && styles.limitTextCompact, compact && limit >= 100 && styles.limitText3Compact]}>
+              {limit}
+            </Text>
           </View>
         </View>
       )}
@@ -808,20 +812,24 @@ const useStyles = makeStyles((Colors) => ({
   go: { flex: 2, backgroundColor: Colors.accent },
   goText: { fontSize: Type.large, fontWeight: '900', color: Colors.white },
   pressed: { opacity: 0.6 },
-  bannerWrap: { gap: 8 },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 10,
     backgroundColor: Colors.guidance,
     borderRadius: Radius.lg,
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     elevation: 4,
   },
   bannerText: { flex: 1 },
+  bannerLine: { color: Colors.white },
   bannerDistance: { color: Colors.white, fontSize: Type.title, fontWeight: '900' },
   bannerAction: { color: Colors.white, fontSize: Type.large, fontWeight: '700' },
-  bannerRoad: { color: Colors.successSoft, fontSize: Type.body },
+  bannerRoad: { color: Colors.successSoft, fontSize: Type.small + 1 },
+  // « puis ↱ » : manœuvre suivante toute proche, dans le coin du bandeau
+  bannerThen: { alignItems: 'center', paddingLeft: 8, borderLeftWidth: 1, borderLeftColor: Colors.successSoft },
+  bannerThenText: { color: Colors.successSoft, fontSize: Type.small },
   chip: { alignSelf: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, elevation: 4 },
   chipText: { color: Colors.white, fontWeight: '800', fontSize: Type.body },
   navHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -850,8 +858,8 @@ const useStyles = makeStyles((Colors) => ({
     gap: 8,
     backgroundColor: Colors.danger,
     borderRadius: Radius.md,
-    paddingHorizontal: 24,
-    minHeight: 68,
+    paddingHorizontal: 18,
+    minHeight: 56,
   },
   stopText: { color: Colors.white, fontSize: Type.large, fontWeight: '900' },
   actions: { flexDirection: 'row', gap: 12 },
@@ -876,6 +884,13 @@ const useStyles = makeStyles((Colors) => ({
     paddingVertical: 8,
   },
   speedOver: { backgroundColor: Colors.danger },
+  // Navigation : compteur compact, panneau collé à côté
+  speedCompact: { paddingHorizontal: 10, paddingVertical: 4, minWidth: 64 },
+  speedValueCompact: { fontSize: 28, lineHeight: 32, fontWeight: '700' },
+  limitRimCompact: { width: 50, height: 50, borderRadius: 25 },
+  limitCompact: { borderRadius: 23, borderWidth: 6 },
+  limitTextCompact: { fontFamily: Fonts.title, fontSize: 21 },
+  limitText3Compact: { fontFamily: Fonts.title, fontSize: 17 },
   speedValue: { color: Colors.white, fontSize: 36, fontWeight: '700', fontVariant: ['tabular-nums'] },
   speedUnit: { color: Colors.white, fontSize: Type.small, opacity: 0.8 },
   // Panneau rond de limitation façon panneau officiel (B14) : couronne rouge, fond blanc, chiffres noirs,

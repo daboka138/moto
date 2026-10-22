@@ -20,6 +20,7 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
   /* Appui long : pas de sélection de texte ni de menu du navigateur */
   body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   ${mapCss(Colors)}
+  .nav .leaflet-control-attribution { display: none; }
 </style>
 </head>
 <body>
@@ -359,6 +360,8 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
 
     // Début de navigation : zoom de conduite tout de suite
     if (nav && !me.nav) zoomTo(navZoom, null, false);
+    // Navigation : mentions des cartes affichées en tout petit par l'écran (rien sous le volet)
+    if (!!nav !== me.nav) container.classList.toggle('nav', !!nav);
     // Fin de navigation : retour nord en haut
     if (!nav && me.nav) resetNorth = true;
     me.nav = !!nav;

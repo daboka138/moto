@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SideRail } from '@/components/side-rail';
 import { Type, useColors } from '@/constants/theme';
 import { useGuideState } from '@/guide/state';
+import { useAppBusy } from '@/lib/app-busy';
 import { useNotificationsBadge } from '@/lib/notifications';
 import { useInbox } from '@/lib/use-inbox';
 import { TAB_RAIL_WIDTH, usePageStyle, useWideLayout } from '@/lib/use-wide-layout';
@@ -32,6 +33,8 @@ export default function TabsLayout() {
   const pageStyle = usePageStyle(Colors.background, wide ? TAB_RAIL_WIDTH : 0);
   // Premier lancement : présentation de l'app (une seule fois, relançable dans Paramètres › Aide)
   const { welcomeDone } = useGuideState();
+  // Navigation en cours : la carte prend tout l'écran (barre d'onglets cachée, revient à l'arrêt)
+  const navigating = useAppBusy().has('navigation');
   if (!welcomeDone) return <Redirect href="/welcome" />;
   return (
     <Tabs
@@ -67,7 +70,12 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen
         name="index"
-        options={{ title: 'Carte', tabBarIcon: icon('map', 'map-outline'), sceneStyle: { flex: 1, backgroundColor: Colors.background } }}
+        options={{
+          title: 'Carte',
+          tabBarIcon: icon('map', 'map-outline'),
+          sceneStyle: { flex: 1, backgroundColor: Colors.background },
+          ...(navigating && !wide && { tabBarStyle: { display: 'none' } }),
+        }}
       />
       {/* Mur : sur grand écran il place lui-même son fil (680 px) et sa colonne de droite */}
       <Tabs.Screen

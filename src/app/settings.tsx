@@ -176,6 +176,8 @@ export default function SettingsScreen() {
       {isAdmin && (
         <LinkGroup>
           <LinkRow icon="speedometer-outline" label="Mesures du démarrage" onPress={showStartupReport} />
+          <LinkSeparator />
+          <LinkRow icon="navigate-outline" label="Aperçu de l’écran de navigation" onPress={() => router.push('/nav-preview')} />
         </LinkGroup>
       )}
 
