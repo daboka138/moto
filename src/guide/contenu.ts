@@ -264,7 +264,7 @@ export const FICHES: Fiche[] = [
       'Mode fantôme pendant la navigation : une petite icône fantôme à côté de ta vitesse.',
       'Glisse, pince ou tourne la carte à deux doigts pour regarder plus loin sur ton trajet ; « ⋯ › Voir tout le trajet » montre l’itinéraire entier. Le petit bouton rond Recentrer remet le mode conduite, sinon il revient tout seul après 10 secondes sans toucher.',
       'Touche la boussole pour avoir le nord en haut (et encore une fois pour revenir à ta direction) : ton choix est gardé pour la prochaine navigation.',
-      'À l’arrêt, ta flèche et la carte ne bougent plus : elles gardent ta dernière direction jusqu’à ce que tu repartes. Le faisceau bleu autour de toi montre où pointe ton téléphone (il disparaît si la boussole n’est pas fiable).',
+      'À l’arrêt, la carte ne tourne plus et ta flèche suit ton téléphone quand tu tournes sur toi-même ; elle ne tremble pas sur un support en voiture (boussole ignorée si elle n’est pas fiable ou si le téléphone est presque vertical). Hors navigation, c’est le faisceau bleu autour de toi qui montre où pointe ton téléphone.',
       'Hors itinéraire ? Le trajet est recalculé tout seul.',
       'Si l’app se ferme, ta navigation reprend à la réouverture (moins de 6 h).',
       'Pluie annoncée plus loin ? La voix te prévient (« Pluie prévue dans ~40 km »).',
