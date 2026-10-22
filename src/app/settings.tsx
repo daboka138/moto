@@ -585,7 +585,7 @@ const NOTIFICATION_TYPES: { key: keyof NotificationPrefs; label: string; descrip
   { key: 'rides', label: 'Balades', description: 'Invitations, rappel 1 h avant le rendez-vous, commentaires sur tes balades.' },
   { key: 'friends', label: 'Amis et commentaires', description: 'Demandes d’ami, commentaires sur tes photos, J’aime sur tes stories, avis sur tes lieux.' },
   { key: 'dangers', label: 'Dangers près de moi', description: 'Signalement à moins de 3 km de ta dernière position.' },
-  { key: 'garage', label: 'Rappels d’entretien', description: 'Vidange, pneus, chaîne, révision : selon le carnet de ton Garage.' },
+  { key: 'garage', label: 'Rappels d’entretien', description: 'Vidange, pneus, chaîne, contrôle technique, assurance : selon les rappels de ton Garage.' },
   { key: 'weather', label: 'Météo de mes balades', description: 'La veille au soir, si la météo prévue sur le parcours est mauvaise (pluie, vent fort, gel, forte chaleur).' },
 ];
 

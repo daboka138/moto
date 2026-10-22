@@ -1,31 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
 import { DateTimeField } from '@/components/form-fields';
 import { Button, Chip, Field, Section } from '@/components/ui';
-import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { Fonts, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
-  addRecord,
   deletePlan,
   deleteRecord,
   dueText,
   fuelRange,
+  INSPECTION_HINT,
+  invoiceUrl,
+  KIND_GROUPS,
   kindInfo,
-  MAINTENANCE_KINDS,
   markFilled,
   PLAN_KINDS,
   planStatus,
-  savePlan,
+  RECORD_KINDS,
+  removeInvoice,
   saveGarage,
+  savePlan,
+  saveRecord,
+  spentByYear,
+  uploadInvoice,
   useMyGarage,
   type Garage,
   type MaintenanceKind,
   type MaintenancePlan,
+  type MaintenanceRecord,
   type PlanKind,
 } from '@/lib/garage';
+import { errorMessage } from '@/lib/errors';
+import { pickImage } from '@/lib/pick-image';
 import { useSession } from '@/lib/session';
 import { FUEL_TYPES, type FuelType } from '@/lib/fuel-prices';
 import { FeatureGate } from '@/components/feature-gate';
@@ -41,9 +51,15 @@ function num(text: string) {
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const fromIsoDay = (s: string) => new Date(`${s}T12:00:00`);
 const frDay = (s: string) => fromIsoDay(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const euros = (n: number) => `${n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
 
-/** Fiche garage d'une moto : compteur, carburant, rappels d'entretien, carnet. */
+/**
+ * Fiche garage d'une moto : compteur, carburant, rappels d'entretien, carnet.
+ * Carnet et rappels : moto principale seulement (le multi-motos est prévu en premium) ; sur une
+ * autre moto, l'historique déjà noté reste visible en lecture.
+ */
 function MotoGarageScreenContent() {
+  const Colors = useColors();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, profile } = useSession();
@@ -59,19 +75,28 @@ function MotoGarageScreenContent() {
     );
   }
 
+  const editable = moto.is_main;
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Stack.Screen options={{ title: `${moto.brand} ${moto.model}` }} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.hint}>
+          {[moto.brand, moto.model, moto.year ? String(moto.year) : null].filter(Boolean).join(' · ')}
+          {moto.is_main ? ' · moto principale' : ''}
+        </Text>
         {/* Remonté quand les données arrivent : les champs repartent des valeurs enregistrées */}
         <CounterSection key={all ? `g-${data.garage?.odometerKm}-${data.garage?.fillOdometerKm}` : 'loading'} motoId={id} garage={data.garage} />
-        <Section title="Rappels d’entretien">
-          {PLAN_KINDS.map((k) => (
-            <PlanRow key={k} motoId={id} kind={k} plan={data.plans.find((p) => p.kind === k) ?? null} odometerKm={data.garage?.odometerKm ?? null} />
-          ))}
-          <Text style={styles.hint}>Tu reçois une notification 500 km ou 15 jours avant l’échéance, puis le jour J.</Text>
-        </Section>
-        <LogSection motoId={id} garage={data.garage} records={data.records} />
+        {!editable && (
+          <View style={styles.notice}>
+            <Ionicons name="information-circle-outline" size={20} color={Colors.accentOnSoft} />
+            <Text style={styles.noticeText}>
+              Le carnet d’entretien et les rappels suivent ta moto principale. Pour les utiliser avec celle-ci, choisis-la comme moto
+              principale dans ton profil.
+            </Text>
+          </View>
+        )}
+        <PlansSection motoId={id} plans={data.plans} odometerKm={data.garage?.odometerKm ?? null} editable={editable} />
+        <LogSection motoId={id} garage={data.garage} records={data.records} editable={editable} userId={session?.user.id ?? ''} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -184,30 +209,81 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
   );
 }
 
-function PlanRow({ motoId, kind, plan, odometerKm }: { motoId: string; kind: PlanKind; plan: MaintenancePlan | null; odometerKm: number | null }) {
+// ---------- Rappels ----------
+
+function PlansSection({ motoId, plans, odometerKm, editable }: { motoId: string; plans: MaintenancePlan[]; odometerKm: number | null; editable: boolean }) {
+  const styles = useStyles();
+  const [adding, setAdding] = useState<PlanKind | null>(null);
+  const order = (p: MaintenancePlan) => ['due', 'soon', 'ok'].indexOf(planStatus(p, odometerKm).level);
+  const sorted = [...plans].sort((a, b) => order(a) - order(b));
+  const free = PLAN_KINDS.filter((k) => !plans.some((p) => p.kind === k));
+
+  const choose = () =>
+    showActionSheet({
+      title: 'Ajouter un rappel',
+      options: free.map((k) => ({ label: kindInfo(k).label, icon: kindInfo(k).icon, onPress: () => setAdding(k) })),
+    });
+
+  return (
+    <Section title="Rappels d’entretien">
+      {sorted.length === 0 && !adding && <Text style={styles.muted}>Aucun rappel. Ajoute-en un : vidange, pneus, chaîne, contrôle technique…</Text>}
+      {sorted.map((p) => (
+        <PlanRow key={p.id} motoId={motoId} kind={p.kind} plan={p} odometerKm={odometerKm} editable={editable} />
+      ))}
+      {adding && <PlanRow key={`new-${adding}`} motoId={motoId} kind={adding} plan={null} odometerKm={odometerKm} editable startOpen onDone={() => setAdding(null)} />}
+      {editable && !adding && free.length > 0 && <Button title="Ajouter un rappel" icon="alarm-outline" variant="secondary" onPress={choose} />}
+      <Text style={styles.hint}>
+        Notification 500 km ou 15 jours avant (30 jours pour le contrôle technique et l’assurance), puis le jour J. Intervalles indicatifs :
+        suis le carnet du constructeur.
+      </Text>
+    </Section>
+  );
+}
+
+function PlanRow({
+  motoId,
+  kind,
+  plan,
+  odometerKm,
+  editable,
+  startOpen,
+  onDone,
+}: {
+  motoId: string;
+  kind: PlanKind;
+  plan: MaintenancePlan | null;
+  odometerKm: number | null;
+  editable: boolean;
+  startOpen?: boolean;
+  onDone?: () => void;
+}) {
   const Colors = useColors();
   const styles = useStyles();
   const info = kindInfo(kind);
-  const [editing, setEditing] = useState(false);
-  const [everyKm, setEveryKm] = useState('');
-  const [everyMonths, setEveryMonths] = useState('');
-  const [baseKm, setBaseKm] = useState('');
-  const [baseOn, setBaseOn] = useState(new Date());
+  const [editing, setEditing] = useState(!!startOpen);
+  const [everyKm, setEveryKm] = useState(String(plan?.everyKm ?? info.everyKm ?? ''));
+  const [everyMonths, setEveryMonths] = useState(String(plan?.everyMonths ?? info.everyMonths ?? ''));
+  const [baseKm, setBaseKm] = useState(String(plan?.baseKm ?? odometerKm ?? ''));
+  const [baseOn, setBaseOn] = useState(plan ? fromIsoDay(plan.baseOn) : new Date());
+  // Contrôle technique / assurance : prochaine échéance saisie
+  const [dueOn, setDueOn] = useState<Date>(() => {
+    if (plan?.dueOn) return fromIsoDay(plan.dueOn);
+    const d = plan ? fromIsoDay(plan.baseOn) : new Date();
+    d.setMonth(d.getMonth() + (plan?.everyMonths ?? info.everyMonths ?? 12));
+    return d;
+  });
   const [saving, setSaving] = useState(false);
   const status = plan ? planStatus(plan, odometerKm) : null;
 
-  const edit = () => {
-    setEveryKm(String(plan?.everyKm ?? info.everyKm ?? ''));
-    setEveryMonths(String(plan?.everyMonths ?? info.everyMonths ?? ''));
-    setBaseKm(String(plan?.baseKm ?? odometerKm ?? ''));
-    setBaseOn(plan ? fromIsoDay(plan.baseOn) : new Date());
-    setEditing(true);
+  const close = () => {
+    setEditing(false);
+    onDone?.();
   };
 
   const save = async () => {
-    const k = num(everyKm);
+    const k = info.dueDate ? null : num(everyKm);
     const m = num(everyMonths);
-    const b = num(baseKm);
+    const b = info.dueDate ? null : num(baseKm);
     const errors: string[] = [];
     if (k === null && m === null) errors.push('Indique un intervalle en km et/ou en mois.');
     if (k !== null && (Number.isNaN(k) || k < 100 || k > 100_000)) errors.push('Intervalle : entre 100 et 100 000 km.');
@@ -223,11 +299,12 @@ function PlanRow({ motoId, kind, plan, odometerKm }: { motoId: string; kind: Pla
         everyKm: k === null ? null : Math.round(k),
         everyMonths: m === null ? null : Math.round(m),
         baseKm: b === null ? null : Math.round(b),
-        baseOn: isoDay(baseOn),
+        baseOn: info.dueDate ? isoDay(new Date()) : isoDay(baseOn),
+        dueOn: info.dueDate ? isoDay(dueOn) : null,
       });
-      setEditing(false);
+      close();
     } catch (e) {
-      Alert.alert('Rappel', e instanceof Error ? e.message : String(e));
+      Alert.alert('Rappel', errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -237,175 +314,332 @@ function PlanRow({ motoId, kind, plan, odometerKm }: { motoId: string; kind: Pla
     if (!plan) return;
     try {
       await deletePlan(plan.id);
-      setEditing(false);
+      close();
     } catch (e) {
-      Alert.alert('Rappel', e instanceof Error ? e.message : String(e));
+      Alert.alert('Rappel', errorMessage(e));
     }
   };
 
   const color = status?.level === 'due' ? Colors.danger : status?.level === 'soon' ? Colors.warning : Colors.textMuted;
+  const every = plan
+    ? [plan.everyKm ? `${plan.everyKm.toLocaleString('fr-FR')} km` : null, plan.everyMonths ? `${plan.everyMonths} mois` : null].filter(Boolean).join(' / ')
+    : '';
 
   return (
     <View style={styles.plan}>
-      <Pressable style={styles.planHeader} onPress={editing ? () => setEditing(false) : edit}>
-        <Text style={styles.emoji}>{info.emoji}</Text>
+      <Pressable style={styles.planHeader} onPress={!editable ? undefined : editing ? close : () => setEditing(true)} disabled={!editable}>
+        <Ionicons name={info.icon} size={22} color={Colors.accent} />
         <View style={{ flex: 1 }}>
           <Text style={styles.planLabel}>{info.label}</Text>
-          <Text style={[styles.small, { color }, status && status.level !== 'ok' && { fontWeight: '800' }]}>
-            {plan && status
-              ? `${dueText(status)} · tous les ${[plan.everyKm ? `${plan.everyKm.toLocaleString('fr-FR')} km` : null, plan.everyMonths ? `${plan.everyMonths} mois` : null].filter(Boolean).join(' / ')}`
-              : 'Pas de rappel · touche pour l’activer'}
+          <Text style={[styles.small, { color }, status && status.level !== 'ok' && { fontFamily: Fonts.bold }]}>
+            {plan && status ? `${dueText(status, kind)}${info.dueDate ? '' : ` · tous les ${every}`}` : 'Nouveau rappel'}
           </Text>
         </View>
-        <Ionicons name={editing ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
+        {editable && <Ionicons name={editing ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />}
       </Pressable>
       {editing && (
         <View style={styles.editor}>
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Field label="Tous les (km)" value={everyKm} onChangeText={setEveryKm} keyboardType="number-pad" maxLength={6} />
-            </View>
-            <View style={styles.col}>
-              <Field label="Et/ou tous les (mois)" value={everyMonths} onChangeText={setEveryMonths} keyboardType="number-pad" maxLength={3} />
-            </View>
-          </View>
-          <Text style={styles.label}>Dernière fois</Text>
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Field label="Au compteur (km)" value={baseKm} onChangeText={setBaseKm} keyboardType="number-pad" maxLength={7} />
-            </View>
-            <View style={styles.col}>
-              <DateTimeField label="Le" mode="date" value={baseOn} onChange={setBaseOn} />
-            </View>
-          </View>
+          {info.dueDate ? (
+            <>
+              <DateTimeField label="Prochaine échéance" mode="date" value={dueOn} onChange={setDueOn} />
+              <Field label="Puis tous les (mois)" value={everyMonths} onChangeText={setEveryMonths} keyboardType="number-pad" maxLength={3} />
+              {kind === 'inspection' && <Text style={styles.hint}>{INSPECTION_HINT}</Text>}
+              {kind === 'insurance' && <Text style={styles.hint}>Date d’échéance de ton contrat (sur ton avis d’échéance).</Text>}
+            </>
+          ) : (
+            <>
+              <View style={styles.row}>
+                <View style={styles.col}>
+                  <Field label="Tous les (km)" value={everyKm} onChangeText={setEveryKm} keyboardType="number-pad" maxLength={6} />
+                </View>
+                <View style={styles.col}>
+                  <Field label="Et/ou tous les (mois)" value={everyMonths} onChangeText={setEveryMonths} keyboardType="number-pad" maxLength={3} />
+                </View>
+              </View>
+              <Text style={styles.label}>Dernière fois</Text>
+              <View style={styles.row}>
+                <View style={styles.col}>
+                  <Field label="Au compteur (km)" value={baseKm} onChangeText={setBaseKm} keyboardType="number-pad" maxLength={7} />
+                </View>
+                <View style={styles.col}>
+                  <DateTimeField label="Le" mode="date" value={baseOn} onChange={setBaseOn} />
+                </View>
+              </View>
+            </>
+          )}
           <Button title="Enregistrer le rappel" loading={saving} onPress={save} />
-          {plan && <Button title="Supprimer le rappel" variant="ghost" onPress={remove} />}
+          {plan ? <Button title="Supprimer le rappel" variant="ghost" onPress={remove} /> : <Button title="Annuler" variant="ghost" onPress={close} />}
         </View>
       )}
     </View>
   );
 }
 
+// ---------- Carnet ----------
+
+type Draft = {
+  id?: string;
+  kind: MaintenanceKind;
+  doneOn: Date;
+  km: string;
+  cost: string;
+  garageName: string;
+  notes: string;
+  invoicePath: string | null;
+};
+
 function LogSection({
   motoId,
   garage,
   records,
+  editable,
+  userId,
 }: {
   motoId: string;
   garage: Garage | null;
-  records: { id: string; kind: MaintenanceKind; doneOn: string; odometerKm: number | null; costEur: number | null; notes: string | null }[];
+  records: MaintenanceRecord[];
+  editable: boolean;
+  userId: string;
 }) {
   const Colors = useColors();
   const styles = useStyles();
-  const [adding, setAdding] = useState(false);
-  const [kind, setKind] = useState<MaintenanceKind>('oil');
-  const [doneOn, setDoneOn] = useState(new Date());
-  const [km, setKm] = useState('');
-  const [cost, setCost] = useState('');
-  const [notes, setNotes] = useState('');
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [viewing, setViewing] = useState<string | null>(null);
+  // Facture envoyée pendant cette saisie (effacée si on annule)
+  const [uploaded, setUploaded] = useState<string | null>(null);
+
+  const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
   const start = () => {
-    setKind('oil');
-    setDoneOn(new Date());
-    setKm(garage ? String(garage.odometerKm) : '');
-    setCost('');
-    setNotes('');
-    setAdding(true);
+    setUploaded(null);
+    setDraft({ kind: 'oil', doneOn: new Date(), km: garage ? String(garage.odometerKm) : '', cost: '', garageName: '', notes: '', invoicePath: null });
+  };
+
+  const edit = (r: MaintenanceRecord) => {
+    setUploaded(null);
+    setDraft({
+      id: r.id,
+      kind: r.kind,
+      doneOn: fromIsoDay(r.doneOn),
+      km: r.odometerKm === null ? '' : String(r.odometerKm),
+      cost: r.costEur === null ? '' : String(r.costEur).replace('.', ','),
+      garageName: r.garageName ?? '',
+      notes: r.notes ?? '',
+      invoicePath: r.invoicePath,
+    });
+  };
+
+  const cancel = () => {
+    if (uploaded) removeInvoice(uploaded);
+    setUploaded(null);
+    setDraft(null);
+  };
+
+  const addInvoice = async () => {
+    const image = await pickImage('Photo de la facture');
+    if (!image) return;
+    setUploading(true);
+    try {
+      const path = await uploadInvoice(userId, image);
+      if (uploaded) removeInvoice(uploaded);
+      setUploaded(path);
+      set({ invoicePath: path });
+    } catch (e) {
+      Alert.alert('Facture', errorMessage(e));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = async () => {
-    const k = num(km);
-    const c = num(cost);
-    if ((k !== null && (Number.isNaN(k) || k < 0)) || (c !== null && (Number.isNaN(c) || c < 0))) {
+    if (!draft) return;
+    const k = num(draft.km);
+    const c = num(draft.cost);
+    if ((k !== null && (Number.isNaN(k) || k < 0 || k > 2_000_000)) || (c !== null && (Number.isNaN(c) || c < 0 || c > 999_999))) {
       Alert.alert('À corriger', 'Kilométrage ou coût invalide.');
       return;
     }
+    const before = draft.id ? records.find((r) => r.id === draft.id) : null;
     setSaving(true);
     try {
-      await addRecord({
+      await saveRecord({
+        id: draft.id,
         motorcycleId: motoId,
-        kind,
-        doneOn: isoDay(doneOn),
+        kind: draft.kind,
+        doneOn: isoDay(draft.doneOn),
         odometerKm: k === null ? null : Math.round(k),
         costEur: c === null ? null : Math.round(c * 100) / 100,
-        notes: notes.trim() || null,
+        notes: draft.notes.trim() || null,
+        garageName: draft.garageName.trim() || null,
+        invoicePath: draft.invoicePath,
       });
-      setAdding(false);
+      // Ancienne facture remplacée ou retirée : effacée du stockage
+      if (before?.invoicePath && before.invoicePath !== draft.invoicePath) removeInvoice(before.invoicePath);
+      // Compteur en retard sur le kilométrage de l'entretien : on propose de l'avancer
+      if (k !== null && garage && Math.round(k) > garage.odometerKm) {
+        const km = Math.round(k);
+        Alert.alert('Compteur', `Mettre le compteur à ${km.toLocaleString('fr-FR')} km ?`, [
+          { text: 'Non', style: 'cancel' },
+          { text: 'Oui', onPress: () => saveGarage(motoId, { odometerKm: km }).catch((e) => Alert.alert('Oups', errorMessage(e))) },
+        ]);
+      }
+      setUploaded(null);
+      setDraft(null);
     } catch (e) {
-      Alert.alert('Carnet', e instanceof Error ? e.message : String(e));
+      Alert.alert('Carnet', errorMessage(e));
     } finally {
       setSaving(false);
     }
   };
 
-  const menu = (id: string, title: string) =>
+  const menu = (r: MaintenanceRecord) =>
     showActionSheet({
-      title,
+      title: kindInfo(r.kind).label,
       options: [
+        ...(editable ? [{ label: 'Modifier', icon: 'create-outline' as const, onPress: () => edit(r) }] : []),
+        ...(r.invoicePath ? [{ label: 'Voir la facture', icon: 'receipt-outline' as const, onPress: () => setViewing(r.invoicePath) }] : []),
         {
           label: 'Supprimer cet entretien',
+          icon: 'trash-outline' as const,
           destructive: true,
-          onPress: () => deleteRecord(id).catch((e) => Alert.alert('Carnet', String(e))),
+          onPress: () =>
+            Alert.alert('Supprimer cet entretien ?', 'La photo de la facture est effacée aussi.', [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Supprimer', style: 'destructive', onPress: () => deleteRecord(r).catch((e) => Alert.alert('Carnet', errorMessage(e))) },
+            ]),
         },
       ],
     });
 
-  const total = records.reduce((s, r) => s + (r.costEur ?? 0), 0);
+  const years = spentByYear(records);
 
   return (
     <Section title="Carnet d’entretien">
-      {adding ? (
+      {draft ? (
         <View style={styles.editor}>
-          <View style={styles.chips}>
-            {MAINTENANCE_KINDS.map((k) => (
-              <Chip key={k.value} label={`${k.emoji} ${k.label}`} selected={kind === k.value} onPress={() => setKind(k.value)} />
-            ))}
+          {KIND_GROUPS.map((g) => (
+            <View key={g} style={{ gap: 6 }}>
+              <Text style={styles.small}>{g}</Text>
+              <View style={styles.chips}>
+                {RECORD_KINDS.filter((k) => k.group === g).map((k) => (
+                  <Chip key={k.value} label={k.label} icon={k.icon} selected={draft.kind === k.value} onPress={() => set({ kind: k.value })} />
+                ))}
+              </View>
+            </View>
+          ))}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <DateTimeField label="Date" mode="date" value={draft.doneOn} onChange={(doneOn) => set({ doneOn })} />
+            </View>
+            <View style={styles.col}>
+              <Field label="Kilométrage" value={draft.km} onChangeText={(km) => set({ km })} keyboardType="number-pad" maxLength={7} />
+            </View>
           </View>
           <View style={styles.row}>
             <View style={styles.col}>
-              <DateTimeField label="Date" mode="date" value={doneOn} onChange={setDoneOn} />
+              <Field label="Coût (€)" value={draft.cost} onChangeText={(cost) => set({ cost })} keyboardType="decimal-pad" maxLength={9} placeholder="Facultatif" />
             </View>
             <View style={styles.col}>
-              <Field label="Kilométrage" value={km} onChangeText={setKm} keyboardType="number-pad" maxLength={7} />
+              <Field label="Garage" value={draft.garageName} onChangeText={(garageName) => set({ garageName })} maxLength={100} placeholder="Facultatif" />
             </View>
           </View>
-          <Field label="Coût (€)" value={cost} onChangeText={setCost} keyboardType="decimal-pad" maxLength={9} placeholder="Facultatif" />
-          <Field label="Notes" value={notes} onChangeText={setNotes} maxLength={500} multiline placeholder="Garage, pièces, huile utilisée…" />
-          <Button title="Ajouter au carnet" loading={saving} onPress={save} />
-          <Button title="Annuler" variant="ghost" onPress={() => setAdding(false)} />
+          <Field label="Note" value={draft.notes} onChangeText={(notes) => set({ notes })} maxLength={500} multiline placeholder="Pièces, huile utilisée…" />
+          {draft.invoicePath ? (
+            <View style={styles.invoiceRow}>
+              <Ionicons name="receipt-outline" size={20} color={Colors.accent} />
+              <Text style={[styles.planLabel, { flex: 1 }]}>Facture jointe</Text>
+              <Pressable onPress={() => setViewing(draft.invoicePath)} hitSlop={8}>
+                <Text style={styles.link}>Voir</Text>
+              </Pressable>
+              <Pressable onPress={() => set({ invoicePath: null })} hitSlop={8}>
+                <Text style={styles.link}>Retirer</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Button title="Photo de la facture" icon="camera-outline" variant="secondary" loading={uploading} onPress={addInvoice} />
+          )}
+          <Button title={draft.id ? 'Enregistrer' : 'Ajouter au carnet'} loading={saving} disabled={uploading} onPress={save} />
+          <Button title="Annuler" variant="ghost" onPress={cancel} />
         </View>
       ) : (
-        <Button title="+ Noter un entretien" variant="secondary" onPress={start} />
+        editable && <Button title="Noter un entretien" icon="add" variant="secondary" onPress={start} />
       )}
       {records.length === 0 ? (
         <Text style={styles.muted}>Aucun entretien noté pour l’instant.</Text>
       ) : (
-        <>
-          {records.map((r) => {
-            const info = kindInfo(r.kind);
-            return (
-              <Pressable key={r.id} style={styles.record} onLongPress={() => menu(r.id, info.label)} delayLongPress={350}>
-                <Text style={styles.emoji}>{info.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.planLabel}>{info.label}</Text>
-                  <Text style={styles.small}>
-                    {frDay(r.doneOn)}
-                    {r.odometerKm !== null ? ` · ${r.odometerKm.toLocaleString('fr-FR')} km` : ''}
-                    {r.costEur !== null ? ` · ${r.costEur.toLocaleString('fr-FR')} €` : ''}
-                  </Text>
-                  {!!r.notes && <Text style={styles.notes}>{r.notes}</Text>}
-                </View>
-                <Pressable onPress={() => menu(r.id, info.label)} hitSlop={10} accessibilityLabel="Options">
-                  <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textMuted} />
-                </Pressable>
-              </Pressable>
-            );
-          })}
-          {total > 0 && <Text style={styles.hint}>Total dépensé : {total.toLocaleString('fr-FR')} €</Text>}
-        </>
+        records.map((r) => {
+          const info = kindInfo(r.kind);
+          return (
+            <Pressable key={r.id} style={styles.record} onPress={() => menu(r)} onLongPress={() => menu(r)} delayLongPress={350}>
+              <Ionicons name={info.icon} size={22} color={Colors.textMuted} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.planLabel}>{info.label}</Text>
+                <Text style={styles.small}>
+                  {frDay(r.doneOn)}
+                  {r.odometerKm !== null ? ` · ${r.odometerKm.toLocaleString('fr-FR')} km` : ''}
+                  {r.costEur !== null ? ` · ${euros(r.costEur)}` : ''}
+                  {r.garageName ? ` · ${r.garageName}` : ''}
+                </Text>
+                {!!r.notes && <Text style={styles.notes}>{r.notes}</Text>}
+              </View>
+              {r.invoicePath && <Ionicons name="receipt-outline" size={18} color={Colors.textMuted} />}
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.textMuted} />
+            </Pressable>
+          );
+        })
       )}
+      {years.length > 0 && (
+        <View style={styles.totals}>
+          <Text style={styles.label}>Dépenses par an</Text>
+          {years.map((y) => (
+            <View key={y.year} style={styles.totalRow}>
+              <Text style={styles.small}>
+                {y.year} · {y.count} entretien{y.count > 1 ? 's' : ''}
+              </Text>
+              <Text style={styles.totalValue}>{euros(y.total)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      <InvoiceViewer path={viewing} onClose={() => setViewing(null)} />
     </Section>
+  );
+}
+
+/** Facture en plein écran (URL signée temporaire, bucket privé) */
+function InvoiceViewer({ path, onClose }: { path: string | null; onClose: () => void }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [loaded, setLoaded] = useState<{ path: string; url: string } | null>(null);
+  useEffect(() => {
+    if (!path) return;
+    let cancelled = false;
+    invoiceUrl(path)
+      .then((url) => !cancelled && setLoaded({ path, url }))
+      .catch((e) => {
+        if (cancelled) return;
+        Alert.alert('Facture', errorMessage(e));
+        onClose();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // onClose change à chaque rendu du parent : seul le chemin compte
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path]);
+  const url = loaded?.path === path ? loaded.url : null;
+
+  return (
+    <Modal visible={!!path} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.viewer}>
+        {url ? <Image source={{ uri: url }} style={styles.viewerImage} contentFit="contain" /> : <ActivityIndicator color={Colors.white} />}
+        <Pressable style={styles.viewerClose} onPress={onClose} hitSlop={12} accessibilityLabel="Fermer">
+          <Ionicons name="close" size={28} color={Colors.white} />
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
 
@@ -416,19 +650,28 @@ const useStyles = makeStyles((Colors) => ({
   muted: { color: Colors.textMuted, fontSize: Type.body },
   hint: { fontSize: Type.small, color: Colors.textMuted, lineHeight: 18 },
   label: { fontSize: Type.body, fontWeight: '600', color: Colors.text },
+  link: { fontSize: Type.body, fontWeight: '700', color: Colors.accent },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 12 },
+  noticeText: { flex: 1, fontSize: Type.small, color: Colors.accentOnSoft, lineHeight: 18 },
   fuel: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.accentSoft, borderRadius: Radius.md, padding: 12 },
   fuelValue: { fontSize: Type.body, fontWeight: '800', color: Colors.text },
   plan: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, backgroundColor: Colors.background },
   planHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, minHeight: 56 },
   planLabel: { fontSize: Type.body, fontWeight: '700', color: Colors.text },
-  emoji: { fontSize: Type.title },
   small: { fontSize: Type.small, color: Colors.textMuted },
   editor: { gap: 12, padding: 12, paddingTop: 0 },
   record: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 },
   notes: { fontSize: Type.small, color: Colors.text, marginTop: 2 },
+  invoiceRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.md, padding: 12 },
+  totals: { gap: 4, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  totalValue: { fontSize: Type.body, fontWeight: '800', color: Colors.text, fontVariant: ['tabular-nums'] },
+  viewer: { flex: 1, backgroundColor: Colors.viewerBackdrop, alignItems: 'center', justifyContent: 'center' },
+  viewerImage: { width: '100%', height: '100%' },
+  viewerClose: { position: 'absolute', top: 48, right: 16, padding: 4 },
 }));
 
 export default function MotoGarageScreen() {

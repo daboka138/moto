@@ -1,7 +1,7 @@
 // Supprime définitivement le compte de l'utilisateur qui appelle et toutes ses données.
 // Appelée depuis l'app (Paramètres > Supprimer mon compte), avec le jeton de session.
 //
-// 1. Fichiers de l'utilisateur dans les buckets photos / stories / chat / wallpapers (dossier <user_id>/)
+// 1. Fichiers de l'utilisateur dans les buckets photos / stories / chat / wallpapers / invoices (dossier <user_id>/)
 // 2. Conversations privées (direct) dont il est membre, avec les photos échangées
 // 3. Le compte auth : tout le reste part en cascade (profil, motos, mur, amis,
 //    positions, balades créées, signalements routiers, stories, messages, blocages…)
@@ -9,7 +9,7 @@
 // verify_jwt = false (config.toml) : le jeton est vérifié ici avec auth.getUser().
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
-const BUCKETS = ['photos', 'stories', 'chat', 'wallpapers'];
+const BUCKETS = ['photos', 'stories', 'chat', 'wallpapers', 'invoices'];
 
 // Version web (app.passeryder.fr) : appel depuis le navigateur, donc CORS. L'app native
 // n'envoie pas d'en-tête Origin et n'est pas concernée.

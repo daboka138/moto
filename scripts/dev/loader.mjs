@@ -5,6 +5,7 @@ import { join } from 'node:path';
 const SRC = join(import.meta.dirname, '..', '..', 'src');
 const STUBS = {
   '@/lib/features': 'export const canUse = () => true; export const useCanUse = () => true;',
+  '@/lib/read-file': 'export const readFileBytes = async () => new ArrayBuffer(0);',
   // Client Supabase en LECTURE (clé publishable du .env, chargé par node --env-file=.env)
   '@/lib/supabase':
     "import { createClient } from '@supabase/supabase-js'; export const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: false } });",

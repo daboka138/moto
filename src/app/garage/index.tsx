@@ -19,7 +19,8 @@ function GarageScreenContent() {
   const { session, profile } = useSession();
   const garage = useMyGarage(session?.user.id);
   useEffect(() => trackUsage('garage'), []);
-  const motos = profile?.motorcycles ?? [];
+  // Moto principale en tête : c'est elle qui a le carnet et les rappels
+  const motos = [...(profile?.motorcycles ?? [])].sort((a, b) => Number(b.is_main) - Number(a.is_main));
 
   if (!motos.length) {
     return (
@@ -53,15 +54,17 @@ function GarageScreenContent() {
             <View style={styles.body}>
               <Text style={styles.name}>
                 {m.brand} {m.model}
-                {m.is_main ? '  ⭐' : ''}
+                {m.is_main ? ' · principale' : ''}
               </Text>
               <Text style={styles.line}>
                 {g ? `${g.odometerKm.toLocaleString('fr-FR')} km` : 'Compteur à renseigner'}
                 {range?.leftKm != null ? ` · autonomie ~${Math.round(range.leftKm)} km` : ''}
               </Text>
-              {next ? (
+              {!m.is_main ? (
+                <Text style={styles.muted}>Carnet et rappels : sur ta moto principale</Text>
+              ) : next ? (
                 <Text style={[styles.line, next.s.level !== 'ok' && { color: next.s.level === 'due' ? Colors.danger : Colors.warning, fontFamily: Fonts.bold }]}>
-                  {kindInfo(next.p.kind).emoji} {kindInfo(next.p.kind).label} : {dueText(next.s).toLowerCase()}
+                  {kindInfo(next.p.kind).label} : {dueText(next.s, next.p.kind).toLowerCase()}
                 </Text>
               ) : (
                 <Text style={styles.muted}>Aucun rappel d’entretien</Text>
@@ -72,8 +75,8 @@ function GarageScreenContent() {
         );
       })}
       <Text style={styles.hint}>
-        Le compteur avance tout seul à la fin de chaque navigation faite avec ta moto principale. Ces données ne sont
-        visibles que par toi.
+        Le compteur avance tout seul à la fin de chaque navigation faite avec ta moto principale (tu peux le corriger à la
+        main). Carnet d’entretien, factures et rappels : visibles par toi seul.
       </Text>
     </ScrollView>
   );
