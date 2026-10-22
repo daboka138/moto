@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
-import { useRiderStats } from '@/components/badges-card';
+import { useRiderStats, useUserBadges } from '@/components/badges-card';
 import { Card } from '@/components/profile-view';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { badgeProgress, fetchMyPasses, monthlyChallenges, type RiderPass } from '@/lib/badges';
+import { badgeProgress, checkNewRiderBadges, fetchMyPasses, monthlyChallenges, refreshMyBadges, type RiderPass } from '@/lib/badges';
 import { useSession } from '@/lib/session';
 
 /** Mes badges, défis du mois et cols franchis. */
@@ -12,7 +12,9 @@ export default function BadgesScreen() {
   const Colors = useColors();
   const styles = useStyles();
   const { session } = useSession();
-  const stats = useRiderStats(session?.user.id);
+  const userId = session?.user.id;
+  const stats = useRiderStats(userId);
+  const earned = useUserBadges(userId);
   const [passes, setPasses] = useState<RiderPass[] | null>(null);
 
   useEffect(() => {
@@ -21,7 +23,17 @@ export default function BadgesScreen() {
       .catch(() => setPasses([]));
   }, []);
 
-  if (!stats) {
+  // Revérification par le serveur (carnet devenu à jour…), puis animation des nouveaux
+  useEffect(() => {
+    if (!userId) return;
+    refreshMyBadges()
+      .then((n) => {
+        if (n > 0) checkNewRiderBadges(userId);
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  if (!stats || !earned) {
     return (
       <View style={styles.center}>
         <Text style={styles.muted}>Chargement…</Text>
@@ -30,7 +42,8 @@ export default function BadgesScreen() {
   }
 
   const challenges = monthlyChallenges(stats);
-  const badges = badgeProgress(stats);
+  const badges = badgeProgress(stats, earned);
+  const unlockedCount = badges.filter((b) => b.unlocked).length;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -58,7 +71,7 @@ export default function BadgesScreen() {
         ))}
       </Card>
 
-      <Card title="Badges">
+      <Card title={`Badges (${unlockedCount} / ${badges.length})`}>
         <View style={styles.grid}>
           {badges.map((b) => (
             <View key={b.id} style={[styles.badge, !b.unlocked && styles.locked]}>
@@ -69,9 +82,12 @@ export default function BadgesScreen() {
               <Text style={styles.badgeDesc} numberOfLines={3}>
                 {b.description}
               </Text>
-              {!b.unlocked && (
+              {b.unlocked && b.unlockedAt && (
+                <Text style={styles.small}>{new Date(b.unlockedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+              )}
+              {!b.unlocked && b.value !== null && (
                 <Text style={styles.small}>
-                  {Math.floor(b.value).toLocaleString('fr-FR')} / {b.goal.toLocaleString('fr-FR')}
+                  {Math.floor(Math.min(b.value, b.goal)).toLocaleString('fr-FR')} / {b.goal.toLocaleString('fr-FR')}
                 </Text>
               )}
             </View>
@@ -96,8 +112,9 @@ export default function BadgesScreen() {
       </Card>
 
       <Text style={styles.hint}>
-        Les km et les cols sont comptés à la fin de chaque navigation dans l’app ; une balade compte quand l’organisateur la
-        termine. Tes badges et totaux sont visibles sur ton profil ; la liste de tes cols reste privée.
+        Les badges sont attribués par le serveur (une notification te prévient) : km et cols à la fin de chaque navigation, balades
+        quand l’organisateur les termine, dangers quand un autre motard les confirme, événements le lendemain. Jamais de badge
+        lié à la vitesse ou au chrono. Tes badges sont visibles sur ton profil ; la liste de tes cols reste privée.
       </Text>
     </ScrollView>
   );

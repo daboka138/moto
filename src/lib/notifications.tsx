@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { checkNewRiderBadges } from '@/lib/badges';
 import { decideMember } from '@/lib/clubs';
 import { setAttendance, declineEventInvite } from '@/lib/events';
 import { acceptFriendRequest, removeFriendship } from '@/lib/friends';
@@ -207,10 +208,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const load = () => !cancelled && refresh();
     load();
+    // Badges gagnés pendant que l'app était fermée (événement fini, danger confirmé…)
+    checkNewRiderBadges(userId);
     // Nouvelle notification, lue ou supprimée : on recompte (RLS : seulement les miennes)
     const channel = supabase
       .channel(`notifications:${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
+        load();
+        // Nouveau badge (attribué par le serveur) : petite animation
+        if (payload.eventType === 'INSERT' && (payload.new as { type?: string }).type === 'badge') checkNewRiderBadges(userId);
+      })
       .subscribe();
     return () => {
       cancelled = true;

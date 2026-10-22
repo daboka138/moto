@@ -1,11 +1,15 @@
 import { Platform } from 'react-native';
 
 import { distanceM, type LatLng } from '@/lib/geo';
+import { celebrateBadges } from '@/lib/good-points';
 import { supabase } from '@/lib/supabase';
 
 // Badges et défis. Les statistiques (rider_stats) sont tenues par le serveur : km et cols
-// envoyés à la fin de chaque navigation (record_trip), balades comptées quand elles se terminent.
-// Les badges et défis sont calculés ici à partir de ces totaux (publics, sur le profil).
+// envoyés à la fin de chaque navigation (record_trip), balades comptées quand elles se terminent,
+// balades organisées, dangers confirmés, événements, routes notées. Les badges sont ATTRIBUÉS par
+// le serveur (user_badges, check_badges : impossible à tricher depuis l'app, notification à chaque
+// nouveau badge) ; l'app n'affiche que la vitrine et la progression. Jamais de badge lié à la
+// vitesse, au chrono ou aux km en peu de temps. Défis du mois calculés ici.
 
 export type RiderStats = {
   totalKm: number;
@@ -22,6 +26,10 @@ export type RiderStats = {
   activeWeeks: number;
   /** Lundi de la dernière semaine active (AAAA-MM-JJ) */
   lastWeek: string | null;
+  ridesOrganized: number;
+  dangersConfirmed: number;
+  eventsAttended: number;
+  roadsRated: number;
 };
 
 export const EMPTY_STATS: RiderStats = {
@@ -37,6 +45,10 @@ export const EMPTY_STATS: RiderStats = {
   bestWeekStreak: 0,
   activeWeeks: 0,
   lastWeek: null,
+  ridesOrganized: 0,
+  dangersConfirmed: 0,
+  eventsAttended: 0,
+  roadsRated: 0,
 };
 
 type Row = {
@@ -52,6 +64,10 @@ type Row = {
   best_week_streak: number;
   active_weeks: number;
   last_week: string | null;
+  rides_organized: number;
+  dangers_confirmed: number;
+  events_attended: number;
+  roads_rated: number;
 };
 
 export async function fetchRiderStats(userId: string): Promise<RiderStats> {
@@ -72,6 +88,10 @@ export async function fetchRiderStats(userId: string): Promise<RiderStats> {
     bestWeekStreak: r.best_week_streak,
     activeWeeks: r.active_weeks,
     lastWeek: r.last_week,
+    ridesOrganized: r.rides_organized ?? 0,
+    dangersConfirmed: r.dangers_confirmed ?? 0,
+    eventsAttended: r.events_attended ?? 0,
+    roadsRated: r.roads_rated ?? 0,
   };
 }
 
@@ -86,7 +106,7 @@ export async function fetchMyPasses(): Promise<RiderPass[]> {
 
 // ---------- Badges ----------
 
-export type BadgeFamily = 'km' | 'rides' | 'passes' | 'streak';
+export type BadgeFamily = 'km' | 'rides' | 'passes' | 'streak' | 'organizer' | 'guide' | 'sentinel' | 'critic' | 'party' | 'mechanic' | 'founder';
 
 export type Badge = {
   id: string;
@@ -101,14 +121,24 @@ export type Badge = {
 const tiers = (family: BadgeFamily, emoji: string, steps: [number, string][], unit: (n: number) => string): Badge[] =>
   steps.map(([goal, label]) => ({ id: `${family}-${goal}`, family, emoji, label, description: unit(goal), goal }));
 
+/** Catalogue : mêmes identifiants et libellés que le serveur (badge_label, check_badges) */
 export const BADGES: Badge[] = [
-  ...tiers('km', '🛣️', [[100, 'Premiers tours de roue'], [1000, 'Mille bornes'], [5000, 'Grand rouleur'], [10000, 'Bouffeur de bitume'], [25000, 'Tour du monde en vue']], (n) => `${n.toLocaleString('fr-FR')} km parcourus en navigation`),
-  ...tiers('rides', '🏍️', [[1, 'Première balade'], [5, 'Habitué du groupe'], [10, 'Pilier des sorties'], [25, 'Capitaine de route'], [50, 'Légende des balades']], (n) => `${n} balade${n > 1 ? 's' : ''} terminée${n > 1 ? 's' : ''}`),
+  { id: 'founder', family: 'founder', emoji: '🌱', label: 'Membre fondateur', description: 'Inscrit avant le lancement des options premium', goal: 1 },
+  ...tiers('km', '🛣️', [[100, 'Premiers tours de roue'], [1000, 'Mille bornes'], [5000, 'Grand rouleur'], [10000, 'Bouffeur de bitume'], [25000, 'Tour du monde en vue']], (n) => `${n.toLocaleString('fr-FR')} km parcourus avec l’appli`),
+  ...tiers('rides', '🏍️', [[1, 'Première balade'], [5, 'Habitué du groupe'], [10, 'Pilier des sorties'], [25, 'Capitaine de route'], [50, 'Légende des balades']], (n) => `${n} balade${n > 1 ? 's' : ''} de groupe rejointe${n > 1 ? 's' : ''} et terminée${n > 1 ? 's' : ''}`),
   ...tiers('passes', '⛰️', [[1, 'Premier col'], [5, 'Grimpeur'], [10, 'Chasseur de cols'], [25, 'Roi de la montagne']], (n) => `${n} col${n > 1 ? 's' : ''} franchi${n > 1 ? 's' : ''}`),
   ...tiers('streak', '🔥', [[4, 'Régulier'], [12, 'Fidèle au guidon'], [26, 'Toute l’année']], (n) => `${n} semaines d’affilée avec au moins une sortie`),
+  { id: 'organizer-1', family: 'organizer', emoji: '🗓️', label: 'Organisateur', description: 'Première balade créée', goal: 1 },
+  { id: 'guide-5', family: 'guide', emoji: '🧭', label: 'Guide', description: '5 balades organisées et menées avec au moins un autre motard', goal: 5 },
+  { id: 'sentinel-10', family: 'sentinel', emoji: '🚨', label: 'Sentinelle', description: '10 dangers signalés et confirmés par d’autres motards', goal: 10 },
+  { id: 'critic-5', family: 'critic', emoji: '⭐', label: 'Critique routier', description: '5 routes plaisir notées', goal: 5 },
+  { id: 'party-3', family: 'party', emoji: '🎉', label: 'Fêtard', description: '3 événements de l’agenda où tu étais inscrit', goal: 3 },
+  { id: 'mechanic', family: 'mechanic', emoji: '🔧', label: 'Mécano', description: 'Carnet d’entretien à jour : un entretien noté depuis 1 an et aucun rappel dépassé', goal: 1 },
 ];
 
-function valueOf(s: RiderStats, family: BadgeFamily) {
+export const badgeById = (id: string) => BADGES.find((b) => b.id === id) ?? null;
+
+function valueOf(s: RiderStats, family: BadgeFamily): number | null {
   switch (family) {
     case 'km':
       return s.totalKm;
@@ -118,19 +148,91 @@ function valueOf(s: RiderStats, family: BadgeFamily) {
       return s.passesCount;
     case 'streak':
       return s.bestWeekStreak;
+    case 'guide':
+      return s.ridesOrganized;
+    case 'sentinel':
+      return s.dangersConfirmed;
+    case 'critic':
+      return s.roadsRated;
+    case 'party':
+      return s.eventsAttended;
+    default:
+      // Organisateur, Mécano, Fondateur : obtenu ou pas (pas de compteur à montrer)
+      return null;
   }
 }
 
-export type BadgeProgress = Badge & { value: number; unlocked: boolean };
+export type BadgeProgress = Badge & { value: number | null; unlocked: boolean; unlockedAt: string | null };
 
-export function badgeProgress(s: RiderStats): BadgeProgress[] {
+export type UserBadge = { id: string; unlockedAt: string };
+
+/** Progression de chaque badge ; « obtenu » = attribué par le serveur */
+export function badgeProgress(s: RiderStats, earned: UserBadge[]): BadgeProgress[] {
   return BADGES.map((b) => {
-    const value = valueOf(s, b.family);
-    return { ...b, value, unlocked: value >= b.goal };
+    const got = earned.find((e) => e.id === b.id) ?? null;
+    return { ...b, value: valueOf(s, b.family), unlocked: !!got, unlockedAt: got?.unlockedAt ?? null };
   });
 }
 
-export const unlockedBadges = (s: RiderStats) => badgeProgress(s).filter((b) => b.unlocked);
+/** Vitrine du profil : fondateur d'abord, puis les plus récents */
+export function showcase(earned: UserBadge[]): (Badge & { unlockedAt: string })[] {
+  return earned
+    .map((e) => ({ badge: badgeById(e.id), unlockedAt: e.unlockedAt }))
+    .filter((x): x is { badge: Badge; unlockedAt: string } => !!x.badge)
+    .sort((a, b) => Number(b.badge.id === 'founder') - Number(a.badge.id === 'founder') || b.unlockedAt.localeCompare(a.unlockedAt))
+    .map((x) => ({ ...x.badge, unlockedAt: x.unlockedAt }));
+}
+
+/** Badges obtenus par un motard (publics, sauf entre membres bloqués) */
+export async function fetchUserBadges(userId: string): Promise<UserBadge[]> {
+  const { data, error } = await supabase.from('user_badges').select('badge_id, unlocked_at').eq('user_id', userId).order('unlocked_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ id: r.badge_id as string, unlockedAt: r.unlocked_at as string }));
+}
+
+/** Fait revérifier mes badges par le serveur ; renvoie le nombre de nouveaux */
+export async function refreshMyBadges(): Promise<number> {
+  const { data, error } = await supabase.rpc('refresh_my_badges');
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
+// ---------- Nouveau badge : animation (une fois par téléphone) ----------
+
+const seenKey = (userId: string) => `moto.badges.seen.${userId}`;
+let checking = false;
+
+/**
+ * Compare mes badges (serveur) à ceux déjà fêtés sur ce téléphone et fête les nouveaux.
+ * Première fois sur ce téléphone : rien à fêter, on mémorise. Appelé au démarrage, à l'arrivée
+ * d'une notification « badge » et au retour sur l'écran des badges.
+ */
+export async function checkNewRiderBadges(userId: string) {
+  if (checking) return;
+  checking = true;
+  try {
+    const earned = await fetchUserBadges(userId);
+    let seen: string[] | null = null;
+    try {
+      const raw = localStorage.getItem(seenKey(userId));
+      seen = raw ? (JSON.parse(raw) as string[]) : null;
+    } catch {
+      seen = null;
+    }
+    try {
+      localStorage.setItem(seenKey(userId), JSON.stringify(earned.map((e) => e.id)));
+    } catch {
+      // pas grave : le badge sera fêté une fois de plus
+    }
+    if (seen === null) return;
+    const fresh = earned.filter((e) => !seen!.includes(e.id)).map((e) => badgeById(e.id)).filter((b): b is Badge => !!b);
+    if (fresh.length) celebrateBadges(fresh);
+  } catch (e) {
+    console.warn('Badges indisponibles', e);
+  } finally {
+    checking = false;
+  }
+}
 
 // ---------- Défis du mois ----------
 

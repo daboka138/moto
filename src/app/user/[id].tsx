@@ -165,7 +165,7 @@ export default function UserProfileScreen() {
       />
       <ProfileView profile={profile} stats={stats} photos={photos} actions={actions} badges={
           <>
-            <BadgesCard stats={riderStats} />
+            <BadgesCard userId={id} stats={riderStats} />
             <GoodPointsCard userId={id} self={relation === 'self'} />
           </>
         }

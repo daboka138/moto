@@ -88,7 +88,7 @@ export default function ProfileScreen() {
       openPhotoId={openPhotoId}
       badges={
         <>
-          <BadgesCard stats={riderStats} onPress={() => router.push('/badges')} />
+          <BadgesCard userId={userId} stats={riderStats} onPress={() => router.push('/badges')} />
           <GoodPointsCard userId={userId} self onPress={() => router.push('/points')} />
         </>
       }

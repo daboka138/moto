@@ -105,11 +105,11 @@ export const GOOD_BADGES: GoodBadge[] = [
   { id: 'phone-10', emoji: '📵', label: 'Mains sur le guidon', description: '10 trajets sans téléphone', kind: 'phone_free', goal: 10 },
   { id: 'phone-50', emoji: '📵', label: 'Zéro distraction', description: '50 trajets sans téléphone', kind: 'phone_free', goal: 50 },
   { id: 'danger-1', emoji: '⚠️', label: 'Vigie', description: 'Premier danger confirmé par un autre motard', kind: 'danger_confirmed', goal: 1 },
-  { id: 'danger-10', emoji: '🚨', label: 'Sentinelle', description: '10 dangers confirmés', kind: 'danger_confirmed', goal: 10 },
+  { id: 'danger-10', emoji: '🚨', label: 'Œil de lynx', description: '10 dangers confirmés', kind: 'danger_confirmed', goal: 10 },
   { id: 'confirm-10', emoji: '🤝', label: 'Entraide', description: '10 dangers confirmés pour les autres', kind: 'danger_confirm', goal: 10 },
   { id: 'convoy-1', emoji: '🏍️', label: 'Premier convoi', description: 'Premier convoi mené jusqu’au bout', kind: 'convoy_done', goal: 1 },
   { id: 'convoy-5', emoji: '🚩', label: 'Ouvreur confirmé', description: '5 convois menés', kind: 'convoy_done', goal: 5 },
-  { id: 'ride-1', emoji: '🗓️', label: 'Organisateur', description: 'Première balade organisée avec 2 participants', kind: 'ride_organized', goal: 1 },
+  { id: 'ride-1', emoji: '🗓️', label: 'Rassembleur', description: 'Première balade organisée avec 2 participants', kind: 'ride_organized', goal: 1 },
   { id: 'ride-5', emoji: '👥', label: 'Chef de meute', description: '5 balades organisées', kind: 'ride_organized', goal: 5 },
   { id: 'regroup-5', emoji: '🧲', label: 'Toujours au regroupement', description: '5 regroupements rejoints', kind: 'regroup', goal: 5 },
   { id: 'spot-1', emoji: '☕', label: 'Dénicheur', description: 'Premier spot bien noté', kind: 'spot_rated', goal: 1 },
@@ -293,7 +293,10 @@ function writeSeen(ids: string[]) {
   }
 }
 
-let celebrations: GoodBadge[] = [];
+/** Badge à fêter (bon comportement ou badges de motard, lib/badges.ts) */
+export type CelebratedBadge = { id: string; emoji: string; label: string; description: string };
+
+let celebrations: CelebratedBadge[] = [];
 const celebrationListeners = new Set<() => void>();
 
 export function useBadgeCelebrations() {
@@ -306,6 +309,12 @@ export function useBadgeCelebrations() {
     },
     () => celebrations,
   );
+}
+
+/** Ajoute des badges à fêter (animation BadgeCelebrationHost, un à la fois) */
+export function celebrateBadges(list: CelebratedBadge[]) {
+  celebrations = [...celebrations, ...list];
+  celebrationListeners.forEach((l) => l());
 }
 
 export function dismissCelebration() {
@@ -322,8 +331,7 @@ export function checkNewBadges(counters: Counters): GoodBadge[] {
   if (seen === null && unlocked.length > 0) return [];
   const fresh = unlocked.filter((b) => !(seen ?? []).includes(b.id));
   if (!fresh.length) return [];
-  celebrations = [...celebrations, ...fresh];
-  celebrationListeners.forEach((l) => l());
+  celebrateBadges(fresh);
   return fresh;
 }
 
