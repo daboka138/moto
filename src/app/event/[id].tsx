@@ -27,6 +27,7 @@ import {
 import { askReport } from '@/lib/moderation';
 import { useSession } from '@/lib/session';
 import { useFriends } from '@/lib/use-friends';
+import { UserName } from '@/components/user-name';
 
 /** Fiche d'un événement : infos, carte, inscription (j'y vais / intéressé), participants. */
 export default function EventScreen() {
@@ -296,9 +297,7 @@ function People({ list, faded, onPress }: { list: { id: string; username: string
       {list.map((p) => (
         <Pressable key={p.id} style={[styles.person, faded && { opacity: 0.6 }]} onPress={() => onPress(p.id)}>
           <Image source={{ uri: p.avatarUrl }} style={styles.avatar} />
-          <Text style={styles.username} numberOfLines={1}>
-            @{p.username}
-          </Text>
+          <UserName userId={p.id} username={p.username} style={styles.username} subStyle={styles.handle} />
         </Pressable>
       ))}
     </View>
@@ -323,7 +322,8 @@ const useStyles = makeStyles((Colors) => ({
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   person: { alignItems: 'center', width: 64, gap: 4 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
-  username: { fontSize: Type.small, color: Colors.text, maxWidth: 64 },
+  username: { fontSize: Type.small, color: Colors.text, maxWidth: 64, textAlign: 'center' },
+  handle: { fontSize: 10, maxWidth: 64, textAlign: 'center' },
   link: { color: Colors.accent, fontWeight: '700' },
   friends: { fontSize: Type.small, fontWeight: '700', color: Colors.accent },
   small: { fontSize: Type.small, color: Colors.textMuted },

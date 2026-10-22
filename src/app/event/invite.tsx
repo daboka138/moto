@@ -59,7 +59,8 @@ export default function EventInviteScreen() {
             <PersonRow
               key={f.id}
               photoUrl={photoUrl(f.avatar_path)}
-              title={`@${f.username}`}
+              userId={f.id}
+              username={f.username}
               subtitle={f.city}
               onPress={() => toggle(f.id)}
               right={

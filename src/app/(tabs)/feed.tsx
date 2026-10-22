@@ -26,6 +26,7 @@ import { confirmJoinRide } from '@/lib/join-ride';
 import { fetchFriendSuggestions, type FriendSuggestion } from '@/lib/suggestions';
 import { fetchPhotosOf, type WallPhoto } from '@/lib/wall';
 import { FEED_WIDTH, useFeedAside, useWideLayout } from '@/lib/use-wide-layout';
+import { UserName } from '@/components/user-name';
 
 type RealFeed = { userId: string; friends: FeedPerson[]; photos: WallPhoto[]; rides: RideSummary[] };
 
@@ -361,7 +362,7 @@ function Header({
       </View>
       <View style={styles.headerText}>
         <Text style={styles.headerLine} numberOfLines={2}>
-          <Text style={styles.username}>{whoLabel ?? `@${first.username}`}</Text> {text}
+          {whoLabel ? <Text style={styles.username}>{whoLabel}</Text> : <UserName variant="inline" userId={first.id} username={first.username} style={styles.username} />} {text}
         </Text>
         <Text style={styles.time}>{timeAgo(at)}</Text>
       </View>

@@ -37,6 +37,7 @@ import { photoUrl } from '@/lib/profile';
 import type { RideSummary } from '@/lib/rides';
 import { useSession } from '@/lib/session';
 import { useFriends } from '@/lib/use-friends';
+import { UserName } from '@/components/user-name';
 
 const DEBOUNCE_MS = 250;
 const NEARBY_MAX = 12;
@@ -342,9 +343,7 @@ function RiderRow({
     <Pressable style={styles.rider} onPress={onPress}>
       <Image source={{ uri: rider.avatarUrl }} style={styles.avatar} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.username} numberOfLines={1}>
-          @{rider.username}
-        </Text>
+        <UserName userId={rider.id} username={rider.username} style={styles.username} />
         {!!details && (
           <Text style={styles.details} numberOfLines={1}>
             {details}

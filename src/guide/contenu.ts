@@ -1118,12 +1118,17 @@ export const FICHES: Fiche[] = [
     but: 'Présenter qui tu es et ce que tu roules.',
     etapes: [
       'Profil › Modifier mon profil.',
-      'Mets à jour ton pseudo, ta photo, ta bio, ton style, ton rythme et tes disponibilités.',
+      'Mets à jour ta photo, ton nom affiché, ton pseudo, ta bio, ton style, ton rythme et tes disponibilités.',
       'Dans « Mes motos » : « + Ajouter une moto » (marque, modèle, année, cylindrée, photo).',
       'Choisis ta moto principale : elle règle les itinéraires et les balades proposées.',
     ],
-    astuces: ['La catégorie de ta moto (50, 125, A2, gros cube, trail) se déduit de la cylindrée.'],
-    motsCles: ['pseudo', 'photo', 'bio', 'moto principale', 'cylindrée'],
+    astuces: [
+      'Nom affiché (facultatif, 30 caractères, emojis permis) : il apparaît en gros au-dessus de ton @pseudo (profil, messages, Mur, commentaires, balades…). Tes potes te trouvent aussi par ce nom dans la recherche.',
+      'Changer de pseudo : la disponibilité s’affiche en direct. Une fois tous les 30 jours ; tes amis, messages, invitations et liens suivent automatiquement.',
+      'La catégorie de ta moto (50, 125, A2, gros cube, trail) se déduit de la cylindrée.',
+    ],
+    limites: ['Certains pseudos et noms sont réservés à l’équipe (admin, support, PasseRyder…), et les propos insultants sont refusés.'],
+    motsCles: ['pseudo', 'nom affiché', 'changer de pseudo', 'photo', 'bio', 'moto principale', 'cylindrée'],
   },
   {
     id: 'meteo',

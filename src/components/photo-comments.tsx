@@ -20,6 +20,7 @@ import {
 import { useDrivingLock } from '@/lib/driving-lock';
 import { useSession } from '@/lib/session';
 import type { WallPhoto } from '@/lib/wall';
+import { UserName } from '@/components/user-name';
 
 /**
  * Bas de la visionneuse : « J'aime » et commentaires de la photo. Le propriétaire de la photo
@@ -148,7 +149,7 @@ export function PhotoSocialPanel({ photo }: { photo: WallPhoto }) {
                   <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
                   <View style={styles.commentBody}>
                     <Text style={styles.commentText}>
-                      <Text style={styles.username}>@{item.username} </Text>
+                      <UserName variant="inline" userId={item.authorId} username={item.username} style={styles.username} />{' '}
                       {item.body}
                     </Text>
                     <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>

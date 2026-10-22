@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, Text, View, type StyleProp, type TextStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Chip } from '@/components/ui';
@@ -13,6 +13,7 @@ import { isMuted, messagePreview, messageTime, type Conversation } from '@/lib/m
 import { useMessages } from '@/lib/messages-context';
 import { useSession } from '@/lib/session';
 import { useInbox } from '@/lib/use-inbox';
+import { useDisplayName } from '@/lib/display-names';
 
 /** Onglet Messages : mes conversations privées, de groupe et de balade. */
 export default function MessagesScreen() {
@@ -68,9 +69,7 @@ export default function MessagesScreen() {
         )}
         <View style={styles.text}>
           <View style={styles.topLine}>
-            <Text style={[styles.title, unread && styles.bold]} numberOfLines={1}>
-              {item.title}
-            </Text>
+            <ConvTitle conv={item} style={[styles.title, unread && styles.bold]} />
             {isMuted(item) && <Ionicons name="notifications-off" size={14} color={Colors.textMuted} />}
             <Text style={[styles.time, unread && styles.timeUnread]}>{messageTime(item.lastAt)}</Text>
           </View>
@@ -214,3 +213,13 @@ const useStyles = makeStyles((Colors) => ({
   empty: { alignItems: 'center', gap: 12, padding: 32 },
   muted: { color: Colors.textMuted, textAlign: 'center' },
 }));
+
+/** Titre d'une conversation : nom affiché de l'autre motard (conversation privée), sinon le titre */
+function ConvTitle({ conv, style }: { conv: Conversation; style: StyleProp<TextStyle> }) {
+  const name = useDisplayName(conv.kind === 'direct' ? conv.otherId : null);
+  return (
+    <Text style={style} numberOfLines={1}>
+      {(conv.kind === 'direct' && name) || conv.title}
+    </Text>
+  );
+}

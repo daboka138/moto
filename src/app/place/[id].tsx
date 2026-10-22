@@ -32,6 +32,7 @@ import { criteriaComplete, criteriaRating, roadTier, type RoadCriteria } from '@
 import { useSession } from '@/lib/session';
 import { PlaceIcon } from '@/components/map-icon';
 import { placePinIcon } from '@/lib/map-pin-icons';
+import { UserName } from '@/components/user-name';
 
 /** Fiche d'un lieu motard : photo, carte, note moyenne, avis ; mon avis (note, texte, photo). */
 export default function PlaceScreen() {
@@ -282,7 +283,11 @@ export default function PlaceScreen() {
               <View style={styles.reviewHeader}>
                 {!!r.avatarUrl && <Image source={{ uri: r.avatarUrl }} style={styles.avatar} />}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.username}>{r.authorId === userId ? 'Moi' : `@${r.username}`}</Text>
+                  {r.authorId === userId ? (
+                    <Text style={styles.username}>Moi</Text>
+                  ) : (
+                    <UserName variant="inline" userId={r.authorId} username={r.username} style={styles.username} />
+                  )}
                   <View style={styles.ratingRow}>
                     <Stars value={r.rating} size={13} />
                     <Text style={styles.time}>{timeAgo(r.createdAt)}</Text>

@@ -89,7 +89,7 @@ export default function FriendsScreen() {
               <PersonRow
                 key={p.id}
                 photoUrl={photoUrl(p.avatar_path)}
-                title={`@${p.username}`}
+                userId={p.id} username={p.username}
                 subtitle={p.city}
                 onPress={() => openProfile(p.id)}
                 right={actionFor(p)}
@@ -108,7 +108,7 @@ export default function FriendsScreen() {
                 <PersonRow
                   key={p.id}
                   photoUrl={photoUrl(p.avatar_path)}
-                  title={`@${p.username}`}
+                  userId={p.id} username={p.username}
                   subtitle={p.city}
                   onPress={() => openProfile(p.id)}
                   right={
@@ -140,7 +140,7 @@ export default function FriendsScreen() {
                   <PersonRow
                     key={p.id}
                     photoUrl={photoUrl(p.avatar_path)}
-                    title={`@${p.username}`}
+                    userId={p.id} username={p.username}
                     subtitle={p.city}
                     onPress={() => openProfile(p.id)}
                   />
@@ -155,7 +155,7 @@ export default function FriendsScreen() {
                 <PersonRow
                   key={p.id}
                   photoUrl={photoUrl(p.avatar_path)}
-                  title={`@${p.username}`}
+                  userId={p.id} username={p.username}
                   subtitle="En attente"
                   onPress={() => openProfile(p.id)}
                   right={

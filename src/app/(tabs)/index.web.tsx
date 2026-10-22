@@ -478,6 +478,7 @@ export default function MapScreen() {
           )}
           {selectedRider && (
             <PersonCard
+              userId={selectedRider.userId}
               photoUrl={photoUrl(selectedRider.avatarPath)}
               username={selectedRider.username}
               motoLabel={motoLabel(selectedRider.moto)}

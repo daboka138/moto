@@ -65,7 +65,8 @@ export default function NewMessageScreen() {
       renderItem={({ item }) => (
         <PersonRow
           photoUrl={item.avatarUrl}
-          title={`@${item.username}`}
+          userId={item.id}
+          username={item.username}
           onPress={() => open(item)}
           right={opening === item.id ? <ActivityIndicator color={Colors.accent} /> : undefined}
         />

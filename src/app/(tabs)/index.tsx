@@ -1323,6 +1323,7 @@ export default function MapScreen() {
   {selectedReal && (
     <View style={styles.card}>
       <PersonCard
+        userId={selectedReal.userId}
         photoUrl={photoUrl(selectedReal.avatarPath)}
         username={selectedReal.username}
         motoLabel={motoLabel(selectedReal.moto)}

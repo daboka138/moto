@@ -8,6 +8,7 @@ import { makeStyles, Type, useColors } from '@/constants/theme';
 import { askReport } from '@/lib/moderation';
 import { useSession } from '@/lib/session';
 import type { WallPhoto } from '@/lib/wall';
+import { UserName } from '@/components/user-name';
 
 type Props = {
   photo: WallPhoto | null;
@@ -34,7 +35,7 @@ export function PhotoViewer({ photo, onClose, onDelete, onAuthorPress }: Props) 
                 {photo.author ? (
                   <Pressable style={styles.author} onPress={() => onAuthorPress?.(photo)}>
                     <Image source={{ uri: photo.author.avatarUrl }} style={styles.avatar} />
-                    <Text style={styles.username}>@{photo.author.username}</Text>
+                    <UserName variant="inline" userId={photo.ownerId} username={photo.author.username} style={styles.username} />
                   </Pressable>
                 ) : (
                   <View />

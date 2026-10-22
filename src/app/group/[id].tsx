@@ -183,7 +183,9 @@ export default function GroupScreen() {
           <PersonRow
             key={m.id}
             photoUrl={m.avatarUrl}
-            title={`@${m.username}${m.id === userId ? ' (toi)' : ''}`}
+            userId={m.id}
+            username={m.username}
+            titleSuffix={m.id === userId ? ' (toi)' : undefined}
             subtitle={m.role === 'admin' ? 'Admin' : null}
             onPress={() => memberMenu(m)}
           />

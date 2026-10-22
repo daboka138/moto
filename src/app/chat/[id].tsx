@@ -9,6 +9,7 @@ import { WallpaperViewer } from '@/components/wallpaper-viewer';
 import { copyText } from '@/lib/clipboard';
 import { fetchGroupInfo, moderateGroupMessage, pinGroupMessage, type GroupInfo } from '@/lib/community';
 import { CREATOR_BADGE, useCreatorId } from '@/lib/creator';
+import { useDisplayName } from '@/lib/display-names';
 import { errorMessage } from '@/lib/errors';
 import {
   deleteMessageForAll,
@@ -72,6 +73,8 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
   const userId = session?.user.id ?? '';
   const { conversations, refresh } = useMessages();
   const conv = conversations.find((c) => c.id === id);
+  // Conversation privée : nom affiché de l'autre en titre, @pseudo en sous-titre
+  const otherName = useDisplayName(conv?.kind === 'direct' ? conv.otherId : null);
   const creatorId = useCreatorId();
   const [messages, setMessages] = useState<{ id: string; list: Message[] } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -461,6 +464,7 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
     ? [
         info?.isPublic ? 'Groupe public' : null,
         conv.kind === 'group' ? `${conv.membersCount} membres` : null,
+        conv.kind === 'direct' && otherName ? conv.title : null,
         isMuted(conv) ? 'en sourdine' : null,
       ]
         .filter(Boolean)
@@ -470,7 +474,7 @@ function RealChat({ id, draft }: { id: string; draft?: string }) {
   return (
     <>
       <ChatView
-        title={conv?.title ?? ''}
+        title={(conv?.kind === 'direct' && otherName) || conv?.title || ''}
         avatarUrl={conv?.kind === 'ride' ? null : (conv?.avatarUrl ?? other?.avatarUrl ?? null)}
         avatarIcon={conv?.kind === 'group' ? 'people' : 'flag'}
         isGroup={isGroup}

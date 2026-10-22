@@ -11,6 +11,8 @@ import { AVAILABILITIES, categoryInfo, inferCategory, paceInfo } from '@/lib/mot
 import { useIsFounder } from '@/lib/premium';
 import { photoUrl, RIDING_STYLES, type Motorcycle, type Profile } from '@/lib/profile';
 import type { ProfileStats, WallPhoto } from '@/lib/wall';
+import { UserName } from '@/components/user-name';
+import { CREATOR_BADGE, useCreatorId } from '@/lib/creator';
 
 type Props = {
   profile: Profile;
@@ -75,6 +77,9 @@ export function ProfileView({
   const mainMoto = profile.motorcycles[0];
   // Inscrit avant le lancement du premium : badge public « Membre fondateur »
   const founder = useIsFounder(profile.id);
+  // Compte du créateur de l'appli : badge « Créateur de PasseRyder » (comme dans sa conversation)
+  const creatorId = useCreatorId();
+  const isCreator = !!creatorId && creatorId === profile.id;
 
   return (
     <View style={styles.screen}>
@@ -115,7 +120,13 @@ export function ProfileView({
 
         <View style={styles.identity}>
           <Image source={{ uri: resolvePhoto(profile.avatar_path) }} style={styles.avatar} contentFit="cover" />
-          <Text style={styles.username}>@{profile.username}</Text>
+          <UserName userId={profile.id} username={profile.username} style={styles.username} subStyle={styles.handle} />
+          {isCreator && (
+            <View style={styles.founder}>
+              <Ionicons name="construct" size={14} color={Colors.accent} />
+              <Text style={styles.founderText}>{CREATOR_BADGE}</Text>
+            </View>
+          )}
           {founder && (
             <View style={styles.founder}>
               <Ionicons name="ribbon" size={14} color={Colors.accent} />
@@ -379,7 +390,8 @@ const useStyles = makeStyles((Colors) => ({
     borderColor: Colors.accent,
     backgroundColor: Colors.border,
   },
-  username: { fontSize: Type.title, fontWeight: '900', color: Colors.text, marginTop: 4 },
+  username: { fontSize: Type.title, fontWeight: '900', color: Colors.text, marginTop: 4, textAlign: 'center' },
+  handle: { fontSize: Type.body, color: Colors.textMuted, textAlign: 'center' },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16 },
   founder: {
     flexDirection: 'row',

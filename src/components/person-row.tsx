@@ -3,10 +3,16 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { makeStyles, Type } from '@/constants/theme';
+import { useDisplayName } from '@/lib/display-names';
 
 type Props = {
   photoUrl: string;
-  title: string;
+  /** Titre libre ; ou userId + username : nom affiché (sinon @pseudo), @pseudo repris dessous */
+  title?: string;
+  userId?: string;
+  username?: string;
+  /** Après le nom (« (toi) », ❤️) */
+  titleSuffix?: string;
   subtitle?: string | null;
   onPress?: () => void;
   /** Boutons ou case à cocher à droite */
@@ -14,8 +20,14 @@ type Props = {
 };
 
 /** Ligne de liste avec avatar (amis, recherche, sélection). */
-export function PersonRow({ photoUrl, title, subtitle, onPress, right }: Props) {
+export function PersonRow({ photoUrl, title, userId, username, titleSuffix, subtitle, onPress, right }: Props) {
   const styles = useStyles();
+  const displayName = useDisplayName(userId);
+  if (username !== undefined) {
+    title = displayName ?? `@${username}`;
+    if (displayName) subtitle = subtitle ? `@${username} · ${subtitle}` : `@${username}`;
+  }
+  if (titleSuffix) title = `${title ?? ''}${titleSuffix}`;
   return (
     <Pressable style={styles.row} onPress={onPress} disabled={!onPress}>
       <Image source={{ uri: photoUrl }} style={styles.avatar} />

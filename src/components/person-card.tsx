@@ -4,8 +4,10 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { UserName } from '@/components/user-name';
 
 type Props = {
+  userId: string;
   photoUrl: string;
   username: string;
   motoLabel: string | null;
@@ -18,7 +20,7 @@ type Props = {
 };
 
 /** Fiche rapide affichée quand on appuie sur un motard de la carte. */
-export function PersonCard({ photoUrl, username, motoLabel, speedKmh, distanceM, badge, onViewProfile, onClose }: Props) {
+export function PersonCard({ userId, photoUrl, username, motoLabel, speedKmh, distanceM, badge, onViewProfile, onClose }: Props) {
   const Colors = useColors();
   const styles = useStyles();
   // Règle de l'appli : la vitesse d'un motard n'est JAMAIS montrée aux autres
@@ -33,7 +35,7 @@ export function PersonCard({ photoUrl, username, motoLabel, speedKmh, distanceM,
       <View style={styles.row}>
         <Image source={{ uri: photoUrl }} style={styles.avatar} />
         <View style={styles.info}>
-          <Text style={styles.username}>@{username}</Text>
+          <UserName userId={userId} username={username} style={styles.username} />
           {motoLabel && (
             <Text style={styles.moto} numberOfLines={1}>
               {motoLabel}

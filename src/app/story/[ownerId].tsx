@@ -37,6 +37,7 @@ import {
 } from '@/lib/stories';
 import { useStories } from '@/lib/stories-context';
 import { fetchMyStoryLikes, fetchStoryLikers, replyToStory, setStoryLike } from '@/lib/social';
+import { UserName } from '@/components/user-name';
 
 const TICK_MS = 50;
 const CLOSE_DRAG_PX = 120;
@@ -333,7 +334,11 @@ export default function StoryViewerScreen() {
             <Pressable style={styles.author} onPress={mine ? undefined : openProfile}>
               <Image source={{ uri: story.avatarUrl }} style={styles.avatar} />
               <View>
-                <Text style={styles.username}>{mine ? 'Ma story' : `@${story.username}`}</Text>
+                {mine ? (
+                  <Text style={styles.username}>Ma story</Text>
+                ) : (
+                  <UserName variant="inline" userId={story.ownerId} username={story.username} style={styles.username} />
+                )}
                 <Text style={styles.meta}>
                   {timeAgo(story.createdAt)} · {story.visibility === 'friends' ? '👥 Amis' : '🌍 Tout le monde'}
                 </Text>
@@ -413,7 +418,9 @@ export default function StoryViewerScreen() {
                 renderItem={({ item }) => (
                   <PersonRow
                     photoUrl={item.avatarUrl}
-                    title={`@${item.username}${likerList.includes(item.id) ? '  ❤️' : ''}`}
+                    userId={item.id}
+                    username={item.username}
+                    titleSuffix={likerList.includes(item.id) ? '  ❤️' : undefined}
                     subtitle={timeAgo(item.viewedAt)}
                   />
                 )}

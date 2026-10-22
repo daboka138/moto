@@ -9,6 +9,7 @@ import { useDrivingLock } from '@/lib/driving-lock';
 import { timeAgo } from '@/lib/feed';
 import { askReport, type ReportTarget } from '@/lib/moderation';
 import { COMMENT_MAX, type Comment } from '@/lib/social';
+import { UserName } from '@/components/user-name';
 
 /**
  * « J'aime » et commentaires (fiche balade) : chacun supprime les siens, le modérateur
@@ -98,7 +99,7 @@ export function CommentsSection({
             <Image source={{ uri: c.avatarUrl }} style={styles.avatar} />
             <View style={styles.body}>
               <Text style={styles.text}>
-                <Text style={styles.username}>@{c.username} </Text>
+                <UserName variant="inline" userId={c.authorId} username={c.username} style={styles.username} />{' '}
                 {c.body}
               </Text>
               <Text style={styles.time}>{timeAgo(c.createdAt)}</Text>

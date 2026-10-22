@@ -13,6 +13,7 @@ import { categoryInfo, PACE_REMINDER, surfaceInfo, type MotoCategory } from '@/l
 import { formatRideDate, levelInfo, PASSENGER_MODES, routeOptionsLabel, RIDE_ROLES, visibilityInfo, type RideDetails } from '@/lib/rides';
 import { formatDistance, formatDuration } from '@/lib/routing';
 import { roundedNow, useRouteWeather } from '@/lib/weather';
+import { UserName } from '@/components/user-name';
 
 type Props = {
   ride: RideDetails;
@@ -236,9 +237,7 @@ function Person({
       disabled={!onPress}
       style={[compact ? styles.personCompact : styles.person, faded && { opacity: 0.5 }]}>
       <Image source={{ uri: person.avatarUrl }} style={compact ? styles.avatarSmall : styles.avatar} />
-      <Text style={compact ? styles.usernameSmall : styles.username} numberOfLines={1}>
-        @{person.username}
-      </Text>
+      <UserName userId={person.id} username={person.username} style={compact ? styles.usernameSmall : styles.username} subStyle={compact ? styles.handleSmall : undefined} />
       {!!badge && (
         <Text style={styles.badge} numberOfLines={1}>
           {badge}
@@ -281,7 +280,8 @@ const useStyles = makeStyles((Colors) => ({
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   personCompact: { alignItems: 'center', width: 64, gap: 4 },
   avatarSmall: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.border },
-  usernameSmall: { fontSize: Type.small, color: Colors.text, maxWidth: 64 },
+  usernameSmall: { fontSize: Type.small, color: Colors.text, maxWidth: 64, textAlign: 'center' },
+  handleSmall: { fontSize: 10, maxWidth: 64, textAlign: 'center' },
   badge: { fontSize: Type.small, fontWeight: '800', color: Colors.accent, maxWidth: 64 },
   subtle: { fontSize: Type.small, color: Colors.textMuted, fontWeight: '600' },
   description: { fontSize: Type.body, lineHeight: 21, color: Colors.text },

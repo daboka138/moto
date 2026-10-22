@@ -42,6 +42,10 @@ export type Motorcycle = {
 export type Profile = {
   id: string;
   username: string;
+  /** Nom affiché (facultatif, 30 caractères) : « Dimitri » en gros, @pseudo en petit */
+  display_name: string | null;
+  /** Dernier changement de pseudo (1 tous les 30 jours, vérifié par le serveur) */
+  username_changed_at: string | null;
   avatar_path: string;
   cover_path: string | null;
   bio: string | null;
@@ -76,6 +80,7 @@ export type ProfileDraft = {
   firstName: string;
   lastName: string;
   username: string;
+  displayName: string;
   avatar: PhotoValue;
   bio: string;
   ridingStyles: RidingStyle[];
@@ -100,6 +105,19 @@ export async function fetchIdentity(userId: string): Promise<PrivateIdentity | n
     .maybeSingle();
   if (error) throw error;
   return data ? { firstName: data.first_name, lastName: data.last_name } : null;
+}
+
+/** Nom affiché : 30 caractères (emojis permis) */
+export const DISPLAY_NAME_MAX = 30;
+
+export type UsernameStatus = 'ok' | 'same' | 'invalid' | 'reserved' | 'insult' | 'taken' | 'wait';
+
+/** Disponibilité d'un pseudo, vérifiée par le serveur (wait : prochain changement possible le `next`) */
+export async function checkUsername(username: string): Promise<{ status: UsernameStatus; next: string | null }> {
+  const { data, error } = await supabase.rpc('username_status', { p_username: username.trim() });
+  if (error) throw error;
+  const r = data as { status: UsernameStatus; next?: string };
+  return { status: r.status, next: r.next ?? null };
 }
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
@@ -149,6 +167,7 @@ export function profileToDraft(profile: Profile | null, identity: PrivateIdentit
     firstName: identity?.firstName ?? '',
     lastName: identity?.lastName ?? '',
     username: profile?.username ?? '',
+    displayName: profile?.display_name ?? '',
     avatar: { path: profile?.avatar_path ?? null, localUri: null },
     bio: profile?.bio ?? '',
     ridingStyles: profile?.riding_styles ?? [],
@@ -174,13 +193,15 @@ export function profileToDraft(profile: Profile | null, identity: PrivateIdentit
 }
 
 /** Retourne la liste des erreurs de saisie (vide si tout est bon). */
-export function validateDraft(draft: ProfileDraft): string[] {
+export function validateDraft(draft: ProfileDraft, { admin = false }: { admin?: boolean } = {}): string[] {
   const errors: string[] = [];
   const currentYear = new Date().getFullYear();
   if (!draft.firstName.trim()) errors.push('Le prénom est obligatoire.');
   if (!draft.lastName.trim()) errors.push('Le nom est obligatoire.');
   if (!/^[A-Za-z0-9_.]{3,20}$/.test(draft.username.trim()))
     errors.push('Pseudo : 3 à 20 caractères, lettres, chiffres, point ou tiret bas.');
+  if (draft.displayName.trim().length > (admin ? 40 : DISPLAY_NAME_MAX)) errors.push(`Nom affiché : ${DISPLAY_NAME_MAX} caractères au plus.`);
+  if (draft.displayName.trim().startsWith('@')) errors.push('Nom affiché : sans @ au début (le @ est pour le pseudo).');
   if (!draft.avatar.path && !draft.avatar.localUri) errors.push('La photo de profil est obligatoire.');
   if (draft.licenseYear && !isIntBetween(draft.licenseYear, 1950, currentYear))
     errors.push(`Année du permis : entre 1950 et ${currentYear}.`);
@@ -213,6 +234,7 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
   const { error } = await supabase.from('profiles').upsert({
     id: userId,
     username: draft.username.trim(),
+    display_name: draft.displayName.trim() || null,
     avatar_path: avatarPath,
     bio: draft.bio.trim() || null,
     riding_styles: draft.ridingStyles,
@@ -224,6 +246,8 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
   });
   if (error) {
     if (error.code === '23505') throw new Error('Ce pseudo est déjà pris.');
+    // Refus du serveur (pseudo réservé, délai de 30 jours, propos insultants) : message en clair
+    if (error.code === 'P0001') throw new Error(error.message);
     throw error;
   }
 

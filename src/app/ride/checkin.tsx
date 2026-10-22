@@ -23,6 +23,7 @@ import {
 } from '@/lib/rides';
 import { useSession } from '@/lib/session';
 import { FeatureGate } from '@/components/feature-gate';
+import { UserName } from '@/components/user-name';
 
 const REFRESH_MS = 10_000;
 
@@ -185,7 +186,7 @@ function RideCheckInScreenContent() {
               <Image source={{ uri: p.avatarUrl }} style={[styles.avatar, !p.checkedInAt && { opacity: 0.5 }]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name} numberOfLines={1}>
-                  @{p.username}
+                  <UserName variant="inline" userId={p.id} username={p.username} />
                   {p.id === ride.organizer.id ? ' · organisateur' : ''}
                 </Text>
                 {role && <Text style={styles.role}>{role}</Text>}

@@ -6,8 +6,12 @@ import { PhotoPicker } from '@/components/photo-picker';
 import { AVAILABILITIES, inferCategory, MOTO_CATEGORIES, PACE_REMINDER, PACES, paceInfo } from '@/lib/moto';
 import { Button, Chip, Field, Section } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
+import { useIsAdmin } from '@/lib/admin';
+import { primeDisplayName } from '@/lib/display-names';
 import { errorMessage, PhotoUnreadableError } from '@/lib/errors';
 import {
+  checkUsername,
+  DISPLAY_NAME_MAX,
   emptyMotorcycleDraft,
   INTEREST_SUGGESTIONS,
   profileToDraft,
@@ -18,6 +22,7 @@ import {
   type PrivateIdentity,
   type Profile,
   type ProfileDraft,
+  type UsernameStatus,
 } from '@/lib/profile';
 
 type Props = {
@@ -40,7 +45,7 @@ function savedDraft(userId: string): ProfileDraft | null {
     if (!saved || saved.userId !== userId) return null;
     const d = saved.draft;
     const keep = (photo: ProfileDraft['avatar']) => (photo.localUri?.startsWith('blob:') ? { ...photo, localUri: null } : photo);
-    return { ...d, avatar: keep(d.avatar), motorcycles: d.motorcycles.map((m) => ({ ...m, photo: keep(m.photo) })) };
+    return { ...d, displayName: d.displayName ?? '', avatar: keep(d.avatar), motorcycles: d.motorcycles.map((m) => ({ ...m, photo: keep(m.photo) })) };
   } catch {
     return null;
   }
@@ -55,6 +60,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
   const [saving, setSaving] = useState(false);
   // Dernière erreur d'enregistrement : bandeau clair + « Réessayer » (la saisie reste)
   const [saveError, setSaveError] = useState<string | null>(null);
+  const isAdmin = useIsAdmin(userId);
 
   useEffect(() => {
     if (!creating) return;
@@ -96,7 +102,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
   };
 
   const submit = async () => {
-    const errors = validateDraft(draft);
+    const errors = validateDraft(draft, { admin: isAdmin });
     if (errors.length) {
       Alert.alert('À compléter', errors.join('\n'));
       return;
@@ -105,6 +111,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
     setSaveError(null);
     try {
       await saveProfile(userId, draft, profile);
+      primeDisplayName(userId, draft.displayName);
       if (creating) {
         try {
           localStorage.removeItem(DRAFT_KEY);
@@ -136,7 +143,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
           <View style={styles.privateNote}>
             <Ionicons name="lock-closed" size={16} color={Colors.textMuted} />
             <Text style={styles.privateText}>
-              Visible uniquement par toi. Les autres motards ne voient que ton pseudo.
+              Visible uniquement par toi. Les autres motards ne voient que ton pseudo (et ton nom affiché si tu en mets un, ci-dessous).
             </Text>
           </View>
           <Field label="Prénom" required value={draft.firstName} onChangeText={(v) => set('firstName', v)} />
@@ -151,14 +158,24 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
             onChange={(v) => set('avatar', v)}
           />
           <Field
+            label={`Nom affiché (facultatif, ${DISPLAY_NAME_MAX} caractères)`}
+            value={draft.displayName}
+            onChangeText={(v) => set('displayName', v)}
+            maxLength={isAdmin ? 40 : DISPLAY_NAME_MAX}
+            placeholder="ex. Dimitri 🏍️"
+          />
+          <Text style={styles.hint}>Public : affiché en gros au-dessus de ton @pseudo. Laisse vide pour n’afficher que ton pseudo.</Text>
+          <Field
             label="Pseudo (nom de rider)"
             required
             value={draft.username}
-            onChangeText={(v) => set('username', v)}
+            onChangeText={(v) => set('username', v.replace(/\s/g, ''))}
             autoCapitalize="none"
             autoCorrect={false}
+            maxLength={20}
             placeholder="ex. rider_du_59"
           />
+          <UsernameCheck username={draft.username} initial={profile?.username ?? null} />
         </Section>
 
         <Section title="Mes motos">
@@ -325,7 +342,59 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
   );
 }
 
+const STATUS_TEXT: Record<Exclude<UsernameStatus, 'same' | 'wait'>, string> = {
+  ok: 'Disponible',
+  invalid: '3 à 20 caractères : lettres, chiffres, point ou tiret bas',
+  reserved: 'Pseudo réservé, choisis-en un autre',
+  insult: 'Pseudo refusé (propos insultants)',
+  taken: 'Déjà pris',
+};
+
+/** Disponibilité du pseudo en direct (vérifiée par le serveur), délai de 30 jours entre deux changements */
+function UsernameCheck({ username, initial }: { username: string; initial: string | null }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [result, setResult] = useState<{ for: string; status: UsernameStatus; next: string | null } | null>(null);
+  const value = username.trim();
+  const changed = !initial || value.toLowerCase() !== initial.toLowerCase();
+
+  useEffect(() => {
+    if (!changed || value.length < 3) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      checkUsername(value)
+        .then((r) => !cancelled && setResult({ for: value, ...r }))
+        .catch(() => {});
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [value, changed]);
+
+  if (!changed) {
+    return initial ? <Text style={styles.hint}>Tu peux changer de pseudo une fois tous les 30 jours. Tes amis, messages et invitations suivent.</Text> : null;
+  }
+  const r = result && result.for === value ? result : null;
+  if (value.length < 3 || !r) {
+    return <Text style={styles.hint}>{value.length < 3 ? STATUS_TEXT.invalid : 'Vérification…'}</Text>;
+  }
+  if (r.status === 'same') return null;
+  const good = r.status === 'ok';
+  const text =
+    r.status === 'wait'
+      ? `Prochain changement de pseudo possible le ${new Date(r.next!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+      : STATUS_TEXT[r.status];
+  return (
+    <View style={styles.checkRow}>
+      <Ionicons name={good ? 'checkmark-circle' : 'close-circle'} size={16} color={good ? Colors.success : Colors.danger} />
+      <Text style={[styles.hint, { color: good ? Colors.success : Colors.danger }]}>{text}</Text>
+    </View>
+  );
+}
+
 const useStyles = makeStyles((Colors) => ({
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   errorBox: {
     flexDirection: 'row',
     gap: 12,

@@ -8,6 +8,7 @@ import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { errorMessage } from '@/lib/errors';
 import { sendFriendRequest } from '@/lib/friends';
 import { dismissSuggestion, type FriendSuggestion } from '@/lib/suggestions';
+import { UserName } from '@/components/user-name';
 
 /**
  * Carrousel « Motards que tu pourrais connaître » (inséré dans le fil du Mur) : photo, pseudo,
@@ -60,9 +61,7 @@ export function FriendSuggestions({
               </Pressable>
               <Pressable style={styles.person} onPress={() => router.push({ pathname: '/user/[id]', params: { id: s.id } })}>
                 <Image source={{ uri: s.avatarUrl }} style={styles.avatar} contentFit="cover" />
-                <Text style={styles.username} numberOfLines={1}>
-                  @{s.username}
-                </Text>
+                <UserName userId={s.id} username={s.username} style={styles.username} />
                 <Text style={styles.moto} numberOfLines={1}>
                   {s.motoLabel ? `🏍️ ${s.motoLabel}` : ' '}
                 </Text>

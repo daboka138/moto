@@ -21,6 +21,7 @@ import type { LatLng } from '@/lib/geo';
 import { AVAILABILITIES, categoryInfo, MOTO_CATEGORIES, PACES, paceInfo } from '@/lib/moto';
 import { photoUrl, RIDING_STYLES } from '@/lib/profile';
 import { useFriends } from '@/lib/use-friends';
+import { UserName } from '@/components/user-name';
 
 const DISTANCES: (number | null)[] = [10, 25, 50, 100, null];
 const LICENSE_YEARS: (number | null)[] = [null, 1, 3, 5, 10];
@@ -228,9 +229,7 @@ export default function RidersScreen() {
           <Image source={{ uri: r.avatarUrl }} style={styles.avatar} contentFit="cover" />
           <View style={styles.cardBody}>
             <View style={styles.nameRow}>
-              <Text style={styles.username} numberOfLines={1}>
-                @{r.username}
-              </Text>
+              <UserName userId={r.id} username={r.username} style={styles.username} />
             </View>
             {r.moto && (
               <View style={styles.metaRow}>

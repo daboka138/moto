@@ -111,7 +111,8 @@ export default function NewGroupScreen() {
           return (
             <PersonRow
               photoUrl={photoUrl(item.avatar_path)}
-              title={`@${item.username}`}
+              userId={item.id}
+              username={item.username}
               subtitle={item.city}
               onPress={() => toggle(item.id)}
               right={<Ionicons name={on ? 'checkbox' : 'square-outline'} size={26} color={on ? Colors.accent : Colors.textMuted} />}

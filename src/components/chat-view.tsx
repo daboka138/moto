@@ -17,6 +17,7 @@ import type { WallPhoto } from '@/lib/wall';
 import { useVoiceRecorder } from '@/lib/use-voice-recorder';
 import type { RecordedVoice } from '@/lib/voice-recorder';
 import type { Wallpaper } from '@/lib/wallpapers';
+import { UserName } from '@/components/user-name';
 
 export type ChatPerson = { username: string; avatarUrl: string };
 
@@ -212,7 +213,13 @@ export function ChatView(p: Props) {
         )}
         <View style={[styles.column, mine && styles.columnMine]}>
           {!mine && p.isGroup && firstOfRun && (
-            <Text style={[styles.sender, !!p.wallpaper && styles.onWallpaper]}>@{person?.username ?? '?'}</Text>
+            <UserName
+              variant="inline"
+              userId={item.senderId}
+              username={person?.username ?? '?'}
+              style={[styles.sender, !!p.wallpaper && styles.onWallpaper]}
+              subStyle={!!p.wallpaper && styles.onWallpaper}
+            />
           )}
           <View style={[styles.bubbleRow, mine && styles.bubbleRowMine]}>
           {mine && moreButton}
