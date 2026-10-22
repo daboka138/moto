@@ -206,6 +206,12 @@ export const MapIconColors: IconPalette = {
   signalGreen: '#22C55E',
 };
 
+/** Ciel à l'horizon de la carte de navigation inclinée (MapLibre), selon le style de carte */
+export const MapSkyColors = {
+  light: { sky: '#BFE3FF', horizon: '#EAF6FF' },
+  dark: { sky: '#1B2533', horizon: '#2D3A4D' },
+};
+
 /** Portion d'itinéraire en zone de danger (surlignage discret sous le tracé) */
 export const DANGER_ZONE_ROUTE = 'rgba(220,38,38,0.5)';
 

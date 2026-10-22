@@ -13,8 +13,8 @@ export const GL_STYLES = {
   light: 'https://api.maptiler.com/maps/streets-v2/style.json?key=',
   dark: 'https://api.maptiler.com/maps/streets-v2-dark/style.json?key=',
 };
-/** Inclinaison de la vue de navigation (degrés) */
-export const NAV_PITCH = 45;
+/** Inclinaison de la vue de navigation (degrés) : « derrière la flèche », horizon en haut */
+export const NAV_PITCH = 55;
 /**
  * Zoom MapLibre = zoom Leaflet - 1 (tuiles de 512 px). Vue inclinée : la flèche, en bas de l'écran,
  * est plus près de la caméra et paraît plus grosse ; on recule encore un peu.
@@ -458,6 +458,7 @@ export function buildNavGlHtml(Colors: Palette, dark: boolean) {
           'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['get', 'z'],
           'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport'
         } });
+      if (map.setSky) map.setSky({ 'sky-color': '${sky.sky}', 'horizon-color': '${sky.horizon}', 'fog-color': '${sky.horizon}', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.85 });
       post({ type: 'ready', gl: gl });
       map.once('idle', function () { post({ type: 'painted' }); });
     });
