@@ -6,6 +6,7 @@ import { Alert, Linking, Pressable, ScrollView, Switch, Text, View } from 'react
 
 import { LinkGroup, LinkRow, LinkSeparator } from '@/components/link-row';
 import { useIsAdmin } from '@/lib/admin';
+import { NavEngineDiagnostic } from '@/components/nav-engine-diagnostic';
 import { OpenInApp } from '@/components/open-in-app';
 import { Chip } from '@/components/ui';
 import { UpdateCard } from '@/components/update-card';
@@ -133,6 +134,10 @@ export default function SettingsScreen() {
       ) : (
         <>
           <VoiceSection />
+          <Text style={styles.section}>Navigation</Text>
+          <View style={styles.card}>
+            <NavEngineDiagnostic />
+          </View>
           <SafetySection />
         </>
       )}

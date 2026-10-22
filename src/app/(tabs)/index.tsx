@@ -3,7 +3,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EventCard, FuelStationCard, ParkingCard, PlaceCard } from '@/components/community-cards';
@@ -31,6 +31,7 @@ import { RideCard } from '@/components/ride-card';
 import { SafetyOverlay } from '@/components/safety/safety-overlay';
 import { SosButton } from '@/components/safety/sos-button';
 import { MapCompass, setMapBearing } from '@/components/nav/map-compass';
+import { NavMapGL } from '@/components/nav-map-gl';
 import { TipBubble } from '@/components/guide/tip-bubble';
 import { DANGER_ZONE_ROUTE, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
@@ -72,6 +73,7 @@ import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
 import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
+import { recordNavEngine, setNavEnginePref, useNavEnginePref } from '@/lib/nav-engine';
 import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
 import { useCompass } from '@/lib/use-compass';
 import { initialHeadingFilter, stepHeadingFilter } from '@/lib/heading-filter';
@@ -232,6 +234,22 @@ export default function MapScreen() {
     if (navigating) simulatedNav.current = getSimulation().active;
   }, [navigating]);
   const navZoom = useNavZoom(navigating, kmh);
+  // Carte de navigation : 3D inclinée (MapLibre, par défaut) posée sur Leaflet, ou 2D (Leaflet seule).
+  // Sans WebGL / MapLibre / style : repli automatique sur Leaflet pour cette navigation.
+  const enginePref = useNavEnginePref();
+  const [gl, setGl] = useState<{ failed: string | null; shown: boolean }>({ failed: null, shown: false });
+  const glWanted = navigating && enginePref === '3d' && !gl.failed;
+  const glShown = glWanted && gl.shown;
+  const resetGl = () => setGl({ failed: null, shown: false });
+  // Fin de navigation (arrivée comprise) : la prochaine repart de zéro (nouvel essai de la 3D)
+  const [glNav, setGlNav] = useState(navigating);
+  if (glNav !== navigating) {
+    setGlNav(navigating);
+    if (!navigating) resetGl();
+  }
+  useEffect(() => {
+    if (navigating && enginePref === '2d') recordNavEngine('2d', 'vue 2D choisie dans le menu ⋯');
+  }, [navigating, enginePref]);
   // Navigation sans cap connu (départ à l'arrêt) : sens de l'itinéraire, la carte est déjà dans le bon sens
   const compass = useCompass(!navigating && heading === null);
   const startBearing =
@@ -733,6 +751,14 @@ export default function MapScreen() {
         },
         { label: 'Ajouter un arrêt', icon: 'add-circle-outline', onPress: () => setStopPicker({ kind: null }) },
         { label: 'Station essence sur mon trajet', icon: 'speedometer-outline', onPress: () => setStopPicker({ kind: 'fuel' }) },
+        {
+          label: enginePref === '3d' ? 'Vue 2D (carte à plat)' : 'Vue 3D (inclinée)',
+          icon: enginePref === '3d' ? 'map-outline' : 'cube-outline',
+          onPress: () => {
+            resetGl();
+            setNavEnginePref(enginePref === '3d' ? '2d' : '3d');
+          },
+        },
       ],
     });
 
@@ -1010,6 +1036,7 @@ export default function MapScreen() {
   };
 
   const stopNavigation = () => {
+    resetGl();
     nav.stop();
     speak('Navigation arrêtée', true, 'guidance');
     setFollow(true);
@@ -1153,14 +1180,15 @@ export default function MapScreen() {
       <LeafletMap
         defaultView={defaultView}
         position={mapPosition}
-        navigating={navigating}
+        // Carte 3D affichée par-dessus : Leaflet ne suit plus (rien à calculer en dessous), garde le bip
+        navigating={navigating && !glShown}
         navZoom={navZoom}
-        follow={follow && nav.phase !== 'preview'}
+        follow={follow && nav.phase !== 'preview' && !glShown}
         onUserPan={() => {
           setFollow(false);
           setPanAt(Date.now());
         }}
-        onBearingChange={setMapBearing}
+        onBearingChange={glShown ? undefined : setMapBearing}
         northUpKey={northUpKey}
         orientation={navOrientation}
         markers={markers}
@@ -1185,6 +1213,44 @@ export default function MapScreen() {
         onViewChange={(center, zoom) => setMapView({ center, zoom })}
         onPainted={signalMapReady}
       />
+      {glWanted && (
+        // Invisible tant que la 3D n'a pas peint ses premières tuiles (Leaflet guide en attendant)
+        <View style={[StyleSheet.absoluteFill, !gl.shown && styles.glLoading]} pointerEvents={gl.shown ? 'auto' : 'none'}>
+          <NavMapGL
+            position={mapPosition}
+            navigating
+            navZoom={navZoom}
+            follow={follow}
+            onUserPan={() => {
+              setFollow(false);
+              setPanAt(Date.now());
+            }}
+            onBearingChange={glShown ? setMapBearing : undefined}
+            northUpKey={northUpKey}
+            orientation={navOrientation}
+            markers={markers}
+            selectedMarkerId={selectedId}
+            onMarkerPress={(id) => {
+              setDropped(null);
+              setSelectedId(id);
+            }}
+            onMapPress={() => {
+              setSelectedId(null);
+              setDropped(null);
+            }}
+            pins={pins}
+            onPinPress={onPinPress}
+            routes={routes}
+            onReady={(info) => recordNavEngine('3d', info ? `WebGL ${info.version}${info.renderer ? ` · ${info.renderer}` : ''}` : 'WebGL OK')}
+            onPainted={() => setGl((g) => ({ ...g, shown: true }))}
+            onFallback={(reason) => {
+              recordNavEngine('2d', `repli automatique : ${reason}`);
+              setGl({ failed: reason, shown: false });
+              showToast(`Vue 3D indisponible (${reason}) : carte 2D`);
+            }}
+          />
+        </View>
+      )}
       {/* Couche des commandes : couvre tout l'écran au-dessus de la carte, recherche en haut, + en bas */}
       <View style={[styles.overlay, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
         <View style={styles.header} pointerEvents="box-none">
@@ -1509,6 +1575,7 @@ export default function MapScreen() {
                   setSelectedId(null);
                   setDropped(null);
                   setFollow(true);
+                  resetGl();
                   nav.start();
                   // Alerte météo au départ (pluie, vent, froid sur le trajet)
                   const alert = spokenWeatherAlert(previewWeather.weather);
@@ -1702,6 +1769,8 @@ function rideLabel(r: RideSummary) {
 
 const useStyles = makeStyles((Colors) => ({
   container: { flex: 1 },
+  // Carte 3D en cours de chargement : presque transparente (Leaflet visible dessous), mais rendue
+  glLoading: { opacity: 0.01 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   message: { fontSize: Type.body, textAlign: 'center', color: Colors.text },
   locationCard: {

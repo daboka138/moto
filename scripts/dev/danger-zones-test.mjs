@@ -54,7 +54,7 @@ console.log(`\nZones en France métropolitaine : ${zones.length}`);
 const puppeteer = (await import('puppeteer-core')).default;
 const env = readFileSync(join(ROOT, '.env'), 'utf8');
 const key = env.match(/^EXPO_PUBLIC_MAPTILER_KEY=(.*)$/m)?.[1]?.trim() ?? '';
-const src = readFileSync(join(ROOT, 'src/components/leaflet-map.tsx'), 'utf8');
+const src = readFileSync(join(ROOT, 'src/components/leaflet-map-html.ts'), 'utf8');
 const tpl = src.slice(src.indexOf('return `<!DOCTYPE html>') + 8, src.indexOf('</html>`;') + 7);
 const { mapCss, TILES, OSM_COPYRIGHT } = await import(pathToFileURL(join(ROOT, 'src/components/map-style.ts')).href);
 const { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } = await import(pathToFileURL(join(ROOT, 'src/lib/map-cluster.ts')).href);

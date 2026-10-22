@@ -2,7 +2,7 @@
 // 1) même requête Overpass que l'app sur des cases de Marseille (Prado, Castellane, Canebière), serveur par
 //    serveur (temps + nombre de feux), puis regroupement par carrefour (mergeSignals de l'app) ;
 // 2) countSignalsOnRoute (code de l'app, mêmes serveurs) sur l'avenue du Prado ;
-// 3) capture de la page Leaflet de l'app (leaflet-map.tsx) zoom 16 et 17, carte claire et sombre.
+// 3) capture de la page Leaflet de l'app (leaflet-map-html.ts) zoom 16 et 17, carte claire et sombre.
 // Usage : npm i --no-save puppeteer-core, puis
 //   node --import ./scripts/dev/register.mjs scripts/dev/signals-test.mjs [dossier des captures]
 // (BROWSER=chemin de chrome.exe / msedge.exe si besoin ; clé MapTiler lue dans .env)
@@ -64,7 +64,7 @@ console.log(`countSignalsOnRoute (Prado → Castellane) : ${onRoute} carrefours 
 const puppeteer = (await import('puppeteer-core')).default;
 const env = readFileSync(join(ROOT, '.env'), 'utf8');
 const key = env.match(/^EXPO_PUBLIC_MAPTILER_KEY=(.*)$/m)?.[1]?.trim() ?? '';
-const src = readFileSync(join(ROOT, 'src/components/leaflet-map.tsx'), 'utf8');
+const src = readFileSync(join(ROOT, 'src/components/leaflet-map-html.ts'), 'utf8');
 const tpl = src.slice(src.indexOf('return `<!DOCTYPE html>') + 8, src.indexOf('</html>`;') + 7);
 const { mapCss, TILES, OSM_COPYRIGHT } = await import(pathToFileURL(join(ROOT, 'src/components/map-style.ts')).href);
 const { CLUSTER_JS, CLUSTER_MAX_ZOOM, CLUSTER_RADIUS_PX } = await import(pathToFileURL(join(ROOT, 'src/lib/map-cluster.ts')).href);

@@ -1,4 +1,4 @@
-// Banc : page Leaflet de l'app (leaflet-map.tsx) dans Edge / Chrome headless, écran tactile 400×800.
+// Banc : page Leaflet de l'app (leaflet-map-html.ts) dans Edge / Chrome headless, écran tactile 400×800.
 // Usage : npm i --no-save puppeteer-core pngjs, puis
 //   node --import ./scripts/dev/register.mjs scripts/dev/map-gesture-test.mjs [fichier.tsx] [capture.png]
 // (BROWSER=chemin de chrome.exe / msedge.exe si besoin)
@@ -12,7 +12,7 @@ import puppeteer from 'puppeteer-core';
 import { PNG } from 'pngjs';
 
 const ROOT = join(import.meta.dirname, '..', '..');
-const file = process.argv[2] || join(ROOT, 'src/components/leaflet-map.tsx');
+const file = process.argv[2] || join(ROOT, 'src/components/leaflet-map-html.ts');
 const src = readFileSync(file, 'utf8');
 const tpl = src.slice(src.indexOf('return `<!DOCTYPE html>') + 8, src.indexOf('</html>`;') + 7);
 const { mapCss, TILES, OSM_COPYRIGHT } = await import(pathToFileURL(join(ROOT, 'src/components/map-style.ts')).href);
