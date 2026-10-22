@@ -1,4 +1,5 @@
 import { openDirectConversation } from '@/lib/messages';
+import { trackUsage } from '@/lib/usage';
 import { supabase } from '@/lib/supabase';
 
 // Partage de trajet en direct : une fiche envoyée dans Messages à un ami, avec ma destination,
@@ -35,6 +36,7 @@ function clock(iso: string) {
 /** Crée le partage et l'envoie à cet ami dans notre conversation privée. Renvoie l'id du partage. */
 export async function shareTripWith(userId: string, friendId: string, destination: string, p: ShareProgress) {
   const conversationId = await openDirectConversation(friendId);
+  trackUsage('trip_share');
   const eta = etaIso(p.remainingS);
   const { data, error } = await supabase
     .from('trip_shares')

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -141,6 +142,7 @@ function LoopScreenContent() {
     setLoops(null);
     try {
       // Cols / routes réputés et spots bien notés autour du départ (rien de bloquant si indisponible)
+      trackUsage('loop');
       const attractors = await loopAttractors(start).catch(() => []);
       const result = await generateLoops({ start, target, curviness, avoidHighways, avoidTolls, avoidCities, scooter50, attractors }, (done, total) =>
         setProgress(done / total),

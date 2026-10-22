@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import { Image } from 'expo-image';
+import { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { formatDistance } from '@/components/person-card';
@@ -198,6 +200,7 @@ export function FuelStationCard({
   const Colors = useColors();
   const styles = useStyles();
   const open = stationOpenState(station);
+  useEffect(() => trackUsage('fuel'), []);
   const prices = stationPrices(station);
   const newest = prices.reduce<string | null>((m, p) => (p.at && (!m || p.at > m) ? p.at : m), null);
   return (

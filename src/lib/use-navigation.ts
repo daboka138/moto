@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { trackUsage } from '@/lib/usage';
 
 import { distanceM, type LatLng } from '@/lib/geo';
 import { defaultRouteOptions, type MotoCategory, type RouteOptions } from '@/lib/moto';
@@ -338,6 +339,7 @@ export function useNavigation(
 
   const start = () => {
     if (!selected?.route || !destination) return;
+    trackUsage('nav_start');
     spoken.current = [];
     offRouteCount.current = 0;
     stats.current = newTripStats();

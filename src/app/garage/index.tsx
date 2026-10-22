@@ -1,6 +1,8 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
@@ -16,6 +18,7 @@ function GarageScreenContent() {
   const styles = useStyles();
   const { session, profile } = useSession();
   const garage = useMyGarage(session?.user.id);
+  useEffect(() => trackUsage('garage'), []);
   const motos = profile?.motorcycles ?? [];
 
   if (!motos.length) {

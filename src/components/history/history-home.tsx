@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Flag } from '@/components/history/flag';
@@ -42,6 +43,7 @@ export function HistoryHome() {
   const Colors = useColors();
   const styles = useStyles();
   const { data, error, reload } = useHistoryIndex();
+  useEffect(() => trackUsage('history'), []);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('popular');
 

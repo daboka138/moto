@@ -10,6 +10,7 @@ import { NewsAdmin } from '@/components/admin/news-admin';
 import { AboutAdmin } from '@/components/admin/about-admin';
 import { PremiumAdmin } from '@/components/admin/premium-admin';
 import { StoreLaunchAdmin } from '@/components/admin/store-launch-admin';
+import { UsageStatsAdmin } from '@/components/admin/usage-stats-admin';
 import { Button, Chip, Field } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import {
@@ -49,7 +50,7 @@ import { pickPlace } from '@/lib/place-picker';
 import { deleteScenic, fetchScenic, saveScenic, SCENIC_KINDS, type ScenicDraft, type ScenicWaypoint } from '@/lib/scenic';
 import { useSession } from '@/lib/session';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
+type Tab = 'overview' | 'stats' | 'users' | 'moderation' | 'features' | 'stores' | 'history' | 'news' | 'about';
 
 const date = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -77,6 +78,7 @@ export default function AdminScreen() {
     <View style={styles.screen}>
       <View style={styles.tabs}>
         <Chip label="Vue d’ensemble" selected={tab === 'overview'} onPress={() => setTab('overview')} />
+        <Chip label="Statistiques" selected={tab === 'stats'} onPress={() => setTab('stats')} />
         <Chip label="Inscrits" selected={tab === 'users'} onPress={() => setTab('users')} />
         <Chip label="Modération" selected={tab === 'moderation'} onPress={() => setTab('moderation')} />
         <Chip label="Fonctions" selected={tab === 'features'} onPress={() => setTab('features')} />
@@ -87,6 +89,8 @@ export default function AdminScreen() {
       </View>
       {tab === 'overview' ? (
         <Overview />
+      ) : tab === 'stats' ? (
+        <UsageStatsAdmin />
       ) : tab === 'users' ? (
         <Users />
       ) : tab === 'moderation' ? (

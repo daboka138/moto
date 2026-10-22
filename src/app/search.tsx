@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -76,6 +77,7 @@ export default function SearchScreen() {
     if (q.length < MIN_QUERY || !userId) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
+      trackUsage('search');
       try {
         let r: Results;
         if (tab === 'riders') r = { tab, items: await searchRiders(query) };

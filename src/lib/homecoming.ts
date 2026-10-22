@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { trackUsage } from '@/lib/usage';
 
 import { sendAlertSms, type AlertSmsResult } from '@/lib/alert-sms';
 import type { LatLng } from '@/lib/geo';
@@ -96,6 +97,7 @@ export async function startHomecoming(
     .single();
   if (error) throw new Error(error.message.includes('homecomings_one_active') ? '« Je rentre » déjà en cours' : error.message);
   const started = toHomecoming(data as Row);
+  trackUsage('homecoming');
   if (phones.length) {
     // Numéros pour le SMS de retard (effacés à l'arrivée ou à l'annulation)
     const { error: phonesError } = await supabase.from('homecoming_sms').insert({ homecoming_id: started.id, phones });

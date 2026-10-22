@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { trackUsage } from '@/lib/usage';
 import { Alert } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
@@ -11,7 +12,10 @@ import { shortDistance } from '@/lib/navigation';
 export async function pickAndParseGpx(): Promise<GpxData | null> {
   try {
     const text = await pickGpxFile();
-    return text ? parseGpx(text) : null;
+    if (!text) return null;
+    const gpx = parseGpx(text);
+    trackUsage('gpx_import');
+    return gpx;
   } catch (e) {
     Alert.alert('Import GPX', e instanceof Error ? e.message : String(e));
     return null;

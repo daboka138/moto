@@ -318,3 +318,89 @@ export async function welcomeBackfill(): Promise<number> {
 
 /** Aperçu : {pseudo} remplacé comme côté serveur */
 export const welcomePreview = (body: string, pseudo: string) => body.replaceAll('{pseudo}', pseudo);
+
+// ---------- Statistiques d'usage (note 39) ----------
+
+export type UsagePeriod = 7 | 30 | 90;
+
+export type UsageStats = {
+  days: UsagePeriod;
+  since: string;
+  /** Premier jour d'ouverture enregistré (null = rien encore) */
+  tracking_since: string | null;
+  users: number;
+  new_period: number;
+  dau: number;
+  wau: number;
+  mau: number;
+  active_period: number;
+  testers_14d: number;
+  platforms: { android: number; web: number; both: number };
+  daily: { day: string; android: number; web: number; active: number; signups: number }[];
+  weekly_signups: { week: string; count: number }[] | null;
+  departments: { department: string; count: number }[];
+  retention: { week: string; size: number; d1_n: number; d1: number; d7_n: number; d7: number; d30_n: number; d30: number }[];
+  features: { feature: string; n7: number | null; n30: number | null; period: number | null }[];
+  usage_daily: { day: string; feature: string; n: number }[];
+};
+
+export async function fetchUsageStats(days: UsagePeriod): Promise<UsageStats> {
+  const { data, error } = await supabase.rpc('admin_usage_stats', { p_days: days });
+  if (error) throw new Error(error.message);
+  return data as UsageStats;
+}
+
+/** Libellés des fonctions comptées (serveur : triggers ; téléphone : track_usage) */
+export const USAGE_LABELS: Record<string, string> = {
+  nav_start: 'Navigation lancée',
+  loop: 'Boucle générée',
+  ride_create: 'Balade créée',
+  ride_join: 'Balade rejointe',
+  message: 'Message envoyé',
+  post: 'Post (Mur)',
+  story: 'Story',
+  danger_report: 'Danger signalé',
+  sos: 'SOS déclenché',
+  history: 'Histoire ouverte',
+  weather: 'Météo consultée',
+  fuel: 'Station carburant',
+  search: 'Recherche',
+  homecoming: '« Je rentre »',
+  trip_share: 'Trajet partagé',
+  outing_share: 'Sortie partagée',
+  gpx_import: 'Import GPX',
+  garage: 'Garage ouvert',
+  event_create: 'Événement créé',
+  spot_create: 'Spot créé',
+  place_review: 'Avis sur un spot',
+};
+
+export const usageLabel = (f: string) => USAGE_LABELS[f] ?? f;
+
+/** Pourcentage arrondi (null si personne n'est concerné) */
+export const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : null);
+
+/** Export CSV (séparateur « ; » pour Excel en français) : jour par jour, puis fidélité et départements */
+export function usageCsv(s: UsageStats): string {
+  const features = [...new Set(s.usage_daily.map((u) => u.feature))].sort();
+  const byDay = new Map<string, Record<string, number>>();
+  for (const u of s.usage_daily) (byDay.get(u.day) ?? byDay.set(u.day, {}).get(u.day)!)[u.feature] = u.n;
+  const cell = (v: string | number | null) => {
+    const t = v === null ? '' : String(v);
+    return /[;"\n]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t;
+  };
+  const line = (cells: (string | number | null)[]) => cells.map(cell).join(';');
+  const out: string[] = [];
+  out.push(line(['Jour', 'Actifs', 'Android', 'Web', 'Inscriptions', ...features.map(usageLabel)]));
+  for (const d of s.daily) {
+    const u = byDay.get(d.day) ?? {};
+    out.push(line([d.day, d.active, d.android, d.web, d.signups, ...features.map((f) => u[f] ?? 0)]));
+  }
+  out.push('', line(['Semaine d’inscription', 'Inscrits', 'J+1 %', 'J+7 %', 'J+30 %']));
+  for (const r of s.retention) out.push(line([r.week, r.size, pct(r.d1, r.d1_n), pct(r.d7, r.d7_n), pct(r.d30, r.d30_n)]));
+  out.push('', line(['Département', 'Membres actifs']));
+  for (const d of s.departments) out.push(line([d.department === '?' ? 'Inconnu' : d.department, d.count]));
+  out.push('', line(['Fonction', '7 jours', '30 jours', `${s.days} jours`]));
+  for (const f of s.features) out.push(line([usageLabel(f.feature), f.n7 ?? 0, f.n30 ?? 0, f.period ?? 0]));
+  return '﻿' + out.join('\r\n');
+}

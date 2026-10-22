@@ -98,6 +98,9 @@ export const LightColors = {
   viewerBackdrop: 'rgba(0,0,0,0.95)',
   markerShadow: 'rgba(0,0,0,.35)',
   coverIcon: 'rgba(255,255,255,0.08)',
+  /** Graphiques de la console (2 séries, validées daltonisme en clair et en sombre) */
+  chartA: '#0284C7',
+  chartB: '#EA580C',
 };
 
 export type Palette = typeof LightColors;

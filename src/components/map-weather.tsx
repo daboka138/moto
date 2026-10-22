@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { trackUsage } from '@/lib/usage';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -22,7 +23,10 @@ export function MapWeather({ at }: { at: LatLng | null }) {
     <>
       <Pressable
         style={styles.pill}
-        onPress={() => setOpen(true)}
+        onPress={() => {
+          setOpen(true);
+          trackUsage('weather');
+        }}
         hitSlop={6}
         accessibilityLabel={`Météo : ${info.label}, ${Math.round(now.tempC)} degrés. Détail sur 12 heures`}>
         <Text style={styles.pillEmoji}>{info.emoji}</Text>

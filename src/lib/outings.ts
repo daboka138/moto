@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { trackUsage } from '@/lib/usage';
 import { Alert, Linking, Platform, Share } from 'react-native';
 
 import { distanceM, type LatLng } from '@/lib/geo';
@@ -154,6 +155,7 @@ export function outingMessage(d: OutingDraft) {
 
 export async function shareOutingLink(id: string, d: OutingDraft) {
   const url = outingUrl(id);
+  trackUsage('outing_share');
   const message = `${outingMessage(d)}\n${url}`;
   try {
     if (Platform.OS === 'web' && !navigator.share) {

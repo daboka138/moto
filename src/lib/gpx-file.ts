@@ -18,7 +18,12 @@ function lastDir() {
  * Enregistre le fichier dans le dossier choisi par l'utilisateur (Documents, Drive…).
  * Renvoie false si l'utilisateur a annulé.
  */
-export async function saveGpxFile(fileName: string, content: string): Promise<boolean> {
+export function saveGpxFile(fileName: string, content: string): Promise<boolean> {
+  return saveTextFile(fileName, content, 'application/gpx+xml');
+}
+
+/** Enregistre un fichier texte (GPX, CSV…) dans le dossier choisi ; false si annulé */
+export async function saveTextFile(fileName: string, content: string, mimeType: string): Promise<boolean> {
   let dir: Directory;
   try {
     dir = await Directory.pickDirectoryAsync(lastDir());
@@ -35,7 +40,7 @@ export async function saveGpxFile(fileName: string, content: string): Promise<bo
   } catch {
     // pas grave
   }
-  const file = dir.createFile(fileName.replace(/\.gpx$/, ''), 'application/gpx+xml');
+  const file = dir.createFile(fileName.replace(/\.[a-z0-9]+$/i, ''), mimeType);
   file.write(content);
   return true;
 }

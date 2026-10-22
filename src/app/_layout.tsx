@@ -36,6 +36,7 @@ import { NotificationsProvider } from '@/lib/notifications';
 import { PrivacyProvider } from '@/lib/privacy-context';
 import { SessionProvider, useSession } from '@/lib/session';
 import { StoriesProvider } from '@/lib/stories-context';
+import { useActivityTracking } from '@/lib/usage';
 import { usePageStyle } from '@/lib/use-wide-layout';
 
 SplashScreen.preventAutoHideAsync();
@@ -274,7 +275,7 @@ function RootNavigator() {
 /** Petit bandeau non bloquant (lien d'email refusé), fermé au toucher ou après 6 s */
 /** Fonctionnalités (gratuit / premium), plan et réglage des points, rechargés à chaque changement de compte */
 function AccountSync() {
-  const { session } = useSession();
+  const { session, profile } = useSession();
   // Fonctionnalités : en cache sur le téléphone, rafraîchies tout de suite ; le reste après la carte
   const startupDone = useStartupDone();
   useFeaturesSync(session?.user.id);
@@ -283,6 +284,8 @@ function AccountSync() {
   useEffect(() => {
     if (userId) loadRoutePrefs(userId).catch(() => {});
   }, [userId]);
+  // Statistiques internes : jour d'ouverture (profil terminé seulement)
+  useActivityTracking(profile ? userId : undefined, profile?.city);
   return null;
 }
 

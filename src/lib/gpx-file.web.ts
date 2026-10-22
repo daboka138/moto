@@ -1,7 +1,11 @@
 // Version web : téléchargement du GPX par le navigateur, import par le sélecteur de fichiers.
 
-export async function saveGpxFile(fileName: string, content: string): Promise<boolean> {
-  const url = URL.createObjectURL(new Blob([content], { type: 'application/gpx+xml' }));
+export function saveGpxFile(fileName: string, content: string): Promise<boolean> {
+  return saveTextFile(fileName, content, 'application/gpx+xml');
+}
+
+export async function saveTextFile(fileName: string, content: string, mimeType: string): Promise<boolean> {
+  const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
