@@ -1,11 +1,15 @@
 import { distanceM, type LatLng } from '@/lib/geo';
+import { trackLengthM } from '@/lib/gpx';
 import { photoUrl, uploadPhoto, type PhotoValue } from '@/lib/profile';
+import { averageCriteria, decodeRoadLine, encodeRoadLine, midpoint, rankRoads, type RoadCriteria } from '@/lib/road-rules';
 import { supabase } from '@/lib/supabase';
 
 // Spots motards communautaires : cafés et restos motards, points de vue, belles routes, stations,
 // garages / concessions, parkings moto. Chaque membre peut ajouter un spot (photo + note) et donner
 // une note + un avis par spot. Lecture filtrée par le serveur (RLS) : rien entre deux membres qui se
 // sont bloqués, et un spot (ou avis) signalé par 3 membres est masqué (sauf pour son auteur).
+// Route plaisir = belle route (kind 'road') avec son tracé (line) : avis notés sur 4 critères
+// (virages, revêtement, paysage, trafic), la note est leur moyenne (calculée par le serveur).
 
 export type PlaceKind = 'biker_cafe' | 'viewpoint' | 'road' | 'fuel' | 'garage' | 'parking';
 
@@ -31,6 +35,11 @@ export type CommunityPlace = LatLng & {
   creatorName: string;
   rating: number | null;
   reviewsCount: number;
+  /** Route plaisir : tracé de la portion notée (null pour un spot simple) */
+  line: LatLng[] | null;
+  lengthM: number | null;
+  /** Moyenne de chaque critère (routes) */
+  criteria: RoadCriteria | null;
 };
 
 export type PlaceReview = {
@@ -42,8 +51,14 @@ export type PlaceReview = {
   body: string | null;
   photoUrl: string | null;
   photoPath: string | null;
+  /** Critères d'une route (null pour un spot ou un ancien avis) */
+  criteria: RoadCriteria | null;
+  /** Photos en plus (routes) */
+  morePhotos: { path: string; url: string }[];
   createdAt: string;
 };
+
+type Criteria = { curves: number | null; surface: number | null; scenery: number | null; traffic: number | null };
 
 type PlaceRow = {
   id: string;
@@ -55,10 +70,18 @@ type PlaceRow = {
   photo_path: string | null;
   created_by: string;
   creator: { username: string } | null;
-  reviews: { rating: number }[];
+  route_line: unknown;
+  route_length_m: number | null;
+  reviews: ({ rating: number } & Criteria)[];
 };
 
-const FIELDS = 'id, kind, name, description, latitude, longitude, photo_path, created_by, creator:profiles!places_created_by_fkey(username), reviews:place_reviews(rating)';
+const FIELDS =
+  'id, kind, name, description, latitude, longitude, photo_path, created_by, route_line, route_length_m, creator:profiles!places_created_by_fkey(username), reviews:place_reviews(rating, curves, surface, scenery, traffic)';
+
+const toCriteria = (r: Criteria): RoadCriteria | null =>
+  r.curves !== null && r.surface !== null && r.scenery !== null && r.traffic !== null
+    ? { curves: r.curves, surface: r.surface, scenery: r.scenery, traffic: r.traffic }
+    : null;
 
 function toPlace(r: PlaceRow): CommunityPlace {
   const ratings = r.reviews.map((x) => x.rating);
@@ -75,6 +98,9 @@ function toPlace(r: PlaceRow): CommunityPlace {
     creatorName: r.creator?.username ?? 'motard',
     rating: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null,
     reviewsCount: ratings.length,
+    line: r.kind === 'road' ? decodeRoadLine(r.route_line) : null,
+    lengthM: r.route_length_m,
+    criteria: averageCriteria(r.reviews.map((x) => toCriteria(x) ?? {})),
   };
 }
 
@@ -142,14 +168,15 @@ type ReviewRow = {
   rating: number;
   body: string | null;
   photo_path: string | null;
+  more_photos: string[] | null;
   created_at: string;
   author: { username: string; avatar_path: string } | null;
-};
+} & Criteria;
 
 export async function fetchReviews(placeId: string): Promise<PlaceReview[]> {
   const { data, error } = await supabase
     .from('place_reviews')
-    .select('id, author_id, rating, body, photo_path, created_at, author:profiles(username, avatar_path)')
+    .select('id, author_id, rating, body, photo_path, more_photos, curves, surface, scenery, traffic, created_at, author:profiles(username, avatar_path)')
     .eq('place_id', placeId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -163,6 +190,8 @@ export async function fetchReviews(placeId: string): Promise<PlaceReview[]> {
     body: r.body,
     photoPath: r.photo_path,
     photoUrl: r.photo_path ? photoUrl(r.photo_path) : null,
+    criteria: toCriteria(r),
+    morePhotos: (r.more_photos ?? []).map((path) => ({ path, url: photoUrl(path) })),
     createdAt: r.created_at,
   }));
 }
@@ -198,30 +227,115 @@ export async function deletePlace(place: CommunityPlace, reviews: PlaceReview[])
   const { error } = await supabase.from('places').delete().eq('id', place.id);
   if (error) throw error;
   // Photos du lieu et des avis (les miennes seulement : le stockage n'autorise que mon dossier)
-  const paths = [place.photoPath, ...reviews.map((r) => r.photoPath)].filter((p): p is string => !!p && p.startsWith(`${place.createdBy}/`));
+  const paths = [place.photoPath, ...reviews.flatMap((r) => reviewPhotos(r).map((p) => p.path))].filter(
+    (p): p is string => !!p && p.startsWith(`${place.createdBy}/`),
+  );
   if (paths.length) await supabase.storage.from('photos').remove(paths);
 }
 
-/** Mon avis (créé ou remplacé) */
+/** Mon avis (créé ou remplacé). Routes : critères (la note devient leur moyenne) et jusqu'à 4 photos. */
 export async function saveReview(
   userId: string,
   placeId: string,
-  r: { rating: number; body: string; photo: PhotoValue | null; previousPhotoPath: string | null },
+  r: { rating: number; body: string; photos: PhotoValue[]; previousPhotoPaths: string[]; criteria?: RoadCriteria | null },
 ) {
-  let photoPath = r.photo?.path ?? null;
-  if (r.photo?.localUri) photoPath = await uploadPhoto(userId, 'review', r.photo);
+  // Photos gardées (déjà envoyées) ou nouvelles, dans l'ordre affiché
+  const paths: string[] = [];
+  for (const p of r.photos.slice(0, 4)) {
+    if (p.localUri) paths.push(await uploadPhoto(userId, 'review', p));
+    else if (p.path) paths.push(p.path);
+  }
   const { error } = await supabase.from('place_reviews').upsert(
-    { place_id: placeId, author_id: userId, rating: r.rating, body: r.body.trim() || null, photo_path: photoPath },
+    {
+      place_id: placeId,
+      author_id: userId,
+      rating: r.rating,
+      body: r.body.trim() || null,
+      photo_path: paths[0] ?? null,
+      more_photos: paths.slice(1),
+      curves: r.criteria?.curves ?? null,
+      surface: r.criteria?.surface ?? null,
+      scenery: r.criteria?.scenery ?? null,
+      traffic: r.criteria?.traffic ?? null,
+    },
     { onConflict: 'place_id,author_id' },
   );
   if (error) throw new Error(error.message);
-  if (r.previousPhotoPath && r.previousPhotoPath !== photoPath) await supabase.storage.from('photos').remove([r.previousPhotoPath]);
+  const removed = r.previousPhotoPaths.filter((p) => !paths.includes(p));
+  if (removed.length) await supabase.storage.from('photos').remove(removed);
+}
+
+/** Toutes les photos d'un avis (la première d'abord) */
+export const reviewPhotos = (r: PlaceReview) => [
+  ...(r.photoPath && r.photoUrl ? [{ path: r.photoPath, url: r.photoUrl }] : []),
+  ...r.morePhotos,
+];
+
+// ---------- Routes plaisir ----------
+
+export type RoadDraft = {
+  name: string;
+  description: string;
+  line: LatLng[];
+  criteria: RoadCriteria;
+  body: string;
+  photos: PhotoValue[];
+};
+
+/** Nouvelle route plaisir : la portion (tracé simplifié) + mon avis noté */
+export async function createRoad(userId: string, d: RoadDraft): Promise<string> {
+  const mid = midpoint(d.line);
+  const { data, error } = await supabase
+    .from('places')
+    .insert({
+      created_by: userId,
+      kind: 'road',
+      name: d.name.trim(),
+      description: d.description.trim() || null,
+      latitude: mid.latitude,
+      longitude: mid.longitude,
+      route_line: encodeRoadLine(d.line),
+      route_length_m: Math.round(trackLengthM(d.line)),
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  await saveReview(userId, data.id, { rating: 3, body: d.body, photos: d.photos, previousPhotoPaths: [], criteria: d.criteria });
+  return data.id;
+}
+
+export type RoadNearby = CommunityPlace & { line: LatLng[]; distanceM: number };
+
+/** Top routes plaisir près d'un point (distance au point le plus proche du tracé) */
+export async function fetchTopRoads(center: LatLng, radiusKm: number): Promise<RoadNearby[]> {
+  const list = await fetchPlacesAround(center, radiusKm, ['road']);
+  const roads = list
+    .filter((p): p is CommunityPlace & { line: LatLng[] } => !!p.line)
+    .map((p) => ({ ...p, distanceM: Math.min(...p.line.map((q) => distanceM(center, q))) }))
+    .filter((p) => p.distanceM <= radiusKm * 1000);
+  return rankRoads(roads);
+}
+
+// Tracé à noter, passé d'un écran à l'autre (boucle, sortie, trajet)
+type PendingRoad = { line: LatLng[]; name?: string; description?: string };
+let pendingRoad: PendingRoad | null = null;
+
+export function setPendingRoad(data: PendingRoad | null) {
+  pendingRoad = data;
+}
+
+/** Récupère (et retire) le tracé en attente */
+export function takePendingRoad() {
+  const data = pendingRoad;
+  pendingRoad = null;
+  return data;
 }
 
 export async function deleteReview(review: PlaceReview, userId: string) {
   const { error } = await supabase.from('place_reviews').delete().eq('id', review.id);
   if (error) throw error;
-  if (review.photoPath && review.authorId === userId) await supabase.storage.from('photos').remove([review.photoPath]);
+  const paths = reviewPhotos(review).map((p) => p.path);
+  if (paths.length && review.authorId === userId) await supabase.storage.from('photos').remove(paths);
 }
 
 export function stars(rating: number) {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Switch, Text, View } from 'react-native';
 
@@ -7,6 +7,7 @@ import { ExpandableMap } from '@/components/expandable-map';
 import { Button } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { IS_WEB } from '@/lib/app-link';
+import { setPendingRoad } from '@/lib/places';
 import {
   elevationGain,
   openOutingImage,
@@ -181,6 +182,17 @@ export default function OutingScreen() {
           />
         </View>
       </View>
+      {draft.track.length >= 2 && (
+        <Button
+          title="Noter une portion de route"
+          icon="star-outline"
+          variant="ghost"
+          onPress={() => {
+            setPendingRoad({ line: draft.track });
+            router.push('/road/new');
+          }}
+        />
+      )}
       <Text style={styles.small}>
         Les images s’ouvrent sur passeryder.fr : « Partager l’image » ou « Télécharger », puis publie-la en story. Ni vitesse
         maximale ni vitesse moyenne n’y figurent. Qui a le lien peut voir le récap (tracé, km, durée, ton pseudo).

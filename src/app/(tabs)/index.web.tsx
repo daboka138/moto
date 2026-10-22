@@ -15,6 +15,7 @@ import { OpenInApp } from '@/components/open-in-app';
 import { PlaceFilterSheet } from '@/components/place-filter-sheet';
 import { motoLabel, PersonCard } from '@/components/person-card';
 import { RideCard } from '@/components/ride-card';
+import { roadMapRoutes } from '@/components/road-lines';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { fuelPinIcon, parkingPinIcon, placePinIcon, reportPinIcon, zonePinIcon } from '@/lib/map-pin-icons';
 import { stationTitle, useFuelStations } from '@/lib/fuel-prices';
@@ -214,10 +215,12 @@ export default function MapScreen() {
         ]
       : []),
   ];
+  // Routes plaisir notées (calque) : la route touchée est dessinée en plein
+  const roadLines = layers.showRoads ? roadMapRoutes(communityPlaces, selectedPlace?.id ?? null) : [];
   const routes: MapRoute[] =
     selectedRide && rideRoute?.id === selectedRide.id
-      ? [{ id: 'ride', points: rideRoute.points, color: Colors.accent }]
-      : [];
+      ? [...roadLines, { id: 'ride', points: rideRoute.points, color: Colors.accent }]
+      : roadLines;
 
   const onPinPress = (id: string) => {
     if (id.startsWith(REPORT_PREFIX) || id.startsWith(PLACE_PREFIX) || id.startsWith(EVENT_PREFIX) || id.startsWith(PARKING_PREFIX) || id.startsWith(FUEL_PREFIX)) {

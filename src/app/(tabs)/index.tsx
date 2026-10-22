@@ -35,6 +35,7 @@ import { PerfBadge } from '@/components/nav/perf-badge';
 import { NavMapGL } from '@/components/nav-map-gl';
 import { shortDistance } from '@/lib/navigation';
 import { TipBubble } from '@/components/guide/tip-bubble';
+import { roadMapRoutes } from '@/components/road-lines';
 import { DANGER_ZONE_ROUTE, makeStyles, Radius, Type, useColors } from '@/constants/theme';
 import { recordTrip, retryPendingPasses } from '@/lib/badges';
 import { setAppBusy } from '@/lib/app-busy';
@@ -689,6 +690,13 @@ export default function MapScreen() {
   const pins = startupDone ? allPins : allPins.filter((p) => !p.cluster);
   // Tracés recalculés seulement s'ils changent (pas à chaque position GPS ni à chaque mouvement de la boussole)
   const rideLine = selectedRide && rideRoute?.id === selectedRide.id ? rideRoute.points : null;
+  // Routes plaisir notées (calque, hors navigation) : la route touchée est dessinée en plein
+  const showRoadLines = !navigating && nav.phase === 'idle' && layers.showRoads;
+  const selectedPlaceId = selectedId?.startsWith(PLACE_PREFIX) ? selectedId.slice(PLACE_PREFIX.length) : null;
+  const roadLines = useMemo(
+    () => (showRoadLines ? roadMapRoutes(communityPlaces, selectedPlaceId) : []),
+    [showRoadLines, communityPlaces, selectedPlaceId],
+  );
   const routes: MapRoute[] = useMemo(() => {
     const toLine = (points: LatLng[]) => points.map((p) => [p.latitude, p.longitude] as [number, number]);
     // Aperçu : les autres itinéraires proposés en gris, sous celui choisi
@@ -707,9 +715,9 @@ export default function MapScreen() {
     return nav.route
       ? [...alternatives, ...zones, { id: 'nav', points: toLine(nav.route.points), color: Colors.route }]
       : rideLine
-        ? [{ id: 'ride', points: rideLine, color: Colors.accent }]
-        : alternatives;
-  }, [nav.phase, nav.choices, nav.route, rideLine, zoneSegs, Colors]);
+        ? [...roadLines, { id: 'ride', points: rideLine, color: Colors.accent }]
+        : [...roadLines, ...alternatives];
+  }, [nav.phase, nav.choices, nav.route, rideLine, zoneSegs, roadLines, Colors]);
   // Aperçu : la carte cadre tout l'itinéraire (2 coins suffisent)
   const fitPoints = nav.phase === 'preview' && nav.route ? boundsOf(nav.route.points) : undefined;
 

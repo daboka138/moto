@@ -7,11 +7,13 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { showActionSheet } from '@/components/action-sheet';
 import { Stars } from '@/components/community-cards';
 import { ExpandableMap } from '@/components/expandable-map';
-import { PhotoPicker } from '@/components/photo-picker';
 import { Card } from '@/components/profile-view';
+import { CriteriaBars, CriteriaInput, PhotosInput } from '@/components/road-criteria';
 import { Button, Field } from '@/components/ui';
-import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
-import { goToPlace } from '@/lib/app-link';
+import { makeStyles, Radius, RoadRatingColors, Type, useColors } from '@/constants/theme';
+import { goToPlace, IS_WEB } from '@/lib/app-link';
+import { formatDistance } from '@/lib/routing';
+import { setPendingGpx } from '@/lib/gpx';
 import { timeAgo } from '@/lib/feed';
 import { askReport } from '@/lib/moderation';
 import {
@@ -20,11 +22,13 @@ import {
   fetchPlace,
   fetchReviews,
   placeKindInfo,
+  reviewPhotos,
   saveReview,
   type CommunityPlace,
   type PlaceReview,
 } from '@/lib/places';
 import type { PhotoValue } from '@/lib/profile';
+import { criteriaComplete, criteriaRating, roadTier, type RoadCriteria } from '@/lib/road-rules';
 import { useSession } from '@/lib/session';
 import { PlaceIcon } from '@/components/map-icon';
 import { placePinIcon } from '@/lib/map-pin-icons';
@@ -42,7 +46,8 @@ export default function PlaceScreen() {
   const [editing, setEditing] = useState(false);
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState('');
-  const [photo, setPhoto] = useState<PhotoValue>({ path: null, localUri: null });
+  const [photos, setPhotos] = useState<PhotoValue[]>([]);
+  const [criteria, setCriteria] = useState<Partial<RoadCriteria>>({});
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -81,22 +86,33 @@ export default function PlaceScreen() {
   const mine = reviews.find((r) => r.authorId === userId) ?? null;
   const isCreator = place.createdBy === userId;
   const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : null;
+  const isRoad = place.kind === 'road';
+  const line = place.line;
+  const mapRoutes = line ? [{ id: 'road', points: line.map((p) => [p.latitude, p.longitude] as [number, number]), color: RoadRatingColors[roadTier(avg)] }] : undefined;
+  const mapFit = line ?? [place];
 
   const startEdit = () => {
     setRating(mine?.rating ?? 0);
     setBody(mine?.body ?? '');
-    setPhoto({ path: mine?.photoPath ?? null, localUri: null });
+    setPhotos(mine ? reviewPhotos(mine).map((p) => ({ path: p.path, localUri: null })) : []);
+    setCriteria(mine?.criteria ?? {});
     setEditing(true);
   };
 
   const save = async () => {
-    if (!rating) {
-      Alert.alert('Ton avis', 'Choisis une note de 1 à 5 étoiles.');
+    if (isRoad ? !criteriaComplete(criteria) : !rating) {
+      Alert.alert('Ton avis', isRoad ? 'Note les 4 critères (1 à 5 étoiles).' : 'Choisis une note de 1 à 5 étoiles.');
       return;
     }
     setSaving(true);
     try {
-      await saveReview(userId, place.id, { rating, body, photo: photo.localUri || photo.path ? photo : null, previousPhotoPath: mine?.photoPath ?? null });
+      await saveReview(userId, place.id, {
+        rating: isRoad && criteriaComplete(criteria) ? criteriaRating(criteria) : rating,
+        body,
+        photos,
+        previousPhotoPaths: mine ? reviewPhotos(mine).map((p) => p.path) : [],
+        criteria: isRoad && criteriaComplete(criteria) ? criteria : null,
+      });
       await load();
       setEditing(false);
     } catch (e) {
@@ -130,6 +146,27 @@ export default function PlaceScreen() {
         ...(!own ? [{ label: 'Signaler cet avis', destructive: true, onPress: () => askReport('place_review', r.id) }] : []),
       ],
     });
+  };
+
+  // Route avec tracé : navigation le long de la route (app) ; sinon jusqu'au lieu
+  const goThere = () => {
+    if (line && !IS_WEB) {
+      setPendingGpx({ name: place.name, points: line, waypoints: [] });
+      router.navigate({ pathname: '/', params: { gpx: String(Date.now()) } });
+      return;
+    }
+    const start = line?.[0] ?? place;
+    goToPlace({ latitude: start.latitude, longitude: start.longitude, label: place.name });
+  };
+
+  // Balade avec ce tracé (même chemin que l'import GPX) ; route sans tracé : RDV au point
+  const createRide = () => {
+    if (line) {
+      setPendingGpx({ name: place.name, points: line, waypoints: [] });
+      router.push({ pathname: '/ride/new', params: { gpx: '1', role: 'meeting', label: place.name, lat: String(line[0].latitude), lng: String(line[0].longitude) } });
+      return;
+    }
+    router.push({ pathname: '/ride/new', params: { role: 'meeting', label: place.name, lat: String(place.latitude), lng: String(place.longitude) } });
   };
 
   const placeMenu = () =>
@@ -180,7 +217,8 @@ export default function PlaceScreen() {
           style={styles.map}
           position={null}
           pins={[{ id: 'p', kind: 'place', label: kind.short, icon: placePinIcon(place.kind), latitude: place.latitude, longitude: place.longitude }]}
-          fitPoints={[place]}
+          routes={mapRoutes}
+          fitPoints={mapFit}
           title={place.name}
           subtitle={kind.label}
         />
@@ -188,7 +226,7 @@ export default function PlaceScreen() {
       <View style={styles.body}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <PlaceIcon kind={place.kind} size={22} />
-          <Text style={styles.kind}>{kind.label}</Text>
+          <Text style={styles.kind}>{line ? `Route plaisir${place.lengthM ? ` · ${formatDistance(place.lengthM)}` : ''}` : kind.label}</Text>
         </View>
         <Text style={styles.title}>{place.name}</Text>
         <View style={styles.ratingRow}>
@@ -203,17 +241,21 @@ export default function PlaceScreen() {
             <Text style={styles.muted}>Pas encore d’avis : sois le premier !</Text>
           )}
         </View>
+        {place.criteria && <CriteriaBars value={place.criteria} />}
         {!!place.description && <Text style={styles.description}>{place.description}</Text>}
         <Text style={styles.muted}>Ajouté par @{place.creatorName}</Text>
 
-        <Button title="Y aller" onPress={() => goToPlace({ ...place, label: place.name })} />
+        <Button title="Y aller" icon="navigate" onPress={goThere} />
+        {isRoad && <Button title="Créer une balade ici" icon="flag-outline" variant="secondary" onPress={createRide} />}
+        {isRoad && <Text style={styles.reminder}>Belle route = plaisir des yeux et des virages, dans le respect du code de la route.</Text>}
 
         {place.photoUrl && (
           <ExpandableMap
             style={styles.mapSmall}
             position={null}
             pins={[{ id: 'p', kind: 'place', label: kind.short, icon: placePinIcon(place.kind), latitude: place.latitude, longitude: place.longitude }]}
-            fitPoints={[place]}
+            routes={mapRoutes}
+            fitPoints={mapFit}
             title={place.name}
             subtitle={kind.label}
           />
@@ -222,14 +264,14 @@ export default function PlaceScreen() {
         <Card title={mine ? 'Mon avis' : 'Donner mon avis'}>
           {editing ? (
             <View style={styles.form}>
-              <Stars value={rating} size={34} onChange={setRating} />
+              {isRoad ? <CriteriaInput value={criteria} onChange={setCriteria} /> : <Stars value={rating} size={34} onChange={setRating} />}
               <Field label="Commentaire" value={body} onChangeText={setBody} multiline maxLength={500} placeholder="Accueil, ambiance, état de la route…" />
-              <PhotoPicker shape="wide" label="Photo (facultatif)" value={photo} onChange={setPhoto} />
+              <PhotosInput value={photos} onChange={setPhotos} max={isRoad ? 4 : 1} />
               <Button title="Publier mon avis" loading={saving} onPress={save} />
               <Button title="Annuler" variant="ghost" onPress={() => setEditing(false)} />
             </View>
           ) : (
-            <Button title={mine ? 'Modifier mon avis' : '★ Noter ce lieu'} variant="secondary" onPress={startEdit} />
+            <Button title={mine ? 'Modifier mon avis' : isRoad ? 'Noter cette route' : 'Noter ce lieu'} icon="star-outline" variant="secondary" onPress={startEdit} />
           )}
         </Card>
 
@@ -250,8 +292,16 @@ export default function PlaceScreen() {
                   <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textMuted} />
                 </Pressable>
               </View>
+              {r.criteria && <CriteriaBars value={r.criteria} compact />}
               {!!r.body && <Text style={styles.reviewText}>{r.body}</Text>}
-              {r.photoUrl && <Image source={{ uri: r.photoUrl }} style={styles.reviewPhoto} contentFit="cover" />}
+              {reviewPhotos(r).length === 1 && <Image source={{ uri: reviewPhotos(r)[0].url }} style={styles.reviewPhoto} contentFit="cover" />}
+              {reviewPhotos(r).length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {reviewPhotos(r).map((ph) => (
+                    <Image key={ph.path} source={{ uri: ph.url }} style={styles.reviewThumb} contentFit="cover" />
+                  ))}
+                </ScrollView>
+              )}
             </Pressable>
           ))}
         </Card>
@@ -282,4 +332,6 @@ const useStyles = makeStyles((Colors) => ({
   time: { fontSize: Type.small, color: Colors.textMuted },
   reviewText: { fontSize: Type.body, lineHeight: 19, color: Colors.text },
   reviewPhoto: { width: '100%', height: 180, borderRadius: Radius.md, backgroundColor: Colors.border },
+  reviewThumb: { width: 140, height: 105, borderRadius: Radius.md, backgroundColor: Colors.border },
+  reminder: { fontSize: Type.small, color: Colors.textMuted, textAlign: 'center' },
 }));

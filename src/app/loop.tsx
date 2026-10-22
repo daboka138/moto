@@ -35,6 +35,7 @@ import { PartnerIdeas } from '@/components/partner-ideas';
 import { SpotSuggestions } from '@/components/spot-suggestions';
 import type { Place } from '@/lib/geocoding';
 import { pickPlace } from '@/lib/place-picker';
+import { setPendingRoad } from '@/lib/places';
 import { WeatherSummaryOnly } from '@/components/weather-strip';
 import { roundedNow, useRouteWeather } from '@/lib/weather';
 
@@ -178,18 +179,15 @@ function LoopScreenContent() {
     router.push({ pathname: '/ride/new', params: { gpx: '1', ...meeting } });
   };
 
-  const saveRoad = (l: Loop) =>
-    router.push({
-      pathname: '/place/new',
-      params: {
-        kind: 'road',
-        lat: String(start!.latitude),
-        lng: String(start!.longitude),
-        label: origin?.label ?? 'Départ de la boucle',
-        name: title(l),
-        description: `Boucle de ${formatDistance(l.route.distanceM)}, environ ${durationLabel(l.durationMin)}, sinuosité ${String(l.score).replace('.', ',')}/10.`,
-      },
+  // Route plaisir : la boucle entière (ou une portion) à noter
+  const saveRoad = (l: Loop) => {
+    setPendingRoad({
+      line: l.route.points,
+      name: title(l),
+      description: `Boucle de ${formatDistance(l.route.distanceM)}, environ ${durationLabel(l.durationMin)}.`,
     });
+    router.push('/road/new');
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -338,7 +336,7 @@ function LoopScreenContent() {
             <View style={styles.actions}>
               {IS_WEB ? <OpenInApp path="/loop" compact /> : <Button title="Partir" onPress={() => go(loop)} />}
               <Button title="Créer une balade (inviter des amis)" variant="secondary" onPress={() => createRide(loop)} />
-              <Button title="Enregistrer comme belle route" variant="ghost" onPress={() => saveRoad(loop)} />
+              <Button title="Noter comme route plaisir" icon="star-outline" variant="ghost" onPress={() => saveRoad(loop)} />
             </View>
           )}
           <Text style={styles.credit}>Itinéraires : Valhalla (OpenStreetMap). Durée estimée selon la sinuosité.</Text>

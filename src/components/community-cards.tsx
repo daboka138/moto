@@ -61,7 +61,7 @@ export function PlaceCard({
           {place.name}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {kind.short}
+          {place.line ? `Route plaisir${place.lengthM ? ` · ${formatDistance(place.lengthM)}` : ''}` : kind.short}
           {distanceM != null ? ` · à ${formatDistance(distanceM)}` : ''}
         </Text>
         <View style={styles.ratingRow}>

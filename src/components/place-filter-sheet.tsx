@@ -39,6 +39,18 @@ export function PlaceFilterSheet({ visible, onClose }: { visible: boolean; onClo
           </View>
           <View style={styles.row}>
             <View style={styles.flex}>
+              <Text style={styles.label}>Routes plaisir</Text>
+              <Text style={styles.sub}>Belles routes notées par la commu, colorées selon leur note</Text>
+            </View>
+            <Switch
+              value={layers.showRoads}
+              onValueChange={layers.setShowRoads}
+              trackColor={{ true: Colors.accent, false: Colors.border }}
+              thumbColor={Colors.white}
+            />
+          </View>
+          <View style={styles.row}>
+            <View style={styles.flex}>
               <Text style={styles.label}>Parkings moto</Text>
               <Text style={styles.sub}>Parkings OpenStreetMap, visibles en zoomant</Text>
             </View>

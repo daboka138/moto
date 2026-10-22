@@ -218,6 +218,16 @@ export const MapSkyColors = {
 /** Portion d'itinéraire en zone de danger (surlignage discret sous le tracé) */
 export const DANGER_ZONE_ROUTE = 'rgba(220,38,38,0.5)';
 
+/** Routes plaisir sur la carte, selon leur note (identiques en clair et en sombre, comme la carte) */
+export const RoadRatingColors = {
+  top: '#7C3AED',
+  good: '#2563EB',
+  fair: '#0D9488',
+  low: '#A1A1AA',
+  /** Portion choisie quand on note une route */
+  selection: '#F97316',
+};
+
 // ---------- Typographie, espacements, coins ----------
 
 /** Polices (assets/fonts, licence OFL, chargées par useAppFonts dans _layout) */

@@ -6,7 +6,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ClubsList } from '@/components/clubs-list';
-import { EventsList, PlacesList } from '@/components/community-lists';
+import { EventsList, PlacesList, RoadsList } from '@/components/community-lists';
 import { RideCard } from '@/components/ride-card';
 import { Chip } from '@/components/ui';
 import { makeStyles, Radius, Type, useColors } from '@/constants/theme';
@@ -28,14 +28,17 @@ const DATE_FILTERS: { value: DateFilter; label: string }[] = [
 ];
 const DISTANCE_FILTERS: (number | null)[] = [null, 10, 25, 50, 100];
 
-/** Onglet Sorties : balades, événements, lieux motards, clubs */
-type Segment = 'rides' | 'events' | 'places' | 'clubs';
+/** Onglet Sorties : balades, agenda (événements), lieux motards, routes plaisir, clubs */
+type Segment = 'rides' | 'events' | 'places' | 'roads' | 'clubs';
 const SEGMENTS: { value: Segment; label: string }[] = [
   { value: 'rides', label: 'Balades' },
-  { value: 'events', label: 'Événements' },
+  { value: 'events', label: 'Agenda' },
   { value: 'places', label: 'Lieux' },
+  { value: 'roads', label: 'Routes' },
   { value: 'clubs', label: 'Clubs' },
 ];
+
+const CREATE_PATHS = { rides: '/ride/new', events: '/event/new', places: '/place/new', roads: '/road/new', clubs: '/club/new' } as const;
 
 function matchesDate(ride: RideSummary, filter: DateFilter) {
   if (filter === 'all') return true;
@@ -102,9 +105,9 @@ export default function RidesScreen() {
           )}
           <Pressable
             style={styles.create}
-            onPress={() => router.push(segment === 'rides' ? '/ride/new' : segment === 'events' ? '/event/new' : segment === 'clubs' ? '/club/new' : '/place/new')}>
+            onPress={() => router.push(CREATE_PATHS[segment])}>
             <Ionicons name="add" size={20} color={Colors.white} />
-            <Text style={styles.createText}>{segment === 'places' ? 'Ajouter' : 'Créer'}</Text>
+            <Text style={styles.createText}>{segment === 'places' ? 'Ajouter' : segment === 'roads' ? 'Noter' : 'Créer'}</Text>
           </Pressable>
         </View>
       </View>
@@ -116,7 +119,9 @@ export default function RidesScreen() {
             style={[styles.segment, segment === s.value && styles.segmentOn]}
             onPress={() => setSegment(s.value)}
             accessibilityState={{ selected: segment === s.value }}>
-            <Text style={[styles.segmentText, segment === s.value && styles.segmentTextOn]}>{s.label}</Text>
+            <Text style={[styles.segmentText, segment === s.value && styles.segmentTextOn]} numberOfLines={1} adjustsFontSizeToFit>
+              {s.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -125,6 +130,8 @@ export default function RidesScreen() {
         <EventsList me={me} />
       ) : segment === 'places' ? (
         <PlacesList me={me} />
+      ) : segment === 'roads' ? (
+        <RoadsList me={me} />
       ) : segment === 'clubs' ? (
         <ClubsList me={me} />
       ) : (
@@ -250,9 +257,9 @@ const useStyles = makeStyles((Colors) => ({
     borderRadius: Radius.md,
     backgroundColor: Colors.border,
   },
-  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: Radius.sm },
+  segment: { flex: 1, alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2, borderRadius: Radius.sm },
   segmentOn: { backgroundColor: Colors.surface },
-  segmentText: { fontSize: Type.body, fontWeight: '700', color: Colors.textMuted },
+  segmentText: { fontSize: 14, fontWeight: '700', color: Colors.textMuted },
   segmentTextOn: { color: Colors.text },
   gpx: {
     flexDirection: 'row',

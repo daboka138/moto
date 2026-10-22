@@ -35,7 +35,7 @@ export type Question = { id: string; q: string; r: string[]; fiches?: string[] }
 
 export type Diapo = { emoji: string; titre: string; texte: string; points: string[] };
 
-export type AstuceId = 'carte' | 'balade' | 'convoi' | 'je-rentre' | 'boucle' | 'spots';
+export type AstuceId = 'carte' | 'balade' | 'convoi' | 'je-rentre' | 'boucle' | 'spots' | 'routes-plaisir';
 export type Astuce = { titre: string; texte: string; fiche: string };
 
 export const SUPPORT_EMAIL = 'passeryder@gmail.com';
@@ -1423,6 +1423,11 @@ export const ASTUCES: Record<AstuceId, Astuce> = {
     titre: 'Ajouter un spot',
     texte: 'Partage un bon coin avec la commu : catégorie, nom, photo et ta note. Les autres donneront leur avis.',
     fiche: 'spots',
+  },
+  'routes-plaisir': {
+    titre: 'Noter une route',
+    texte: 'Choisis la portion sur un de tes trajets (touche le début puis la fin) ou trace-la sur la carte, puis note virages, revêtement, paysage et trafic.',
+    fiche: 'routes-plaisir',
   },
 };
 

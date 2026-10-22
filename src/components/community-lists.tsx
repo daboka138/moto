@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { EventCard, PlaceCard } from '@/components/community-cards';
@@ -9,7 +9,7 @@ import { Chip } from '@/components/ui';
 import { makeStyles, Type, useColors } from '@/constants/theme';
 import { distanceM, type LatLng } from '@/lib/geo';
 import { EVENT_KINDS, type EventKind, type MotoEvent } from '@/lib/events';
-import { PLACE_KINDS, type CommunityPlace, type PlaceKind } from '@/lib/places';
+import { fetchTopRoads, PLACE_KINDS, type CommunityPlace, type PlaceKind, type RoadNearby } from '@/lib/places';
 import { useCommunityPlaces, useEvents } from '@/lib/use-community';
 
 export const openEvent = (e: MotoEvent) => router.push({ pathname: '/event/[id]', params: { id: e.id } });
@@ -170,7 +170,122 @@ export function PlacesList({ me }: { me: LatLng | null }) {
   );
 }
 
+// « Top routes près de moi » : rayon mémorisé sur le téléphone
+const ROADS_RADIUS_KEY = 'moto.roads.radiusKm';
+const ROAD_RADII = [25, 50, 100, 200] as const;
+
+function readRoadsRadius(): number {
+  try {
+    const n = Number(localStorage.getItem(ROADS_RADIUS_KEY));
+    return ROAD_RADII.includes(n as (typeof ROAD_RADII)[number]) ? n : 50;
+  } catch {
+    return 50;
+  }
+}
+
+/** Routes plaisir notées par la commu autour de moi, les mieux notées d'abord (onglet Sorties) */
+export function RoadsList({ me }: { me: LatLng | null }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  const [radiusKm, setRadiusKm] = useState(readRoadsRadius);
+  const [roads, setRoads] = useState<RoadNearby[] | null>(null);
+  const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const lat = me?.latitude;
+  const lng = me?.longitude;
+
+  const load = useCallback(async () => {
+    if (lat === undefined || lng === undefined) return;
+    try {
+      const list = await fetchTopRoads({ latitude: lat, longitude: lng }, radiusKm);
+      setRoads(list);
+      setError(false);
+    } catch (e) {
+      console.warn('Routes indisponibles', e);
+      setError(true);
+    }
+  }, [lat, lng, radiusKm]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (lat !== undefined && lng !== undefined) {
+      fetchTopRoads({ latitude: lat, longitude: lng }, radiusKm)
+        .then((list) => {
+          if (cancelled) return;
+          setRoads(list);
+          setError(false);
+        })
+        .catch((e) => {
+          console.warn('Routes indisponibles', e);
+          if (!cancelled) setError(true);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng, radiusKm]);
+
+  const chooseRadius = (km: number) => {
+    setRadiusKm(km);
+    setRoads(null);
+    try {
+      localStorage.setItem(ROADS_RADIUS_KEY, String(km));
+    } catch {
+      // pas grave
+    }
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} style={styles.filterBar}>
+        <Text style={styles.radiusLabel}>Top routes à moins de :</Text>
+        {ROAD_RADII.map((km) => (
+          <Chip key={km} label={`${km} km`} selected={radiusKm === km} onPress={() => chooseRadius(km)} />
+        ))}
+      </ScrollView>
+      {!me ? (
+        <View style={styles.center}>
+          <Text style={styles.muted}>Autorise la localisation pour voir les belles routes autour de toi.</Text>
+        </View>
+      ) : !roads ? (
+        <View style={styles.center}>
+          {error ? <Text style={styles.muted}>Oups, les routes n’ont pas chargé. Vérifie ton réseau.</Text> : <ActivityIndicator color={Colors.accent} />}
+        </View>
+      ) : (
+        <FlatList
+          data={roads}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                await load();
+                setRefreshing(false);
+              }}
+              colors={[Colors.accent]}
+            />
+          }
+          ListHeaderComponent={
+            <Text style={styles.note}>Notées par la commu : virages, revêtement, paysage, trafic. Toujours dans le respect du code de la route.</Text>
+          }
+          renderItem={({ item }) => <PlaceCard place={item} distanceM={item.distanceM} onPress={() => openPlace(item)} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="git-branch-outline" size={40} color={Colors.textMuted} />
+              <Text style={styles.muted}>Aucune route notée à moins de {radiusKm} km. Partage ta route préférée !</Text>
+              <Chip label="Noter une route" icon="add" selected onPress={() => router.push('/road/new')} />
+            </View>
+          }
+        />
+      )}
+    </View>
+  );
+}
+
 const useStyles = makeStyles((Colors) => ({
+  note: { fontSize: Type.small, color: Colors.textMuted, marginBottom: 4 },
   filterBar: { flexGrow: 0 },
   filters: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
   radiusLabel: { fontSize: Type.small, fontWeight: '700', color: Colors.textMuted },

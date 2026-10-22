@@ -10,6 +10,7 @@ const KEYS = {
   reports: 'moto.map.showReports',
   rides: 'moto.map.showRides.v2',
   places: 'moto.map.showPlaces',
+  roads: 'moto.map.showRoads',
   parkings: 'moto.map.showParkings',
   fuel: 'moto.map.showFuel',
   hideSignals: 'moto.map.hideSignals',
@@ -49,6 +50,9 @@ type MapLayers = {
   setShowReports: (v: boolean) => void;
   setShowRides: (v: boolean) => void;
   setShowPlaces: (v: boolean) => void;
+  /** Routes plaisir notées par la commu : tracés colorés selon la note (activé par défaut) */
+  showRoads: boolean;
+  setShowRoads: (v: boolean) => void;
   /** Parkings moto OpenStreetMap (activé par défaut) */
   showParkings: boolean;
   setShowParkings: (v: boolean) => void;
@@ -108,6 +112,7 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
   const [showRides, setRides] = useState(() => read(KEYS.rides));
   const [showPlaces, setPlaces] = useState(() => read(KEYS.places));
   const [showParkings, setParkings] = useState(() => read(KEYS.parkings));
+  const [showRoads, setRoads] = useState(() => read(KEYS.roads));
   const [showFuel, setFuel] = useState(() => read(KEYS.fuel));
   const [hideSignals, setHideSignalsState] = useState(() => readOff(KEYS.hideSignals));
   const [hiddenPlaceKinds, setHidden] = useState(readHiddenKinds);
@@ -132,6 +137,11 @@ export function MapLayersProvider({ children }: { children: ReactNode }) {
         setShowPlaces: (v) => {
           setPlaces(v);
           write(KEYS.places, v);
+        },
+        showRoads,
+        setShowRoads: (v) => {
+          setRoads(v);
+          write(KEYS.roads, v);
         },
         showParkings,
         setShowParkings: (v) => {

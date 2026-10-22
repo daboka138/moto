@@ -121,6 +121,7 @@ function TripRow({ trip }: { trip: TripSummary }) {
       title: trip.destination,
       options: [
         ...(trip.hasTrack !== false ? [{ label: 'Ta sortie (récap à partager)', icon: 'flag-outline' as const, onPress: openOuting }] : []),
+        ...(trip.hasTrack ? [{ label: 'Noter une portion de route', icon: 'star-outline' as const, onPress: () => router.push({ pathname: '/road/new', params: { trip: trip.id } }) }] : []),
         ...(trip.hasTrack && canUse('gpx') ? [{ label: 'Exporter en GPX', onPress: exportGpx }] : []),
         { label: 'Supprimer ce trajet', destructive: true, onPress: () => deleteTrip(trip.id) },
       ],
