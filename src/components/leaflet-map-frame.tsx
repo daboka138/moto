@@ -22,7 +22,7 @@ type WebMessage =
   | { type: 'marker'; id: string }
   | { type: 'pin'; id: string }
   | { type: 'markers'; count: number }
-  | { type: 'beep'; ok: boolean }
+  | { type: 'beep'; ok: boolean; soft?: boolean }
   | { type: 'view'; latitude: number; longitude: number; zoom: number }
   | { type: 'perf'; fps: number; workMs: number; worstMs: number }
   | { type: 'error'; message: string };
@@ -45,6 +45,7 @@ export function LeafletFrameMap({
   onMapLongPress,
   onMarkersRendered,
   beepKey = 0,
+  chimeKey = 0,
   onBeepFailed,
   onViewChange,
   defaultView,
@@ -160,6 +161,11 @@ export function LeafletFrameMap({
     webRef.current?.injectJavaScript(`window.beep && window.beep(); true;`);
   }, [pageLoads, beepKey]);
 
+  useEffect(() => {
+    if (!pageLoads || !chimeKey) return;
+    webRef.current?.injectJavaScript(`window.beep && window.beep(true); true;`);
+  }, [pageLoads, chimeKey]);
+
   const onMessage = (data: string) => {
     let msg: WebMessage;
     try {
@@ -178,7 +184,7 @@ export function LeafletFrameMap({
     else if (msg.type === 'marker') onMarkerPress?.(msg.id);
     else if (msg.type === 'pin') onPinPress?.(msg.id);
     else if (msg.type === 'markers') onMarkersRendered?.(msg.count);
-    else if (msg.type === 'beep' && !msg.ok) onBeepFailed?.();
+    else if (msg.type === 'beep' && !msg.ok && !msg.soft) onBeepFailed?.();
     else if (msg.type === 'view') onViewChange?.({ latitude: msg.latitude, longitude: msg.longitude }, msg.zoom);
     else if (msg.type === 'perf') reportMapPerf(msg);
     else if (msg.type === 'error') console.warn('[carte]', msg.message);

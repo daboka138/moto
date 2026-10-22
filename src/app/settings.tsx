@@ -444,8 +444,22 @@ function VoiceSection() {
           onChange={(v) => updateVoiceSettings({ speedLimit: v })}
         />
         <SwitchRow
+          label="Annoncer les changements de limitation"
+          description="En navigation : « Limitation à 50. » une seule fois en entrant sur la nouvelle limitation, « Bientôt limitation à 50. » juste avant une baisse. Rien si la limitation est inconnue."
+          value={voice.limitChanges}
+          onChange={(v) => updateVoiceSettings({ limitChanges: v })}
+        />
+        {voice.limitChanges && (
+          <SwitchRow
+            label="Signal sonore si la voix est coupée"
+            description="Petite note discrète à la place de l’annonce quand le son du guidage est coupé."
+            value={voice.limitChime}
+            onChange={(v) => updateVoiceSettings({ limitChime: v })}
+          />
+        )}
+        <SwitchRow
           label="Alerte de dépassement"
-          description="Compteur en rouge et petit bip quand tu dépasses la limitation."
+          description="Compteur en rouge et petit bip quand tu dépasses la limitation. Jamais par-dessus une annonce vocale, et pas tout de suite après un changement de limitation (le temps de ralentir)."
           value={voice.speedAlert}
           onChange={(v) => updateVoiceSettings({ speedAlert: v })}
         />

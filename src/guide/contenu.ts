@@ -318,15 +318,16 @@ export const FICHES: Fiche[] = [
     etapes: [
       'Le compteur en haut à gauche de la Carte affiche ta vitesse GPS.',
       'Pendant la navigation, le panneau rond de limitation (comme sur la route) s’affiche à côté. Limitation inconnue : rien d’affiché, l’appli ne devine jamais.',
-      'Au-dessus de la limite, le compteur passe en rouge avec un petit bip.',
-      'Règle-le dans Profil › ⚙️ Paramètres › Voix et alertes (Limitation de vitesse, Alerte de dépassement).',
+      'Quand la limitation change, le panneau clignote deux fois et la voix dit « Limitation à 50. » (une seule fois). Avant une baisse, elle prévient 100 à 200 m avant : « Bientôt limitation à 50. » Son du guidage coupé : une petite note discrète à la place.',
+      'Au-dessus de la limite, le compteur passe en rouge avec un petit bip (jamais par-dessus une annonce, et seulement quelques secondes après un changement, le temps de ralentir).',
+      'Rien à toucher en roulant, tout est automatique. Règle-le dans Profil › ⚙️ Paramètres › Voix et alertes (Limitation de vitesse, Annoncer les changements de limitation, Alerte de dépassement).',
     ],
     limites: [
-      'Limitations issues d’OpenStreetMap : pas toujours connues ni à jour. Les panneaux font foi.',
+      'Limitations issues d’OpenStreetMap : pas toujours connues ni à jour. Les panneaux font foi. Les portions très courtes (moins de 150 m) sont ignorées.',
       'Ta vitesse reste privée : jamais montrée aux autres (carte, convoi, profil, partage, points).',
     ],
     android: true,
-    motsCles: ['compteur', 'km/h', 'bip', 'dépassement'],
+    motsCles: ['compteur', 'km/h', 'bip', 'dépassement', 'limitation', 'annonce', 'panneau'],
   },
   {
     id: 'voix',

@@ -73,7 +73,8 @@ import { createReport, deleteReport, reportAge, reportInfo, setReportType, voteR
 import { fetchRide, RIDE_ROLES, setRegroupPoint, type RideSummary } from '@/lib/rides';
 import { reverseGeocode } from '@/lib/search';
 import { useSession } from '@/lib/session';
-import { useRouteSpeedLimit, useSpeedLimit } from '@/lib/speed-limit';
+import { useLimitChangeAlerts } from '@/lib/limit-changes';
+import { useRouteSpeedLimit, useSpeedLimit, type LimitRun } from '@/lib/speed-limit';
 import { signalMapReady, startupMark, useStartupDone, whenStartupDone } from '@/lib/startup';
 import { recordNavEngine, setNavEnginePref, useNavEnginePref } from '@/lib/nav-engine';
 import { AUTO_RECENTER_MS, routeBearingAt } from '@/lib/nav-view';
@@ -85,7 +86,7 @@ import { useNavigation } from '@/lib/use-navigation';
 import { useNavZoom } from '@/lib/use-nav-view';
 import { useUpcomingRides } from '@/lib/use-rides';
 import { useRoadReports } from '@/lib/use-road-reports';
-import { speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
+import { isSpeaking, speak, updateVoiceSettings, useVoiceSettings } from '@/lib/voice';
 import { roundedNow, spokenWeatherAlert, useNavWeather, useRouteWeather } from '@/lib/weather';
 import { ReportIcon, ZoneIcon } from '@/components/map-icon';
 
@@ -112,6 +113,11 @@ const UNDO_MS = 5000;
 const SPEED_MARGIN_KMH = 3;
 /** Toujours au-dessus de la limitation : nouveau bip toutes les 20 s */
 const SPEED_BEEP_REPEAT_MS = 20_000;
+/** Après un changement de limitation, premier bip de dépassement au plus tôt 8 s plus tard */
+const SPEED_BEEP_GRACE_MS = 8000;
+/** Voix occupée : bip reporté */
+const SPEED_BEEP_BUSY_RETRY_MS = 1500;
+const NO_LIMIT_RUNS: LimitRun[] = [];
 const KEEP_AWAKE_TAG = 'navigation';
 // v2 : l'ancienne clé gardait souvent « nord en haut » choisi par erreur (1er appui sur la boussole) ;
 // tout le monde repart en mode conduite, puis le choix est de nouveau mémorisé
@@ -428,8 +434,8 @@ export default function MapScreen() {
 
   // Limitation de vitesse de la route (OSM) ; dépassement : compteur rouge + bip
   // En navigation : limitations du tracé chargées d'avance par morceaux ; sinon (ou hors itinéraire) en direct
-  const limitWanted = voice.speedLimit || voice.speedAlert || (pointsOn && navigating);
-  const routeLimit = useRouteSpeedLimit(
+  const limitWanted = voice.speedLimit || voice.speedAlert || (navigating && (pointsOn || voice.limitChanges));
+  const { limit: routeLimit, runs: limitRuns } = useRouteSpeedLimit(
     navigating ? nav.route : null,
     nav.progress?.alongM ?? null,
     limitWanted && navigating && !nav.progress?.offRoute,
@@ -437,17 +443,39 @@ export default function MapScreen() {
   const liveLimit = useSpeedLimit(position, kmh, limitWanted && routeLimit === undefined);
   const speedLimit = routeLimit !== undefined ? routeLimit : liveLimit;
   const overLimit = voice.speedAlert && speedLimit !== null && kmh > speedLimit + SPEED_MARGIN_KMH;
+  // Changement de limitation : panneau animé + « Limitation à 50. » (signal discret si voix coupée)
+  const limitAlerts = useLimitChangeAlerts(navigating && voice.limitChanges, {
+    runs: navigating && !nav.progress?.offRoute ? limitRuns : NO_LIMIT_RUNS,
+    alongM: nav.progress?.alongM ?? null,
+    position,
+    kmh,
+    live: routeLimit === undefined ? liveLimit : null,
+  });
+  const lastLimitChangeAt = limitAlerts.lastChangeAt;
   const [beepKey, setBeepKey] = useState(0);
   useEffect(() => {
     if (!overLimit) return;
-    const beep = () => setBeepKey((k) => k + 1);
-    const first = setTimeout(beep, 0);
+    // Jamais par-dessus une annonce (guidage > zone de danger > limitation > bip) ; juste après un
+    // changement de limitation, le temps de ralentir avant le premier bip
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const beep = () => {
+      isSpeaking().then((busy) => {
+        if (stopped) return;
+        if (busy) retry = setTimeout(beep, SPEED_BEEP_BUSY_RETRY_MS);
+        else setBeepKey((k) => k + 1);
+      });
+    };
+    const grace = Math.max(0, lastLimitChangeAt() + SPEED_BEEP_GRACE_MS - Date.now());
+    const first = setTimeout(beep, grace);
     const timer = setInterval(beep, SPEED_BEEP_REPEAT_MS);
     return () => {
+      stopped = true;
       clearTimeout(first);
+      clearTimeout(retry);
       clearInterval(timer);
     };
-  }, [overLimit]);
+  }, [overLimit, lastLimitChangeAt]);
 
   // Km propres et trajet sans téléphone, envoyés à la fin de la navigation (plafonnés par le serveur)
   const { onTouch: onDrivingTouch, snapshot: drivingSnapshot } = useGoodDrivingTracker(navigating && pointsOn, position, kmh, speedLimit);
@@ -1403,6 +1431,7 @@ export default function MapScreen() {
         // Pas d'appui long en navigation : on ne manipule pas la carte en roulant
         onMapLongPress={navigating ? undefined : onLongPress}
         beepKey={beepKey}
+        chimeKey={limitAlerts.chimeKey}
         // Son bloqué par la page : alerte vocale à la place du bip
         onBeepFailed={() => speak('Vitesse', true, 'info')}
         pins={pins}
@@ -1473,7 +1502,7 @@ export default function MapScreen() {
               )}
             </>
           }
-          speed={<Speedometer compact kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />}
+          speed={<Speedometer compact kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} pulseKey={limitAlerts.pulseKey} />}
           status={
             ghost || homecoming || simulating ? (
               <>
@@ -1543,7 +1572,7 @@ export default function MapScreen() {
 
           <View style={styles.top} pointerEvents="box-none">
             <View style={styles.left} pointerEvents="box-none">
-              <Speedometer kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} />
+              <Speedometer kmh={kmh} limit={voice.speedLimit ? speedLimit : null} over={overLimit} pulseKey={limitAlerts.pulseKey} />
               <Pressable
                 style={[styles.ghostButton, ghost && styles.ghostButtonOn]}
                 onPress={onGhostPress}

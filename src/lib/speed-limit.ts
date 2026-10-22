@@ -91,6 +91,7 @@ const AHEAD_M = 5_000;
 const CHUNK_SPACING_M = 30;
 const CHUNK_MAX_POINTS = 600;
 const RETRY_MS = 30_000;
+const NO_RUNS: LimitRun[] = [];
 
 type RouteShape = { points: LatLng[]; cumulative: number[]; distanceM: number };
 
@@ -164,10 +165,15 @@ export function limitRuns(
 }
 
 /**
- * Limitation à ma position sur l'itinéraire : nombre, null (route sans limitation connue : rien
+ * Limitation à ma position sur l'itinéraire (limit) : nombre, null (route sans limitation connue : rien
  * d'affiché) ou undefined (morceau pas encore chargé : utiliser la limitation en direct).
+ * runs : portions déjà chargées (annonce des changements à venir).
  */
-export function useRouteSpeedLimit(route: RouteShape | null, alongM: number | null, enabled: boolean): number | null | undefined {
+export function useRouteSpeedLimit(
+  route: RouteShape | null,
+  alongM: number | null,
+  enabled: boolean,
+): { limit: number | null | undefined; runs: LimitRun[] } {
   // Limitations chargées (affichage) ; suivi des requêtes dans une ref (effets seulement)
   const [loaded, setLoaded] = useState<{ route: RouteShape | null; runs: LimitRun[] }>({ route: null, runs: [] });
   const fetching = useRef<{ route: RouteShape | null; to: number; busy: boolean; retryAt: number }>({
@@ -200,7 +206,7 @@ export function useRouteSpeedLimit(route: RouteShape | null, alongM: number | nu
       });
   }, [enabled, route, along500]);
 
-  if (!enabled || !route || alongM === null || loaded.route !== route) return undefined;
+  if (!enabled || !route || alongM === null || loaded.route !== route) return { limit: undefined, runs: NO_RUNS };
   const run = loaded.runs.find((r) => alongM >= r.fromM && alongM < r.toM);
-  return run ? run.limit : undefined;
+  return { limit: run ? run.limit : undefined, runs: loaded.runs };
 }

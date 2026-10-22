@@ -70,6 +70,8 @@ export type MapProps = {
   onMarkersRendered?: (count: number) => void;
   /** Incrémenter pour jouer un petit bip (dépassement de vitesse) */
   beepKey?: number;
+  /** Incrémenter pour jouer un signal discret (changement de limitation, voix coupée) */
+  chimeKey?: number;
   /** Le bip n'a pas pu être joué (son bloqué par la page) */
   onBeepFailed?: () => void;
   /** Centre et zoom de la carte après un déplacement (signalements, parkings moto de la zone) */

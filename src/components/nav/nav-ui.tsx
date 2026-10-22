@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, PanResponder, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, PanResponder, Pressable, Text, View } from 'react-native';
 
 import { BottomSheet } from '@/components/nav/bottom-sheet';
 import { WeatherAlerts, WeatherStrip } from '@/components/weather-strip';
@@ -680,9 +680,34 @@ function ActionButton({
   );
 }
 
-/** Compteur de vitesse et panneau de limitation ; rouge si je dépasse. */
-export function Speedometer({ kmh, limit, over, compact }: { kmh: number; limit: number | null; over: boolean; compact?: boolean }) {
+/** Compteur de vitesse et panneau de limitation ; rouge si je dépasse. pulseKey : nouvelle limitation (panneau animé 2 fois) */
+export function Speedometer({
+  kmh,
+  limit,
+  over,
+  compact,
+  pulseKey = 0,
+}: {
+  kmh: number;
+  limit: number | null;
+  over: boolean;
+  compact?: boolean;
+  pulseKey?: number;
+}) {
   const styles = useStyles();
+  const [pulse] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!pulseKey) return;
+    const step = (toValue: number) => Animated.timing(pulse, { toValue, duration: toValue ? 180 : 220, useNativeDriver: true });
+    pulse.setValue(0);
+    const anim = Animated.sequence([step(1), step(0), step(1), step(0)]);
+    anim.start();
+    return () => anim.stop();
+  }, [pulseKey, pulse]);
+  const pulseStyle = {
+    transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] }) }],
+    opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.75] }),
+  };
   return (
     <View style={styles.speedRow}>
       <View style={[styles.speed, compact && styles.speedCompact, over && styles.speedOver]}>
@@ -690,13 +715,13 @@ export function Speedometer({ kmh, limit, over, compact }: { kmh: number; limit:
         <Text style={styles.speedUnit}>km/h</Text>
       </View>
       {limit !== null && (
-        <View style={[styles.limitRim, compact && styles.limitRimCompact]} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
+        <Animated.View style={[styles.limitRim, compact && styles.limitRimCompact, pulseStyle]} accessibilityLabel={`Limitation ${limit} kilomètres heure`}>
           <View style={[styles.limit, compact && styles.limitCompact]}>
             <Text style={[styles.limitText, limit >= 100 && styles.limitText3, compact && styles.limitTextCompact, compact && limit >= 100 && styles.limitText3Compact]}>
               {limit}
             </Text>
           </View>
-        </View>
+        </Animated.View>
       )}
     </View>
   );
@@ -887,10 +912,10 @@ const useStyles = makeStyles((Colors) => ({
   // Navigation : compteur compact, panneau collé à côté
   speedCompact: { paddingHorizontal: 10, paddingVertical: 4, minWidth: 64 },
   speedValueCompact: { fontSize: 28, lineHeight: 32, fontWeight: '700' },
-  limitRimCompact: { width: 50, height: 50, borderRadius: 25 },
-  limitCompact: { borderRadius: 23, borderWidth: 6 },
-  limitTextCompact: { fontFamily: Fonts.title, fontSize: 21 },
-  limitText3Compact: { fontFamily: Fonts.title, fontSize: 17 },
+  limitRimCompact: { width: 58, height: 58, borderRadius: 29 },
+  limitCompact: { borderRadius: 27, borderWidth: 7 },
+  limitTextCompact: { fontFamily: Fonts.title, fontSize: 25 },
+  limitText3Compact: { fontFamily: Fonts.title, fontSize: 20 },
   speedValue: { color: Colors.white, fontSize: 36, fontWeight: '700', fontVariant: ['tabular-nums'] },
   speedUnit: { color: Colors.white, fontSize: Type.small, opacity: 0.8 },
   // Panneau rond de limitation façon panneau officiel (B14) : couronne rouge, fond blanc, chiffres noirs,

@@ -630,38 +630,41 @@ export function buildLeafletHtml(Colors: Palette, dark: boolean) {
     });
   };
 
-  // Petit bip (deux tonalités courtes), joué par la page : pas de module son natif
+  // Petit bip (deux tonalités courtes), joué par la page : pas de module son natif.
+  // soft = signal discret d'un changement de limitation (une note douce, voix coupée)
   var audioCtx = null;
-  window.beep = function () {
+  window.beep = function (soft) {
+    soft = !!soft;
     try {
       var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return post({ type: 'beep', ok: false });
+      if (!AC) return post({ type: 'beep', ok: false, soft: soft });
       if (!audioCtx) audioCtx = new AC();
       var done = false;
       var play = function () {
         if (done) return;
         done = true;
         var t = audioCtx.currentTime;
-        [0, 0.2].forEach(function (d) {
+        (soft ? [0] : [0, 0.2]).forEach(function (d) {
           var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          var len = soft ? 0.35 : 0.15;
           o.type = 'sine';
-          o.frequency.value = 1320;
+          o.frequency.value = soft ? 880 : 1320;
           g.gain.setValueAtTime(0.0001, t + d);
-          g.gain.exponentialRampToValueAtTime(0.7, t + d + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.15);
+          g.gain.exponentialRampToValueAtTime(soft ? 0.3 : 0.7, t + d + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + d + len);
           o.connect(g);
           g.connect(audioCtx.destination);
           o.start(t + d);
-          o.stop(t + d + 0.17);
+          o.stop(t + d + len + 0.02);
         });
-        post({ type: 'beep', ok: true });
+        post({ type: 'beep', ok: true, soft: soft });
       };
       if (audioCtx.state === 'running') return play();
       audioCtx.resume().then(play, function () {});
       // Son refusé (pas encore de toucher sur la page) : l'app prend le relais
-      setTimeout(function () { if (!done) { done = true; post({ type: 'beep', ok: false }); } }, 600);
+      setTimeout(function () { if (!done) { done = true; post({ type: 'beep', ok: false, soft: soft }); } }, 600);
     } catch (e) {
-      post({ type: 'beep', ok: false });
+      post({ type: 'beep', ok: false, soft: soft });
     }
   };
 

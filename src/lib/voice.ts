@@ -28,6 +28,10 @@ export type VoiceSettings = {
   speedLimit: boolean;
   /** Dépassement de la limitation : compteur en rouge + bip */
   speedAlert: boolean;
+  /** Navigation : annonce « Limitation à 50. » quand la limitation change (et « Bientôt… » avant une baisse) */
+  limitChanges: boolean;
+  /** Voix coupée : signal sonore discret à la place de l'annonce de limitation */
+  limitChime: boolean;
   /** Alertes moto en navigation (voix + bandeau), désactivables une par une */
   curveAlerts: boolean;
   sunAlerts: boolean;
@@ -71,6 +75,8 @@ const DEFAULTS: VoiceSettings = {
   muted: false,
   speedLimit: true,
   speedAlert: true,
+  limitChanges: true,
+  limitChime: true,
   curveAlerts: true,
   sunAlerts: true,
   weatherAlerts: true,
@@ -366,6 +372,28 @@ export function speak(text: string, urgent = false, kind: SpeechKind = 'info') {
   if (kind === 'guidance' && !settings.guidance) return;
   if (kind === 'danger' && !settings.dangers) return;
   say(text, urgent);
+}
+
+/** Une annonce est-elle en cours (ou en file) ? */
+export function isSpeaking(): Promise<boolean> {
+  return Speech.isSpeakingAsync().catch(() => false);
+}
+
+/**
+ * Annonce de moindre priorité (limitation de vitesse) : lue seulement quand plus rien n'est en cours
+ * (guidage, zone de danger d'abord), abandonnée si la voix reste occupée plus de maxWaitMs.
+ */
+export function speakWhenFree(text: string, maxWaitMs = 6000) {
+  if (settings.muted) return;
+  const t0 = Date.now();
+  const tryNow = () => {
+    isSpeaking().then((busy) => {
+      if (settings.muted) return;
+      if (!busy) say(text, false);
+      else if (Date.now() - t0 < maxWaitMs) setTimeout(tryNow, 500);
+    });
+  };
+  tryNow();
 }
 
 /** Bouton « Tester la voix » : joue toujours, même en muet, avec le débit et le volume choisis. */
