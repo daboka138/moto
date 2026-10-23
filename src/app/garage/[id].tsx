@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { showActionSheet } from '@/components/action-sheet';
@@ -53,6 +53,49 @@ const fromIsoDay = (s: string) => new Date(`${s}T12:00:00`);
 const frDay = (s: string) => fromIsoDay(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const euros = (n: number) => `${n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
 
+type Status = { ok: boolean; text: string } | null;
+
+/** Résultat d'un enregistrement affiché sous le bouton : succès 4 s, erreur jusqu'au prochain essai (jamais d'échec silencieux) */
+function useSaveStatus() {
+  const [status, setStatus] = useState<Status>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  const show = (next: Status) => {
+    if (timer.current) clearTimeout(timer.current);
+    setStatus(next);
+    if (next?.ok) timer.current = setTimeout(() => setStatus(null), 4000);
+  };
+  return {
+    status,
+    clear: () => show(null),
+    ok: (text: string) => show({ ok: true, text }),
+    fail: (e: unknown) => show({ ok: false, text: typeof e === 'string' ? e : errorMessage(e) }),
+  };
+}
+
+function SaveStatus({ status }: { status: Status }) {
+  const Colors = useColors();
+  const styles = useStyles();
+  if (!status) return null;
+  return (
+    <View
+      style={[
+        styles.status,
+        { backgroundColor: status.ok ? Colors.successSoft : Colors.background, borderColor: status.ok ? Colors.success : Colors.danger },
+      ]}>
+      {!status.ok && <Ionicons name="alert-circle" size={20} color={Colors.danger} />}
+      <Text style={[styles.statusText, { color: status.ok ? Colors.successDark : Colors.danger }]} accessibilityLiveRegion="polite">
+        {status.text}
+      </Text>
+    </View>
+  );
+}
+
 /**
  * Fiche garage d'une moto : compteur, carburant, rappels d'entretien, carnet.
  * Carnet et rappels : moto principale seulement (le multi-motos est prévu en premium) ; sur une
@@ -84,8 +127,8 @@ function MotoGarageScreenContent() {
           {[moto.brand, moto.model, moto.year ? String(moto.year) : null].filter(Boolean).join(' · ')}
           {moto.is_main ? ' · moto principale' : ''}
         </Text>
-        {/* Remonté quand les données arrivent : les champs repartent des valeurs enregistrées */}
-        <CounterSection key={all ? `g-${data.garage?.odometerKm}-${data.garage?.fillOdometerKm}` : 'loading'} motoId={id} garage={data.garage} />
+        {/* Remonté une seule fois, quand les données arrivent (jamais pendant la saisie : ça effaçait les champs) */}
+        <CounterSection key={all ? 'ready' : 'loading'} motoId={id} garage={data.garage} />
         {!editable && (
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={20} color={Colors.accentOnSoft} />
@@ -111,23 +154,27 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
   const [rangeKm, setRangeKm] = useState(garage?.rangeKm ? String(garage.rangeKm) : '');
   const [fuelType, setFuelType] = useState<FuelType | null>(garage?.fuelType ?? null);
   const [saving, setSaving] = useState(false);
+  const result = useSaveStatus();
   const range = fuelRange(garage);
 
   const save = async () => {
+    if (saving) return;
     const o = num(odometer);
     const t = num(tank);
     const c = num(conso);
     const r = num(rangeKm);
     const errors: string[] = [];
     if (r !== null && (Number.isNaN(r) || r < 20 || r > 1500)) errors.push('Autonomie : entre 20 et 1 500 km.');
-    if (o === null || Number.isNaN(o) || o < 0 || o > 2_000_000) errors.push('Kilométrage invalide.');
+    if (o === null) errors.push('Indique le kilométrage actuel.');
+    else if (Number.isNaN(o) || o < 0 || o > 2_000_000) errors.push('Kilométrage invalide (chiffres seulement, ex. 12500).');
     if (t !== null && (Number.isNaN(t) || t <= 0 || t > 60)) errors.push('Réservoir : entre 1 et 60 litres.');
     if (c !== null && (Number.isNaN(c) || c <= 0 || c > 30)) errors.push('Consommation : entre 1 et 30 L/100 km.');
     if (errors.length) {
-      Alert.alert('À corriger', errors.join('\n'));
+      result.fail(errors.join('\n'));
       return;
     }
     setSaving(true);
+    result.clear();
     try {
       await saveGarage(motoId, {
         odometerKm: Math.round(o!),
@@ -138,25 +185,21 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
         // Premier enregistrement : on considère le plein fait maintenant
         ...(garage?.fillOdometerKm == null && (t !== null || r !== null) ? { fillOdometerKm: Math.round(o!), fillLevel: 1 } : {}),
       });
+      result.ok('✅ Moto enregistrée');
     } catch (e) {
-      Alert.alert('Enregistrement impossible', e instanceof Error ? e.message : String(e));
+      result.fail(e);
     } finally {
       setSaving(false);
     }
-  };
-
-  // Carburant : enregistré tout de suite (facultatif, sans compteur ni réservoir)
-  const chooseFuel = (f: FuelType | null) => {
-    setFuelType(f);
-    saveGarage(motoId, { fuelType: f }).catch((e) => Alert.alert('Oups', e instanceof Error ? e.message : String(e)));
   };
 
   const filled = async () => {
     if (!garage) return;
     try {
       await markFilled(garage);
+      result.ok('✅ Plein noté');
     } catch (e) {
-      Alert.alert('Plein', e instanceof Error ? e.message : String(e));
+      result.fail(e);
     }
   };
 
@@ -182,10 +225,11 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
       <Text style={styles.hint}>Carburant (prix mis en avant sur la carte et sur ton trajet)</Text>
       <View style={styles.chips}>
         {FUEL_TYPES.map((f) => (
-          <Chip key={f.value} label={f.label} selected={fuelType === f.value} onPress={() => chooseFuel(fuelType === f.value ? null : f.value)} />
+          <Chip key={f.value} label={f.label} selected={fuelType === f.value} onPress={() => setFuelType(fuelType === f.value ? null : f.value)} />
         ))}
       </View>
-      <Button title="Enregistrer" variant="secondary" loading={saving} onPress={save} />
+      <Button title="Enregistrer" variant="secondary" loading={saving} loadingTitle="Enregistrement…" onPress={save} />
+      <SaveStatus status={result.status} />
       {range && (
         <View style={styles.fuel}>
           <Ionicons name="speedometer" size={22} color={Colors.accent} />
@@ -214,6 +258,7 @@ function CounterSection({ motoId, garage }: { motoId: string; garage: Garage | n
 function PlansSection({ motoId, plans, odometerKm, editable }: { motoId: string; plans: MaintenancePlan[]; odometerKm: number | null; editable: boolean }) {
   const styles = useStyles();
   const [adding, setAdding] = useState<PlanKind | null>(null);
+  const result = useSaveStatus();
   const order = (p: MaintenancePlan) => ['due', 'soon', 'ok'].indexOf(planStatus(p, odometerKm).level);
   const sorted = [...plans].sort((a, b) => order(a) - order(b));
   const free = PLAN_KINDS.filter((k) => !plans.some((p) => p.kind === k));
@@ -228,9 +273,10 @@ function PlansSection({ motoId, plans, odometerKm, editable }: { motoId: string;
     <Section title="Rappels d’entretien">
       {sorted.length === 0 && !adding && <Text style={styles.muted}>Aucun rappel. Ajoute-en un : vidange, pneus, chaîne, contrôle technique…</Text>}
       {sorted.map((p) => (
-        <PlanRow key={p.id} motoId={motoId} kind={p.kind} plan={p} odometerKm={odometerKm} editable={editable} />
+        <PlanRow key={p.id} motoId={motoId} kind={p.kind} plan={p} odometerKm={odometerKm} editable={editable} onSaved={result.ok} />
       ))}
-      {adding && <PlanRow key={`new-${adding}`} motoId={motoId} kind={adding} plan={null} odometerKm={odometerKm} editable startOpen onDone={() => setAdding(null)} />}
+      {adding && <PlanRow key={`new-${adding}`} motoId={motoId} kind={adding} plan={null} odometerKm={odometerKm} editable startOpen onDone={() => setAdding(null)} onSaved={result.ok} />}
+      <SaveStatus status={result.status} />
       {editable && !adding && free.length > 0 && <Button title="Ajouter un rappel" icon="alarm-outline" variant="secondary" onPress={choose} />}
       <Text style={styles.hint}>
         Notification 500 km ou 15 jours avant (30 jours pour le contrôle technique et l’assurance), puis le jour J. Intervalles indicatifs :
@@ -248,6 +294,7 @@ function PlanRow({
   editable,
   startOpen,
   onDone,
+  onSaved,
 }: {
   motoId: string;
   kind: PlanKind;
@@ -256,6 +303,8 @@ function PlanRow({
   editable: boolean;
   startOpen?: boolean;
   onDone?: () => void;
+  /** Succès : message montré par la section (la ligne se referme) */
+  onSaved: (text: string) => void;
 }) {
   const Colors = useColors();
   const styles = useStyles();
@@ -273,6 +322,7 @@ function PlanRow({
     return d;
   });
   const [saving, setSaving] = useState(false);
+  const result = useSaveStatus();
   const status = plan ? planStatus(plan, odometerKm) : null;
 
   const close = () => {
@@ -281,6 +331,7 @@ function PlanRow({
   };
 
   const save = async () => {
+    if (saving) return;
     const k = info.dueDate ? null : num(everyKm);
     const m = num(everyMonths);
     const b = info.dueDate ? null : num(baseKm);
@@ -290,10 +341,11 @@ function PlanRow({
     if (m !== null && (Number.isNaN(m) || m < 1 || m > 120)) errors.push('Intervalle : entre 1 et 120 mois.');
     if (b !== null && (Number.isNaN(b) || b < 0)) errors.push('Kilométrage du dernier entretien invalide.');
     if (errors.length) {
-      Alert.alert('À corriger', errors.join('\n'));
+      result.fail(errors.join('\n'));
       return;
     }
     setSaving(true);
+    result.clear();
     try {
       await savePlan(motoId, kind, {
         everyKm: k === null ? null : Math.round(k),
@@ -303,8 +355,9 @@ function PlanRow({
         dueOn: info.dueDate ? isoDay(dueOn) : null,
       });
       close();
+      onSaved(plan ? '✅ Rappel enregistré' : '✅ Rappel ajouté');
     } catch (e) {
-      Alert.alert('Rappel', errorMessage(e));
+      result.fail(e);
     } finally {
       setSaving(false);
     }
@@ -315,8 +368,9 @@ function PlanRow({
     try {
       await deletePlan(plan.id);
       close();
+      onSaved('✅ Rappel supprimé');
     } catch (e) {
-      Alert.alert('Rappel', errorMessage(e));
+      result.fail(e);
     }
   };
 
@@ -367,7 +421,8 @@ function PlanRow({
               </View>
             </>
           )}
-          <Button title="Enregistrer le rappel" loading={saving} onPress={save} />
+          <Button title="Enregistrer le rappel" loading={saving} loadingTitle="Enregistrement…" onPress={save} />
+          <SaveStatus status={result.status} />
           {plan ? <Button title="Supprimer le rappel" variant="ghost" onPress={remove} /> : <Button title="Annuler" variant="ghost" onPress={close} />}
         </View>
       )}
@@ -409,6 +464,7 @@ function LogSection({
   const [viewing, setViewing] = useState<string | null>(null);
   // Facture envoyée pendant cette saisie (effacée si on annule)
   const [uploaded, setUploaded] = useState<string | null>(null);
+  const result = useSaveStatus();
 
   const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
 
@@ -454,15 +510,16 @@ function LogSection({
   };
 
   const save = async () => {
-    if (!draft) return;
+    if (!draft || saving) return;
     const k = num(draft.km);
     const c = num(draft.cost);
     if ((k !== null && (Number.isNaN(k) || k < 0 || k > 2_000_000)) || (c !== null && (Number.isNaN(c) || c < 0 || c > 999_999))) {
-      Alert.alert('À corriger', 'Kilométrage ou coût invalide.');
+      result.fail('Kilométrage ou coût invalide (chiffres seulement).');
       return;
     }
     const before = draft.id ? records.find((r) => r.id === draft.id) : null;
     setSaving(true);
+    result.clear();
     try {
       await saveRecord({
         id: draft.id,
@@ -482,13 +539,20 @@ function LogSection({
         const km = Math.round(k);
         Alert.alert('Compteur', `Mettre le compteur à ${km.toLocaleString('fr-FR')} km ?`, [
           { text: 'Non', style: 'cancel' },
-          { text: 'Oui', onPress: () => saveGarage(motoId, { odometerKm: km }).catch((e) => Alert.alert('Oups', errorMessage(e))) },
+          {
+            text: 'Oui',
+            onPress: () =>
+              saveGarage(motoId, { odometerKm: km })
+                .then(() => result.ok('✅ Compteur mis à jour'))
+                .catch((e) => result.fail(e)),
+          },
         ]);
       }
       setUploaded(null);
       setDraft(null);
+      result.ok(draft.id ? '✅ Entretien modifié' : '✅ Entretien ajouté au carnet');
     } catch (e) {
-      Alert.alert('Carnet', errorMessage(e));
+      result.fail(e);
     } finally {
       setSaving(false);
     }
@@ -507,7 +571,14 @@ function LogSection({
           onPress: () =>
             Alert.alert('Supprimer cet entretien ?', 'La photo de la facture est effacée aussi.', [
               { text: 'Annuler', style: 'cancel' },
-              { text: 'Supprimer', style: 'destructive', onPress: () => deleteRecord(r).catch((e) => Alert.alert('Carnet', errorMessage(e))) },
+              {
+                text: 'Supprimer',
+                style: 'destructive',
+                onPress: () =>
+                  deleteRecord(r)
+                    .then(() => result.ok('✅ Entretien supprimé'))
+                    .catch((e) => result.fail(e)),
+              },
             ]),
         },
       ],
@@ -560,11 +631,15 @@ function LogSection({
           ) : (
             <Button title="Photo de la facture" icon="camera-outline" variant="secondary" loading={uploading} onPress={addInvoice} />
           )}
-          <Button title={draft.id ? 'Enregistrer' : 'Ajouter au carnet'} loading={saving} disabled={uploading} onPress={save} />
+          <Button title={draft.id ? 'Enregistrer' : 'Ajouter au carnet'} loading={saving} loadingTitle="Enregistrement…" disabled={uploading} onPress={save} />
+          <SaveStatus status={result.status} />
           <Button title="Annuler" variant="ghost" onPress={cancel} />
         </View>
       ) : (
-        editable && <Button title="Noter un entretien" icon="add" variant="secondary" onPress={start} />
+        <>
+          {editable && <Button title="Noter un entretien" icon="add" variant="secondary" onPress={start} />}
+          <SaveStatus status={result.status} />
+        </>
       )}
       {records.length === 0 ? (
         <Text style={styles.muted}>Aucun entretien noté pour l’instant.</Text>
@@ -669,6 +744,8 @@ const useStyles = makeStyles((Colors) => ({
   totals: { gap: 4, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between' },
   totalValue: { fontSize: Type.body, fontWeight: '800', color: Colors.text, fontVariant: ['tabular-nums'] },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: Radius.md, padding: 12 },
+  statusText: { flex: 1, fontSize: Type.body, fontWeight: '700' },
   viewer: { flex: 1, backgroundColor: Colors.viewerBackdrop, alignItems: 'center', justifyContent: 'center' },
   viewerImage: { width: '100%', height: '100%' },
   viewerClose: { position: 'absolute', top: 48, right: 16, padding: 4 },

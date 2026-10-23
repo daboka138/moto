@@ -336,7 +336,7 @@ export function ProfileForm({ userId, profile, identity, submitLabel, onSaved, h
             </View>
           </View>
         )}
-        <Button title={saveError ? 'Réessayer' : submitLabel} onPress={submit} loading={saving} />
+        <Button title={saveError ? 'Réessayer' : submitLabel} onPress={submit} loading={saving} loadingTitle="Enregistrement…" />
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -14,10 +14,12 @@ type ButtonProps = {
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   loading?: boolean;
+  /** Libellé affiché à côté de la roue pendant l'envoi (« Enregistrement… ») */
+  loadingTitle?: string;
   disabled?: boolean;
 };
 
-export function Button({ title, icon, onPress, variant = 'primary', loading, disabled }: ButtonProps) {
+export function Button({ title, icon, onPress, variant = 'primary', loading, loadingTitle, disabled }: ButtonProps) {
   const Colors = useColors();
   const styles = useStyles();
   const inactive = disabled || loading;
@@ -31,7 +33,12 @@ export function Button({ title, icon, onPress, variant = 'primary', loading, dis
         styles[variant],
         (pressed || inactive) && { opacity: 0.6 },
       ]}>
-      {loading ? (
+      {loading && loadingTitle ? (
+        <View style={styles.buttonRow}>
+          <ActivityIndicator color={filled ? Colors.white : Colors.accent} />
+          <Text style={[styles.buttonText, !filled && { color: Colors.text }]}>{loadingTitle}</Text>
+        </View>
+      ) : loading ? (
         <ActivityIndicator color={filled ? Colors.white : Colors.accent} />
       ) : (
         <View style={styles.buttonRow}>

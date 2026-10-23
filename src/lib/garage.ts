@@ -228,9 +228,26 @@ export async function saveGarage(
     row.fill_odometer_km = patch.fillOdometerKm;
     row.filled_at = patch.fillOdometerKm === null ? null : new Date().toISOString();
   }
-  const { error } = await supabase.from('motorcycle_garage').upsert(row);
-  if (error) throw new Error(error.message);
-  await refreshGarage();
+  // .select() : une écriture refusée sans erreur (aucune ligne) ne passe jamais pour un succès
+  const { data, error } = await supabase.from('motorcycle_garage').upsert(row).select('motorcycle_id');
+  if (error) throw new Error(friendlyGarage(error.message));
+  if (!data?.length) throw new Error(NOT_SAVED);
+  await refreshAfterWrite();
+}
+
+const NOT_SAVED = 'Oups, le serveur n’a rien enregistré. Vérifie que cette moto est bien dans ton profil, puis réessaie.';
+
+/** Refus du serveur sur le compteur en clair */
+const friendlyGarage = (message: string) =>
+  message.includes('row-level security') ? 'Oups, cette moto n’est pas dans ton profil : enregistrement refusé.' : message;
+
+/** Après une écriture réussie : relecture qui ne fait jamais croire à un échec (sinon double saisie) */
+async function refreshAfterWrite() {
+  try {
+    await refreshGarage();
+  } catch (e) {
+    console.warn('Garage non relu', e);
+  }
 }
 
 /** Plein fait (ou niveau noté au départ) : la jauge repart du compteur actuel (+ km de la navigation en cours) */
@@ -243,7 +260,7 @@ export async function addMotorcycleKm(motorcycleId: string, km: number) {
   if (km <= 0) return;
   const { error } = await supabase.rpc('add_motorcycle_km', { moto: motorcycleId, km });
   if (error) throw error;
-  await refreshGarage();
+  await refreshAfterWrite();
 }
 
 export async function savePlan(
@@ -251,7 +268,7 @@ export async function savePlan(
   kind: PlanKind,
   p: { everyKm: number | null; everyMonths: number | null; baseKm: number | null; baseOn: string; dueOn?: string | null },
 ) {
-  const { error } = await supabase.from('maintenance_plans').upsert(
+  const { data, error } = await supabase.from('maintenance_plans').upsert(
     {
       motorcycle_id: motorcycleId,
       kind,
@@ -263,15 +280,16 @@ export async function savePlan(
       notified_key: null,
     },
     { onConflict: 'motorcycle_id,kind' },
-  );
+  ).select('id');
   if (error) throw new Error(friendly(error.message));
-  await refreshGarage();
+  if (!data?.length) throw new Error(NOT_SAVED);
+  await refreshAfterWrite();
 }
 
 export async function deletePlan(id: string) {
   const { error } = await supabase.from('maintenance_plans').delete().eq('id', id);
   if (error) throw error;
-  await refreshGarage();
+  await refreshAfterWrite();
 }
 
 /** Refus du serveur (carnet réservé à la moto principale) en clair */
@@ -290,18 +308,20 @@ export async function saveRecord(r: Omit<MaintenanceRecord, 'id'> & { id?: strin
     garage_name: r.garageName,
     invoice_path: r.invoicePath,
   };
-  const { error } = r.id
-    ? await supabase.from('maintenance_records').update(row).eq('id', r.id)
-    : await supabase.from('maintenance_records').insert(row);
+  // Une modification refusée par la RLS ne renvoie pas d'erreur, juste 0 ligne
+  const { data, error } = r.id
+    ? await supabase.from('maintenance_records').update(row).eq('id', r.id).select('id')
+    : await supabase.from('maintenance_records').insert(row).select('id');
   if (error) throw new Error(friendly(error.message));
-  await refreshGarage();
+  if (!data?.length) throw new Error(friendly('row-level security'));
+  await refreshAfterWrite();
 }
 
 export async function deleteRecord(r: Pick<MaintenanceRecord, 'id' | 'invoicePath'>) {
   const { error } = await supabase.from('maintenance_records').delete().eq('id', r.id);
   if (error) throw error;
   if (r.invoicePath) await removeInvoice(r.invoicePath);
-  await refreshGarage();
+  await refreshAfterWrite();
 }
 
 // ---------- Factures (bucket privé invoices, <uid>/…) ----------

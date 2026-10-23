@@ -276,8 +276,10 @@ export async function saveProfile(userId: string, draft: ProfileDraft, previous:
       category: moto.category ?? inferCategory(toIntOrNull(moto.displacement), moto.model),
     };
     if (moto.id) {
-      const { error: motoError } = await supabase.from('motorcycles').update(row).eq('id', moto.id);
+      // 0 ligne sans erreur = refus de la RLS : jamais un faux succès
+      const { data: updated, error: motoError } = await supabase.from('motorcycles').update(row).eq('id', moto.id).select('id');
       if (motoError) throw motoError;
+      if (!updated?.length) throw new Error('Oups, ta moto n’a pas pu être enregistrée. Recharge l’appli puis réessaie.');
       if (moto.key === mainKey) mainId = moto.id;
     } else {
       const { data, error: motoError } = await supabase.from('motorcycles').insert(row).select('id').single();
